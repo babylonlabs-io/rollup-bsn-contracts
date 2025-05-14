@@ -1,0 +1,8 @@
+[alias]
+unit-test = "test --lib --features full-validation"
+integration = "run-script integration"
+gen-schema = "run-script gen-schema"
+optimize = "run-script optimize"
+precommit = "run-script precommit"
+lint = "run-script lint"
+fix-lint = "run-script fix-lint"

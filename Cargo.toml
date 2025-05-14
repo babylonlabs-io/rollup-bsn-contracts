@@ -11,8 +11,6 @@ authors    = ["Babylon Labs Ltd. <admin@babylonlabs.io>"]
 publish    = false
 
 [workspace.metadata.scripts]
-gen-proto       = "./scripts/protocgen.sh"
-gen-data        = "go run datagen/*.go"
 gen-schema      = "./scripts/schema.sh"
 optimize        = "./scripts/optimizer.sh"
 precommit       = "./scripts/precommit.sh"
