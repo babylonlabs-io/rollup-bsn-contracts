@@ -1,0 +1,11 @@
+.idea/
+.csv
+.DS_Store
+.vscode/
+tmp/
+**/*.rs.bk
+target/
+*.iml
+.cargo-ok
+*.log
+artifacts/
