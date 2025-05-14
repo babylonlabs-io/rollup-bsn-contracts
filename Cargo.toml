@@ -1,5 +1,5 @@
 [workspace]
-members  = ["packages/*", "contracts/*"]
+members  = ["contracts/*"]
 resolver = "2"
 
 [workspace.package]
@@ -21,14 +21,19 @@ fix-lint        = "./scripts/fix-lint.sh"
 integration     = "./scripts/integration_test.sh"
 
 [workspace.dependencies]
+babylon-apis          = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
+babylon-bindings      = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
+babylon-bindings-test = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
+babylon-bitcoin       = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
+babylon-merkle        = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
+babylon-proto         = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
+btc-staking           = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
+babylon-contract      = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
+eots                  = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
+ics23-commitment      = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
+test-utils            = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
+
 anybuf = { version = "0.5.0" }
-babylon-apis = { path = "./packages/apis" }
-babylon-proto = { path = "./packages/proto" }
-babylon-bitcoin = { path = "./packages/bitcoin" }
-babylon-btcstaking = { path = "./packages/btcstaking" }
-babylon-contract = { path = "./contracts/babylon" }
-eots = { path = "./packages/eots" }
-ics23-commitment = { path = "./packages/ics23_commitment" }
 anyhow = "1.0.82"
 bech32 = "0.9.1"
 bitcoin = "0.31.1"

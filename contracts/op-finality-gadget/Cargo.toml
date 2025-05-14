@@ -22,29 +22,32 @@ test = false
 library = []
 
 [dependencies]
-babylon-apis = { path = "../../packages/apis" }
-babylon-merkle   = { path = "../../packages/merkle" }
-babylon-bindings = { path = "../../packages/bindings" }
-babylon-bitcoin  = { path = "../../packages/bitcoin" }
-babylon-proto    = { path = "../../packages/proto" }
+anybuf           = { workspace = true }
+hex              = { workspace = true }
+k256             = { workspace = true }
+prost            = { workspace = true }
+thiserror        = { workspace = true }
+
 cosmwasm-schema  = { workspace = true }
 cosmwasm-std     = { workspace = true }
 cw-controllers   = { workspace = true }
 cw-storage-plus  = { workspace = true }
 cw-utils         = { workspace = true }
-eots             = { path = "../../packages/eots" }
-hex              = { workspace = true }
-k256             = { workspace = true } 
-thiserror        = { workspace = true }
-prost            = { workspace = true }
-anybuf           = { workspace = true }
+
+babylon-apis     = { workspace = true }
+babylon-bindings = { workspace = true }
+babylon-bitcoin  = { workspace = true }
+babylon-merkle   = { workspace = true }
+babylon-proto    = { workspace = true }
+eots             = { workspace = true }
 
 [dev-dependencies]
-babylon-bindings-test  = { path = "../../packages/bindings-test" }
-btc-staking            = { path = "../btc-staking", features = [ "library" ] }
-cosmwasm-vm       = { workspace = true }
-test-utils        = { path = "../../packages/test-utils" }
-anyhow           = { workspace = true }
-derivative       = { workspace = true }
+anyhow                = { workspace = true }
+derivative            = { workspace = true }
 
-cw-multi-test          = { workspace = true }
+cosmwasm-vm           = { workspace = true }
+cw-multi-test         = { workspace = true }
+
+babylon-bindings-test = { workspace = true }
+btc-staking           = { workspace = true }
+test-utils            = { workspace = true }
