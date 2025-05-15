@@ -5,7 +5,7 @@ on:
       - '**'
 env:
   CARGO_TERM_COLOR: always
-  WORKSPACE: "/home/runner/work/op-finality-gadget"
+  WORKSPACE: "/home/runner/work/op-finality-gadget/op-finality-gadget"
 jobs:
   wasm-build-check-integration-full:
     runs-on: ubuntu-latest
