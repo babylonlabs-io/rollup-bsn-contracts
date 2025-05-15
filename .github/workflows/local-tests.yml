@@ -13,4 +13,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4.1.0
     - name: Build contracts, check formats, and run unit tests
-      run: cargo test --lib
+      run: |
+        cargo fmt -- --check
+        cargo test --lib
