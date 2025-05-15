@@ -1,0 +1,27 @@
+name: babylonlabs/op-finality-gadget/wasm-tests-full
+on:
+  pull_request:
+    branches:
+      - '**'
+env:
+  CARGO_TERM_COLOR: always
+  WORKSPACE: "/home/runner/work/op-finality-gadget/op-finality-gadget"
+jobs:
+  wasm-build-check-integration-full:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4.1.0
+    - name: Build optimised Wasm binaries
+      run: "./scripts/optimizer.sh"
+    - name: List optimised Wasm binaries
+      run: bash -c "ls $WORKSPACE/artifacts/*.wasm"
+    - name: Install cosmwasm-check
+      run: cargo install --locked --debug --version ^2.0 cosmwasm-check
+    - name: Check the Wasm binaries' validity
+      run: bash -c "cosmwasm-check $WORKSPACE/artifacts/*.wasm"
+    - name: Integration tests based on CosmWasm
+      run: cargo test --test integration
+    - uses: actions/upload-artifact@v4.1.0
+      with:
+        path: |-
+          artifacts/op_finality_gadget.wasm
