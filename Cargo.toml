@@ -19,17 +19,17 @@ fix-lint        = "./scripts/fix-lint.sh"
 integration     = "./scripts/integration_test.sh"
 
 [workspace.dependencies]
-babylon-apis          = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
-babylon-bindings      = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
-babylon-bindings-test = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
-babylon-bitcoin       = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
-babylon-merkle        = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
-babylon-proto         = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
-btc-staking           = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
-babylon-contract      = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
-eots                  = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
-ics23-commitment      = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
-test-utils            = { git = "https://github.com/babylonlabs-io/babylon-contract", branch="f/test-utils-path" }
+babylon-apis          = { git = "https://github.com/babylonlabs-io/babylon-contract" }
+babylon-bindings      = { git = "https://github.com/babylonlabs-io/babylon-contract" }
+babylon-bindings-test = { git = "https://github.com/babylonlabs-io/babylon-contract" }
+babylon-bitcoin       = { git = "https://github.com/babylonlabs-io/babylon-contract" }
+babylon-merkle        = { git = "https://github.com/babylonlabs-io/babylon-contract" }
+babylon-proto         = { git = "https://github.com/babylonlabs-io/babylon-contract" }
+btc-staking           = { git = "https://github.com/babylonlabs-io/babylon-contract" }
+babylon-contract      = { git = "https://github.com/babylonlabs-io/babylon-contract" }
+eots                  = { git = "https://github.com/babylonlabs-io/babylon-contract" }
+ics23-commitment      = { git = "https://github.com/babylonlabs-io/babylon-contract" }
+test-utils            = { git = "https://github.com/babylonlabs-io/babylon-contract" }
 
 anybuf = { version = "0.5.0" }
 anyhow = "1.0.82"
