@@ -1,16 +1,16 @@
 # Changelog
 
-## [Unreleased](https://github.com/babylonlabs-io/op-finality-gadget/tree/HEAD)
+## [Unreleased](https://github.com/babylonlabs-io/rollup-bsn-contracts/tree/HEAD)
 
-[Full Changelog](https://github.com/babylonlabs-io/op-finality-gadget/compare/v0.14.1...HEAD)
+[Full Changelog](https://github.com/babylonlabs-io/rollup-bsn-contracts/compare/v0.14.1...HEAD)
 
-## [v0.14.1](https://github.com/babylonlabs-io/op-finality-gadget/tree/v0.14.1) (2025-05-15)
+## [v0.14.1](https://github.com/babylonlabs-io/rollup-bsn-contracts/tree/v0.14.1) (2025-05-15)
 
-[Full Changelog](https://github.com/babylonlabs-io/op-finality-gadget/compare/v0.13.0-rc.0...v0.14.1)
+[Full Changelog](https://github.com/babylonlabs-io/rollup-bsn-contracts/compare/v0.13.0-rc.0...v0.14.1)
 
  **Merged pull requests:**
 
-- F/add CI [\#1](https://github.com/babylonlabs-io/op-finality-gadget/pull/1) ([maurolacy](https://github.com/maurolacy))
+- F/add CI [\#1](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/1) ([maurolacy](https://github.com/maurolacy))
 
 ## [v0.14.0](https://github.com/babylonlabs-io/babylon-contract/tree/v0.14.0) (2025-05-14)
 

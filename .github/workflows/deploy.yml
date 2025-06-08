@@ -1,11 +1,11 @@
-name: babylonlabs/op-finality-gadget/deploy
+name: babylonlabs/rollup-bsn-contracts/deploy
 on:
   push:
     tags:
       - 'v*.*.*'
 env:
   CARGO_TERM_COLOR: always
-  WORKSPACE: "/home/runner/work/op-finality-gadget/op-finality-gadget"
+  WORKSPACE: "/home/runner/work/rollup-bsn-contracts/rollup-bsn-contracts"
 jobs:
   build_and_upload_contracts:
     runs-on: ubuntu-latest
