@@ -30,36 +30,79 @@ pub fn handle_public_randomness_commit(
     commitment: &[u8],
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
+    deps.api.debug(&format!(
+        "DEBUG: handle_public_randomness_commit: Starting execution for fp_pubkey_hex={}, start_height={}, num_pub_rand={}, commitment_len={}, signature_len={}",
+        fp_pubkey_hex, start_height, num_pub_rand, commitment.len(), signature.len()
+    ));
+
     // Ensure the finality provider is registered
+    deps.api.debug(&format!(
+        "DEBUG: handle_public_randomness_commit: Checking if finality provider {} exists",
+        fp_pubkey_hex
+    ));
     check_fp_exist(deps.as_ref(), fp_pubkey_hex)?;
+    deps.api.debug(&format!(
+        "DEBUG: handle_public_randomness_commit: Finality provider {} exists - check passed",
+        fp_pubkey_hex
+    ));
 
     // TODO: ensure log_2(num_pub_rand) is an integer?
 
     // Verify signature over the list
+    deps.api.debug(&format!(
+        "DEBUG: handle_public_randomness_commit: Starting signature verification for fp={}, start_height={}, num_pub_rand={}",
+        fp_pubkey_hex, start_height, num_pub_rand
+    ));
     verify_commitment_signature(
+        deps.as_ref(),
         fp_pubkey_hex,
         start_height,
         num_pub_rand,
         commitment,
         signature,
     )?;
+    deps.api.debug(&format!(
+        "DEBUG: handle_public_randomness_commit: Signature verification passed for fp={}",
+        fp_pubkey_hex
+    ));
 
     // Get last public randomness commitment
     // TODO: allow committing public randomness earlier than existing ones?
+    deps.api.debug(&format!(
+        "DEBUG: handle_public_randomness_commit: Querying last public randomness commitment for fp={}",
+        fp_pubkey_hex
+    ));
     let last_pr_commit = query_last_pub_rand_commit(deps.storage, fp_pubkey_hex)?;
 
     if let Some(last_pr_commit) = last_pr_commit {
+        deps.api.debug(&format!(
+            "DEBUG: handle_public_randomness_commit: Found existing commitment - last_end_height={}, new_start_height={}",
+            last_pr_commit.end_height(), start_height
+        ));
         // Ensure height and start_height do not overlap, i.e., height < start_height
         let last_pr_end_height = last_pr_commit.end_height();
         if start_height <= last_pr_end_height {
+            deps.api.debug(&format!(
+                "DEBUG: handle_public_randomness_commit: Height overlap detected - start_height={} <= last_end_height={}",
+                start_height, last_pr_end_height
+            ));
             return Err(ContractError::InvalidPubRandHeight(
                 start_height,
                 last_pr_end_height,
             ));
         }
+    } else {
+        deps.api.debug(&format!(
+            "DEBUG: handle_public_randomness_commit: No existing commitment found for fp={}",
+            fp_pubkey_hex
+        ));
     }
 
     // All good, store the given public randomness commitment
+    deps.api.debug(&format!(
+        "DEBUG: handle_public_randomness_commit: Creating and storing new commitment for fp={}, start_height={}",
+        fp_pubkey_hex, start_height
+    ));
     let pr_commit = PubRandCommit {
         start_height,
         num_pub_rand,
@@ -73,33 +116,96 @@ pub fn handle_public_randomness_commit(
         &pr_commit,
     )?;
 
+    deps.api.debug(&format!(
+        "DEBUG: handle_public_randomness_commit: Successfully stored commitment for fp={}, start_height={}",
+        fp_pubkey_hex, start_height
+    ));
+
     let event = Event::new("public_randomness_commit")
         .add_attribute("fp_pubkey_hex", fp_pubkey_hex)
         .add_attribute("pr_commit.start_height", pr_commit.start_height.to_string())
         .add_attribute("pr_commit.num_pub_rand", pr_commit.num_pub_rand.to_string());
+
+    deps.api.debug(&format!(
+        "DEBUG: handle_public_randomness_commit: Execution completed successfully for fp={}",
+        fp_pubkey_hex
+    ));
 
     Ok(Response::new().add_event(event))
 }
 
 // Copied from contracts/btc-staking/src/finality.rs
 pub(crate) fn verify_commitment_signature(
+    deps: Deps,
     fp_btc_pk_hex: &str,
     start_height: u64,
     num_pub_rand: u64,
     commitment: &[u8],
     signature: &[u8],
 ) -> Result<(), ContractError> {
+    deps.api.debug(&format!(
+        "DEBUG: verify_commitment_signature: Starting verification for fp_pubkey_hex={}, start_height={}, num_pub_rand={}, commitment_len={}, signature_len={}",
+        fp_btc_pk_hex, start_height, num_pub_rand, commitment.len(), signature.len()
+    ));
+    
     // get BTC public key for verification
-    let btc_pk_raw = hex::decode(fp_btc_pk_hex)?;
+    deps.api.debug(&format!(
+        "DEBUG: verify_commitment_signature: Decoding hex public key: {}",
+        fp_btc_pk_hex
+    ));
+    
+    let btc_pk_raw = hex::decode(fp_btc_pk_hex)
+        .map_err(|e| {
+            deps.api.debug(&format!(
+                "DEBUG: verify_commitment_signature: HEX DECODE FAILED for pubkey {}: {}",
+                fp_btc_pk_hex, e
+            ));
+            ContractError::HexError(e)
+        })?;
+    
+    deps.api.debug(&format!(
+        "DEBUG: verify_commitment_signature: Successfully decoded hex, raw key length: {}",
+        btc_pk_raw.len()
+    ));
+    
     let btc_pk = VerifyingKey::from_bytes(&btc_pk_raw)
-        .map_err(|e| ContractError::SecP256K1Error(e.to_string()))?;
+        .map_err(|e| {
+            deps.api.debug(&format!(
+                "DEBUG: verify_commitment_signature: PUBLIC KEY PARSING FAILED for hex {}: {}",
+                fp_btc_pk_hex, e
+            ));
+            ContractError::SecP256K1Error(format!("Failed to parse public key from hex {}: {}", fp_btc_pk_hex, e))
+        })?;
+
+    deps.api.debug(&format!(
+        "DEBUG: verify_commitment_signature: Successfully parsed public key"
+    ));
 
     // get signature
     if signature.is_empty() {
+        deps.api.debug(&format!(
+            "DEBUG: verify_commitment_signature: SIGNATURE IS EMPTY"
+        ));
         return Err(ContractError::EmptySignature);
     }
-    let schnorr_sig =
-        Signature::try_from(signature).map_err(|e| ContractError::SecP256K1Error(e.to_string()))?;
+    
+    deps.api.debug(&format!(
+        "DEBUG: verify_commitment_signature: Parsing signature with length: {}",
+        signature.len()
+    ));
+    
+    let schnorr_sig = Signature::try_from(signature)
+        .map_err(|e| {
+            deps.api.debug(&format!(
+                "DEBUG: verify_commitment_signature: SIGNATURE PARSING FAILED (len={}): {}",
+                signature.len(), e
+            ));
+            ContractError::SecP256K1Error(format!("Failed to parse signature (len={}): {}", signature.len(), e))
+        })?;
+
+    deps.api.debug(&format!(
+        "DEBUG: verify_commitment_signature: Successfully parsed signature"
+    ));
 
     // get signed message
     let mut msg: Vec<u8> = vec![];
@@ -107,10 +213,35 @@ pub(crate) fn verify_commitment_signature(
     msg.extend_from_slice(&num_pub_rand.to_be_bytes());
     msg.extend_from_slice(commitment);
 
+    deps.api.debug(&format!(
+        "DEBUG: verify_commitment_signature: Created message to verify - msg_len={}, start_height_bytes={:?}, num_pub_rand_bytes={:?}",
+        msg.len(), start_height.to_be_bytes(), num_pub_rand.to_be_bytes()
+    ));
+
     // Verify the signature
+    deps.api.debug(&format!(
+        "DEBUG: verify_commitment_signature: Starting signature verification..."
+    ));
+    
     btc_pk
         .verify(&msg, &schnorr_sig)
-        .map_err(|e| ContractError::SecP256K1Error(e.to_string()))
+        .map_err(|e| {
+            deps.api.debug(&format!(
+                "DEBUG: verify_commitment_signature: SIGNATURE VERIFICATION FAILED for fp_pubkey={}, start_height={}, num_pub_rand={}, msg_len={}, signature_len={}: {}",
+                fp_btc_pk_hex, start_height, num_pub_rand, msg.len(), signature.len(), e
+            ));
+            ContractError::SecP256K1Error(format!(
+                "Signature verification failed for fp_pubkey={}, start_height={}, num_pub_rand={}, msg_len={}, signature_len={}: {}", 
+                fp_btc_pk_hex, start_height, num_pub_rand, msg.len(), signature.len(), e
+            ))
+        })?;
+
+    deps.api.debug(&format!(
+        "DEBUG: verify_commitment_signature: SIGNATURE VERIFICATION SUCCESS for fp_pubkey={}",
+        fp_btc_pk_hex
+    ));
+
+    Ok(())
 }
 
 // Most logic copied from contracts/btc-staking/src/finality.rs
@@ -409,11 +540,16 @@ pub(crate) mod tests {
 
     #[test]
     fn verify_commitment_signature_works() {
+        use cosmwasm_std::testing::mock_dependencies;
+        
+        let deps = mock_dependencies();
+        
         // Define test values
         let (fp_btc_pk_hex, pr_commit, sig) = get_public_randomness_commitment();
 
         // Verify commitment signature
         let res = verify_commitment_signature(
+            deps.as_ref(),
             &fp_btc_pk_hex,
             pr_commit.start_height,
             pr_commit.num_pub_rand,
