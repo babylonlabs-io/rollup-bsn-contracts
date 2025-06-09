@@ -24,7 +24,7 @@ jobs:
     - uses: actions/upload-artifact@v4.1.0
       with:
         path: |-
-          artifacts/op_finality_gadget.wasm
+          artifacts/finality.wasm
           artifacts/checksums.txt
     - name: Show data
       run: |-
@@ -32,7 +32,7 @@ jobs:
         cat artifacts/checksums.txt
     - name: Zip artifacts
       run: |-
-        zip ./op_finality_gadget.wasm.zip artifacts/op_finality_gadget.wasm
+        zip ./finality.wasm.zip artifacts/finality.wasm
     - name: Create a Release
       id: create-release
       uses: actions/create-release@v1
@@ -45,15 +45,15 @@ jobs:
             Attached there are some build artifacts generated at this tag.
           draft: false
           prerelease: false
-    - name: Upload op_finality_gadget
-      id: upload-op_finality_gadget
+    - name: Upload finality
+      id: upload-finality
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ github.token }}
       with:
         upload_url: ${{ steps.create-release.outputs.upload_url }}
-        asset_path: ./op_finality_gadget.wasm.zip
-        asset_name: op_finality_gadget.wasm.zip
+        asset_path: ./finality.wasm.zip
+        asset_name: finality.wasm.zip
         asset_content_type: application/zip
     - name: Upload checksums
       id: upload-checksums
@@ -67,7 +67,7 @@ jobs:
         asset_content_type: text/plain
     - name: Build and run schema generator
       run: |-
-        (cd ./contracts/op-finality-gadget && cargo run --bin schema)
+        (cd ./contracts/finality && cargo run --bin schema)
     - name: Consolidate schemas
       run: |-
         mkdir -p ./schemas

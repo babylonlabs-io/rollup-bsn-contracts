@@ -100,8 +100,8 @@
 **Closed issues:**
 
 - add a killswitch to disable finality gadget [\#181](https://github.com/babylonchain/babylon-contract/issues/181)
-- Set an activated height when deploying the op-finality-gadget contract [\#167](https://github.com/babylonchain/babylon-contract/issues/167)
-- Store block hash in the op-finality-gadget contract [\#159](https://github.com/babylonchain/babylon-contract/issues/159)
+- Set an activated height when deploying the finality contract [\#167](https://github.com/babylonchain/babylon-contract/issues/167)
+- Store block hash in the finality contract [\#159](https://github.com/babylonchain/babylon-contract/issues/159)
 - Upgrade to CosmWasm 2.x [\#140](https://github.com/babylonchain/babylon-contract/issues/140)
 
 **Merged pull requests:**
