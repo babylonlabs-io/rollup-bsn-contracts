@@ -111,6 +111,20 @@
                 "format": "uint64",
                 "minimum": 0.0
               },
+              "l1_block_hash": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "l1_block_number": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint64",
+                "minimum": 0.0
+              },
               "proof": {
                 "$ref": "#/definitions/Proof"
               },
