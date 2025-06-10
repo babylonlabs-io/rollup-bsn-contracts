@@ -20,13 +20,10 @@ pub struct InstantiateMsg {
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-    #[returns(AdminResponse)]
-    Admin {},
+    // MUST: Core finality queries
+    
     #[returns(Option<HashSet<String>>)]
     BlockVoters { height: u64, hash: String },
-    /// `Config` returns the configuration of the finality contract
-    #[returns(Config)]
-    Config {},
     /// `FirstPubRandCommit` returns the first public random commitment (if any) for a given FP.
     ///
     /// `btc_pk_hex` is the BTC public key of the finality provider, in hex format.
@@ -37,6 +34,13 @@ pub enum QueryMsg {
     /// `btc_pk_hex` is the BTC public key of the finality provider, in hex format.
     #[returns(Option<PubRandCommit>)]
     LastPubRandCommit { btc_pk_hex: String },
+
+    // SHOULD: Administrative queries
+    
+    #[returns(AdminResponse)]
+    Admin {},
+    #[returns(Config)]
+    Config {},
     #[returns(bool)]
     IsEnabled {},
 }
@@ -44,6 +48,17 @@ pub enum QueryMsg {
 // Note: Adapted from packages/apis/src/btc_staking_api.rs / packages/apis/src/finality_api.rs
 #[cw_serde]
 pub enum ExecuteMsg {
+    // MUST: Core finality messages
+
+    /// This message allows a finality provider to commit to a sequence of public randomness values
+    /// that will be revealed later during finality signature submissions.
+    /// 
+    /// The commitment is a Merkle root containing the public randomness values. When submitting 
+    /// finality signatures later, the provider must include Merkle proofs that verify against this
+    /// commitment.
+    ///
+    /// This commitment mechanism ensures that finality providers cannot adaptively choose their
+    /// public randomness values after seeing block contents, which is important for security.
     CommitPublicRandomness {
         /// `fp_pubkey_hex` is the BTC PK of the finality provider that commits the public randomness
         fp_pubkey_hex: String,
@@ -67,37 +82,51 @@ pub enum ExecuteMsg {
     ///
     /// This message is equivalent to the `MsgAddFinalitySig` message in the Babylon finality protobuf
     /// defs.
-    // TODO: Move to its own module / contract
     SubmitFinalitySignature {
+        /// The BTC public key of the finality provider submitting the signature
         fp_pubkey_hex: String,
+        /// Optional L1 block number (rollup-specific)
         l1_block_number: Option<u64>,
+        /// Optional L1 block hash (rollup-specific) 
         l1_block_hash: Option<String>,
+        /// The block height this finality signature is for
         height: u64,
+        /// The public randomness used for signing this block
         pub_rand: Binary,
+        /// Merkle proof verifying that pub_rand was included in the earlier commitment
         proof: Proof,
+        /// Hash of the block being finalized
         // FIXME: Rename to block_app_hash for consistency / clarity
         block_hash: Binary,
+        /// Finality signature on (height || block_hash) signed by finality provider
         signature: Binary,
     },
     /// Slashing message.
     ///
-    /// This message can be called by the admin only.
+    /// This message slashs a finality provider for misbehavior.
+    /// The caller must provide evidence of the misbehavior in the form of an Evidence struct.
+    /// If the evidence is valid, the finality contract will send the evidence to the Babylon
+    /// Genesis chain for actual slashing.
     Slashing {
         sender: Addr,
         evidence: Evidence,
     },
-    /// Enable or disable finality gadget.
+
+    // SHOULD: Administrative messages
+
+    /// Set enabled status of the finality contract.
     ///
     /// This message can be called by the admin only.
-    /// If disabled, the verifier should bypass the EOTS verification logic, allowing the OP derivation
-    /// derivation pipeline to pass through. Note this should be implemented in the verifier and is not
-    /// enforced by the contract itself.
+    /// If disabled, the finality contract and the BTC staking finality will not be used 
+    /// by the rollup. Note this should be implemented in the rollup's finality gadget daemon
+    /// program and is not enforced by the contract itself.
     SetEnabled {
         enabled: bool,
     },
-    // Update the admin address.
-    //
-    // This message can be called by the admin only.
+    /// Update the admin address.
+    ///
+    /// This message can be called by the admin only.
+    /// The new admin address must be a valid Cosmos address.
     UpdateAdmin {
         admin: String,
     },
