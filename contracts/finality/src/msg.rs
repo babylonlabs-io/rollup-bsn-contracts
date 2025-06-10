@@ -21,7 +21,6 @@ pub struct InstantiateMsg {
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     // MUST: Core finality queries
-    
     #[returns(Option<HashSet<String>>)]
     BlockVoters { height: u64, hash: String },
     /// `FirstPubRandCommit` returns the first public random commitment (if any) for a given FP.
@@ -36,7 +35,6 @@ pub enum QueryMsg {
     LastPubRandCommit { btc_pk_hex: String },
 
     // SHOULD: Administrative queries
-    
     #[returns(AdminResponse)]
     Admin {},
     #[returns(Config)]
@@ -49,11 +47,10 @@ pub enum QueryMsg {
 #[cw_serde]
 pub enum ExecuteMsg {
     // MUST: Core finality messages
-
     /// This message allows a finality provider to commit to a sequence of public randomness values
     /// that will be revealed later during finality signature submissions.
-    /// 
-    /// The commitment is a Merkle root containing the public randomness values. When submitting 
+    ///
+    /// The commitment is a Merkle root containing the public randomness values. When submitting
     /// finality signatures later, the provider must include Merkle proofs that verify against this
     /// commitment.
     ///
@@ -87,7 +84,7 @@ pub enum ExecuteMsg {
         fp_pubkey_hex: String,
         /// Optional L1 block number (rollup-specific)
         l1_block_number: Option<u64>,
-        /// Optional L1 block hash (rollup-specific) 
+        /// Optional L1 block hash (rollup-specific)
         l1_block_hash: Option<String>,
         /// The block height this finality signature is for
         height: u64,
@@ -107,29 +104,21 @@ pub enum ExecuteMsg {
     /// The caller must provide evidence of the misbehavior in the form of an Evidence struct.
     /// If the evidence is valid, the finality contract will send the evidence to the Babylon
     /// Genesis chain for actual slashing.
-    Slashing {
-        sender: Addr,
-        evidence: Evidence,
-    },
+    Slashing { sender: Addr, evidence: Evidence },
 
     // SHOULD: Administrative messages
-
     /// Set enabled status of the finality contract.
     ///
     /// This message can be called by the admin only.
-    /// If disabled, the finality contract and the BTC staking finality will not be used 
+    /// If disabled, the finality contract and the BTC staking finality will not be used
     /// by the rollup. Note this should be implemented in the rollup's finality gadget daemon
     /// program and is not enforced by the contract itself.
-    SetEnabled {
-        enabled: bool,
-    },
+    SetEnabled { enabled: bool },
     /// Update the admin address.
     ///
     /// This message can be called by the admin only.
     /// The new admin address must be a valid Cosmos address.
-    UpdateAdmin {
-        admin: String,
-    },
+    UpdateAdmin { admin: String },
 }
 
 #[cw_serde]
