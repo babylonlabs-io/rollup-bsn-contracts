@@ -1,8 +1,14 @@
 # Rollup BSN Contracts
 
-This repo contains the Wasm smart contract for rollup BSN integration.
-The contract is intended to be deployed on Babylon Genesis
-and will maintain finality signatures and block finalisation status of rollups.
+This repo contains the Wasm smart contract for rollup BSN integration. The
+contract is intended to be deployed on Babylon Genesis and will maintain
+finality signatures and block finalisation status of rollups.
+
+## Specification
+
+For detailed technical specifications and requirements of the finality contract,
+please see [SPEC.md](SPEC.md). The spec document outlines the contract's
+interfaces, message handlers, queries, and provides guidance for integrators.
 
 ## Development
 
@@ -60,8 +66,8 @@ Note: Requires the optimized contract to be built (`cargo optimize`)
 cargo test --test integration
 ```
 
-Alternatively, you can run the following command, that makes sure to build the optimized contract before running
-the integration tests.
+Alternatively, you can run the following command, that makes sure to build the
+optimized contract before running the integration tests.
 
 ```bash
 cargo run-script integration
