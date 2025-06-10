@@ -120,6 +120,8 @@ pub fn handle_finality_signature(
     env: Env,
     info: MessageInfo,
     fp_btc_pk_hex: &str,
+    l1_block_number: Option<u64>,
+    l1_block_hash: Option<String>,
     height: u64,
     pub_rand: &[u8],
     proof: &Proof,
@@ -240,10 +242,17 @@ pub fn handle_finality_signature(
     // Save the updated set back to storage
     BLOCK_VOTES.save(deps.storage, (height, block_app_hash), &block_votes_fp_set)?;
 
-    let event = Event::new("submit_finality_signature")
+    let mut event = Event::new("submit_finality_signature")
         .add_attribute("fp_pubkey_hex", fp_btc_pk_hex)
         .add_attribute("block_height", height.to_string())
         .add_attribute("block_app_hash", hex::encode(block_app_hash));
+
+    if let Some(l1_block_number) = l1_block_number {
+        event = event.add_attribute("l1_block_number", l1_block_number.to_string());
+    }
+    if let Some(l1_block_hash) = l1_block_hash {
+        event = event.add_attribute("l1_block_hash", l1_block_hash);
+    }
 
     res = res.add_event(event);
 

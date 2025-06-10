@@ -75,6 +75,8 @@ pub fn execute(
         ),
         ExecuteMsg::SubmitFinalitySignature {
             fp_pubkey_hex,
+            l1_block_number,
+            l1_block_hash,
             height,
             pub_rand,
             proof,
@@ -85,6 +87,8 @@ pub fn execute(
             env,
             info,
             &fp_pubkey_hex,
+            l1_block_number,
+            l1_block_hash,
             height,
             &pub_rand,
             &proof,

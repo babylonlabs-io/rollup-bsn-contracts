@@ -70,6 +70,8 @@ pub enum ExecuteMsg {
     // TODO: Move to its own module / contract
     SubmitFinalitySignature {
         fp_pubkey_hex: String,
+        l1_block_number: Option<u64>,
+        l1_block_hash: Option<String>,
         height: u64,
         pub_rand: Binary,
         proof: Proof,
