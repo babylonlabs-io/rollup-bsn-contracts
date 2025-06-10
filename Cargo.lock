@@ -1255,6 +1255,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d"
 
 [[package]]
+name = "finality"
+version = "0.14.1"
+dependencies = [
+ "anybuf",
+ "anyhow",
+ "babylon-apis",
+ "babylon-bindings",
+ "babylon-bindings-test",
+ "babylon-bitcoin",
+ "babylon-merkle",
+ "babylon-proto",
+ "btc-staking",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-vm",
+ "cw-controllers",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw-utils",
+ "derivative",
+ "eots",
+ "hex",
+ "k256",
+ "prost 0.11.9",
+ "test-utils",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "fixedbitset"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1726,35 +1755,6 @@ name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
-
-[[package]]
-name = "op-finality-gadget"
-version = "0.14.1"
-dependencies = [
- "anybuf",
- "anyhow",
- "babylon-apis",
- "babylon-bindings",
- "babylon-bindings-test",
- "babylon-bitcoin",
- "babylon-merkle",
- "babylon-proto",
- "btc-staking",
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-vm",
- "cw-controllers",
- "cw-multi-test",
- "cw-storage-plus",
- "cw-utils",
- "derivative",
- "eots",
- "hex",
- "k256",
- "prost 0.11.9",
- "test-utils",
- "thiserror 1.0.69",
-]
 
 [[package]]
 name = "p256"

@@ -43,7 +43,7 @@
       "additionalProperties": false
     },
     {
-      "description": "`Config` returns the configuration of the op-finality-gadget contract",
+      "description": "`Config` returns the configuration of the finality contract",
       "type": "object",
       "required": [
         "config"

@@ -24,7 +24,7 @@ pub enum QueryMsg {
     Admin {},
     #[returns(Option<HashSet<String>>)]
     BlockVoters { height: u64, hash: String },
-    /// `Config` returns the configuration of the op-finality-gadget contract
+    /// `Config` returns the configuration of the finality contract
     #[returns(Config)]
     Config {},
     /// `FirstPubRandCommit` returns the first public random commitment (if any) for a given FP.

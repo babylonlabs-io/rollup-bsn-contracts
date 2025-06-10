@@ -1,5 +1,5 @@
 {
-  "contract_name": "op-finality-gadget",
+  "contract_name": "finality",
   "contract_version": "0.14.1",
   "idl_version": "1.0.0",
   "instantiate": {
@@ -360,7 +360,7 @@
         "additionalProperties": false
       },
       {
-        "description": "`Config` returns the configuration of the op-finality-gadget contract",
+        "description": "`Config` returns the configuration of the finality contract",
         "type": "object",
         "required": [
           "config"

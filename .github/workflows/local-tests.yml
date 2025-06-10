@@ -1,4 +1,4 @@
-name: babylonlabs/op-finality-gadget/local-tests
+name: babylonlabs/finality/local-tests
 on:
   pull_request:
     branches:

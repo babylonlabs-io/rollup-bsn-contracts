@@ -1,11 +1,11 @@
-name: babylonlabs/op-finality-gadget/wasm-tests-full
+name: babylonlabs/rollup-bsn-contracts/wasm-tests-full
 on:
   pull_request:
     branches:
       - '**'
 env:
   CARGO_TERM_COLOR: always
-  WORKSPACE: "/home/runner/work/op-finality-gadget/op-finality-gadget"
+  WORKSPACE: "/home/runner/work/rollup-bsn-contracts/rollup-bsn-contracts"
 jobs:
   wasm-build-check-integration-full:
     runs-on: ubuntu-latest
@@ -24,4 +24,4 @@ jobs:
     - uses: actions/upload-artifact@v4.1.0
       with:
         path: |-
-          artifacts/op_finality_gadget.wasm
+          artifacts/finality.wasm

@@ -1,7 +1,8 @@
-# Op-finality-gadget
+# Rollup BSN Contracts
 
-This repo contains the Wasm smart contract for Optimism staking integration.
-It will be deployed on Babylon, and will maintain finality signatures and block finalisation status of Optimism rollups.
+This repo contains the Wasm smart contract for rollup BSN integration.
+The contract is intended to be deployed on Babylon Genesis
+and will maintain finality signatures and block finalisation status of rollups.
 
 ## Development
 

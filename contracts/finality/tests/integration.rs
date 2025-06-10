@@ -4,10 +4,10 @@ use cosmwasm_vm::testing::{
 };
 
 use cw_controllers::AdminResponse;
-use op_finality_gadget::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-use op_finality_gadget::state::config::Config;
+use finality::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use finality::state::config::Config;
 
-static WASM: &[u8] = include_bytes!("../../../artifacts/op_finality_gadget.wasm");
+static WASM: &[u8] = include_bytes!("../../../artifacts/finality.wasm");
 const CREATOR: &str = "creator";
 
 #[test]
