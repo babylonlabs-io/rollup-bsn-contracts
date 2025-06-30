@@ -1092,7 +1092,6 @@ version = "0.14.1"
 dependencies = [
  "anybuf",
  "anyhow",
- "babylon-apis",
  "babylon-bindings",
  "babylon-merkle",
  "cosmwasm-schema",

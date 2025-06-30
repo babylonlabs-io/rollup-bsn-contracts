@@ -1,7 +1,8 @@
-use babylon_apis::finality_api::Evidence;
+use crate::state::finality::Evidence;
 use babylon_merkle::Proof;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary};
+
 #[cfg(not(target_arch = "wasm32"))]
 use {
     crate::state::config::Config, crate::state::public_randomness::PubRandCommit,

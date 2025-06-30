@@ -282,7 +282,6 @@ The finality contract message requirements are divided into core finality
 functionality (MUST) and administrative functionality (SHOULD):
 
 ```rust
-use babylon_apis::finality_api::Evidence;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Binary};
 use babylon_merkle::Proof;
@@ -616,7 +615,6 @@ functionality (MUST) and administrative functionality (SHOULD):
 
 ```rust
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use babylon_apis::finality_api::PubRandCommit;
 use cw_controllers::AdminResponse;
 use std::collections::HashSet;
 

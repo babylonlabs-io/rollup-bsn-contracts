@@ -1,4 +1,5 @@
 use crate::error::ContractError;
+use crate::state::Bytes;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Order::{Ascending, Descending};
 use cosmwasm_std::{StdResult, Storage};
@@ -8,9 +9,6 @@ use cw_storage_plus::{Bound, Map};
 pub(crate) const PUB_RAND_COMMITS: Map<(&str, u64), PubRandCommit> = Map::new("fp_pub_rand_commit");
 /// Map of public randomness values by fp and block height
 pub(crate) const PUB_RAND_VALUES: Map<(&str, u64), Vec<u8>> = Map::new("fp_pub_rand");
-
-/// `Bytes` is a vector of bytes
-pub type Bytes = Vec<u8>;
 
 /// `PubRandCommit` is a commitment to a series of public randomness.
 /// Currently, the commitment is a root of a Merkle tree that includes a series of public randomness

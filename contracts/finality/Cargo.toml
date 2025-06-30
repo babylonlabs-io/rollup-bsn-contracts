@@ -32,7 +32,6 @@ cosmwasm-std     = { workspace = true }
 cw-controllers   = { workspace = true }
 cw-storage-plus  = { workspace = true }
 
-babylon-apis     = { workspace = true }
 babylon-bindings = { workspace = true }
 babylon-merkle   = { workspace = true }
 eots             = { workspace = true }
