@@ -227,21 +227,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "babylon-bindings-test"
-version = "0.4.0"
-source = "git+https://github.com/babylonlabs-io/babylon-contract#440fafacafa29d1bc9fbb2d29a6b42919e5e9e13"
-dependencies = [
- "anyhow",
- "babylon-bindings",
- "cosmwasm-std",
- "cw-multi-test",
- "cw-storage-plus",
- "schemars",
- "serde",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "babylon-bitcoin"
 version = "0.14.0"
 source = "git+https://github.com/babylonlabs-io/babylon-contract#440fafacafa29d1bc9fbb2d29a6b42919e5e9e13"
@@ -1262,7 +1247,6 @@ dependencies = [
  "anyhow",
  "babylon-apis",
  "babylon-bindings",
- "babylon-bindings-test",
  "babylon-merkle",
  "btc-staking",
  "cosmwasm-schema",

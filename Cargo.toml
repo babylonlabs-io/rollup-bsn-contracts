@@ -21,7 +21,6 @@ integration     = "./scripts/integration_test.sh"
 [workspace.dependencies]
 babylon-apis          = { git = "https://github.com/babylonlabs-io/babylon-contract" }
 babylon-bindings      = { git = "https://github.com/babylonlabs-io/babylon-contract" }
-babylon-bindings-test = { git = "https://github.com/babylonlabs-io/babylon-contract" }
 babylon-merkle        = { git = "https://github.com/babylonlabs-io/babylon-contract" }
 btc-staking           = { git = "https://github.com/babylonlabs-io/babylon-contract" }
 eots                  = { git = "https://github.com/babylonlabs-io/babylon-contract" }
