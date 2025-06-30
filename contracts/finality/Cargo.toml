@@ -44,5 +44,4 @@ derivative            = { workspace = true }
 cosmwasm-vm           = { workspace = true }
 cw-multi-test         = { workspace = true }
 
-btc-staking           = { workspace = true }
 test-utils            = { workspace = true }
