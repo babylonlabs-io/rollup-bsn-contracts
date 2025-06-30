@@ -6,6 +6,15 @@ on:
 env:
   CARGO_TERM_COLOR: always
 jobs:
+    # based on https://github.com/bnjbvr/cargo-machete
+  machete:
+    name: machete
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Machete
+        uses: bnjbvr/cargo-machete@main
+
   local-build-test:
     runs-on: ubuntu-latest
     container:
