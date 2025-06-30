@@ -9,9 +9,10 @@ use crate::state::public_randomness::{
     get_pub_rand_commit_for_height, PUB_RAND_COMMITS, PUB_RAND_VALUES,
 };
 use crate::utils::query_finality_provider;
+use babylon_apis::finality_api::Evidence;
 use babylon_bindings::BabylonMsg;
 
-use babylon_apis::finality_api::{Evidence, PubRandCommit};
+use crate::state::public_randomness::PubRandCommit;
 use babylon_merkle::Proof;
 use cosmwasm_std::{
     to_json_binary, Addr, Deps, DepsMut, Env, Event, MessageInfo, Response, WasmMsg,
@@ -440,7 +441,13 @@ pub(crate) mod tests {
         let add_finality_signature = get_add_finality_sig();
         let proof = add_finality_signature.proof.unwrap();
 
-        let initial_height = pr_commit.start_height;
+        // Convert the PubRandCommit in the type defined in this contract
+        let pr_commit = PubRandCommit {
+            start_height: pr_commit.start_height,
+            num_pub_rand: pr_commit.num_pub_rand,
+            height: pr_commit.height,
+            commitment: pr_commit.commitment,
+        };
 
         // Verify finality signature
         if proof.index < 0 {
@@ -448,7 +455,7 @@ pub(crate) mod tests {
         }
         let res = verify_finality_signature(
             &pk_hex,
-            initial_height + proof.index.unsigned_abs(),
+            pr_commit.start_height + proof.index.unsigned_abs(),
             &pub_rand_one,
             // we need to add a typecast below because the provided proof is of type
             // tendermint_proto::crypto::Proof, whereas the fn expects babylon_merkle::proof

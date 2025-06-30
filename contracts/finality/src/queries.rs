@@ -2,7 +2,7 @@ use crate::error::ContractError;
 use crate::state::config::{Config, ADMIN, CONFIG, IS_ENABLED};
 use crate::state::finality::BLOCK_VOTES;
 use crate::state::public_randomness::get_pub_rand_commit;
-use babylon_apis::finality_api::PubRandCommit;
+use crate::state::public_randomness::PubRandCommit;
 use cosmwasm_std::{Deps, StdResult, Storage};
 use cw_controllers::AdminResponse;
 use std::collections::HashSet;
