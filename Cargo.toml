@@ -22,13 +22,9 @@ integration     = "./scripts/integration_test.sh"
 babylon-apis          = { git = "https://github.com/babylonlabs-io/babylon-contract" }
 babylon-bindings      = { git = "https://github.com/babylonlabs-io/babylon-contract" }
 babylon-bindings-test = { git = "https://github.com/babylonlabs-io/babylon-contract" }
-babylon-bitcoin       = { git = "https://github.com/babylonlabs-io/babylon-contract" }
 babylon-merkle        = { git = "https://github.com/babylonlabs-io/babylon-contract" }
-babylon-proto         = { git = "https://github.com/babylonlabs-io/babylon-contract" }
 btc-staking           = { git = "https://github.com/babylonlabs-io/babylon-contract" }
-babylon-contract      = { git = "https://github.com/babylonlabs-io/babylon-contract" }
 eots                  = { git = "https://github.com/babylonlabs-io/babylon-contract" }
-ics23-commitment      = { git = "https://github.com/babylonlabs-io/babylon-contract" }
 test-utils            = { git = "https://github.com/babylonlabs-io/babylon-contract" }
 
 anybuf = { version = "0.5.0" }
@@ -57,9 +53,6 @@ cw-utils = "2.0.0"
 derivative = "2"
 digest = "0.10"
 hex = "0.4.3"
-ics23 = { version = "0.9.0", default-features = false, features = [
-    "host-functions",
-] }
 prost = "0.11.9"
 schemars = "0.8.3"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
