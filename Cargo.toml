@@ -6,7 +6,7 @@ resolver = "2"
 edition    = "2021"
 version    = "0.14.1"
 license    = "Apache-2.0"
-repository = "https://github.com/babylonlabs-io/babylon-contract"
+repository = "https://github.com/babylonlabs-io/rollup-bsn-contracts"
 authors    = ["Babylon Labs Ltd. <admin@babylonlabs.io>"]
 publish    = false
 
@@ -19,10 +19,10 @@ fix-lint        = "./scripts/fix-lint.sh"
 integration     = "./scripts/integration_test.sh"
 
 [workspace.dependencies]
-babylon-bindings      = { git = "https://github.com/babylonlabs-io/babylon-contract" }
-babylon-merkle        = { git = "https://github.com/babylonlabs-io/babylon-contract" }
-eots                  = { git = "https://github.com/babylonlabs-io/babylon-contract" }
-test-utils            = { git = "https://github.com/babylonlabs-io/babylon-contract" }
+babylon-bindings      = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
+babylon-merkle        = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
+eots                  = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
+test-utils            = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
 
 anybuf = { version = "0.5.0" }
 anyhow = "1.0.82"
