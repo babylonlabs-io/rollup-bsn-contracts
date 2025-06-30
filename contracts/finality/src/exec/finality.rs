@@ -8,7 +8,7 @@ use crate::state::finality::{BLOCK_HASHES, BLOCK_VOTES, EVIDENCES, SIGNATURES};
 use crate::state::public_randomness::{
     get_pub_rand_commit_for_height, PUB_RAND_COMMITS, PUB_RAND_VALUES,
 };
-use crate::utils::{query_finality_provider, FinalityProviderResponse};
+use crate::utils::query_finality_provider;
 use babylon_bindings::BabylonMsg;
 
 use babylon_apis::finality_api::{Evidence, PubRandCommit};
@@ -309,18 +309,13 @@ fn msg_to_sign(height: u64, block_app_hash: &[u8]) -> Vec<u8> {
     msg
 }
 
-/// Checks if a finality provider has been slashed based on the response from Babylon
-fn is_finality_provider_slashed(fp_response: &FinalityProviderResponse) -> bool {
-    fp_response.slashed_babylon_height != 0 || fp_response.slashed_btc_height != 0
-}
-
 fn check_fp_exist(deps: Deps, fp_pubkey_hex: &str) -> Result<(), ContractError> {
     let config = CONFIG.load(deps.storage)?;
     let fp = query_finality_provider(deps, config.consumer_id.clone(), fp_pubkey_hex.to_string());
     match fp {
         Ok(value) => {
             // Check if the finality provider has been slashed
-            if is_finality_provider_slashed(&value) {
+            if value.is_slashed() {
                 return Err(ContractError::SlashedFinalityProvider(
                     fp_pubkey_hex.to_string(),
                     value.slashed_babylon_height,
