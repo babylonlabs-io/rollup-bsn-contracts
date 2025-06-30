@@ -410,8 +410,6 @@ pub(crate) fn handle_slashing(
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use crate::state::config::Config;
-
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::Addr;
