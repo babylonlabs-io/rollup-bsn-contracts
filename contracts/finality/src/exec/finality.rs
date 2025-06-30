@@ -313,9 +313,16 @@ fn check_fp_exist(deps: Deps, fp_pubkey_hex: &str) -> Result<(), ContractError> 
     let config = CONFIG.load(deps.storage)?;
     let fp = query_finality_provider(deps, config.consumer_id.clone(), fp_pubkey_hex.to_string());
     match fp {
-        Ok(_value) => {
-            // TODO: check the slash
-            // value.slashed_babylon_height != value.height;
+        Ok(value) => {
+            // Check if the finality provider has been slashed
+            // If either slashed_babylon_height or slashed_btc_height is non-zero, the FP is slashed
+            if value.slashed_babylon_height != 0 || value.slashed_btc_height != 0 {
+                return Err(ContractError::SlashedFinalityProvider(
+                    fp_pubkey_hex.to_string(),
+                    value.slashed_babylon_height,
+                    value.slashed_btc_height,
+                ));
+            }
             Ok(())
         }
         Err(_e) => Err(ContractError::NotFoundFinalityProvider(
