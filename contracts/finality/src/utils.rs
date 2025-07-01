@@ -49,3 +49,10 @@ pub fn query_finality_provider(
 
     Ok(res)
 }
+
+impl FinalityProviderResponse {
+    /// Checks if this finality provider has been slashed based on the response from Babylon
+    pub fn is_slashed(&self) -> bool {
+        self.slashed_babylon_height != 0 || self.slashed_btc_height != 0
+    }
+}

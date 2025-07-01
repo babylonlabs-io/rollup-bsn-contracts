@@ -44,6 +44,8 @@ pub enum ContractError {
     SecP256K1Error(String), // TODO: inherit errors from k256
     #[error("Failed to extract secret key: {0}")]
     SecretKeyExtractionError(String),
+    #[error("Finality provider {0} has been slashed at Babylon height {1} and BTC height {2}")]
+    SlashedFinalityProvider(String, u64, u64),
     #[error("{0}")]
     StdError(#[from] StdError),
     #[error("Failed to query block voters for block {0} with hash {1}. {2}")]
