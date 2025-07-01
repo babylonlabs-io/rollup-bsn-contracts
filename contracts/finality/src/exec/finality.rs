@@ -30,10 +30,13 @@ pub fn handle_public_randomness_commit(
     commitment: &[u8],
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
+    // Validate num_pub_rand is at least 1 to prevent integer underflow
+    if num_pub_rand == 0 {
+        return Err(ContractError::InvalidNumPubRand(num_pub_rand));
+    }
+
     // Ensure the finality provider is registered and not slashed
     ensure_fp_exists_and_unslashed(deps.as_ref(), fp_pubkey_hex)?;
-
-    // TODO: ensure log_2(num_pub_rand) is an integer?
 
     // Verify signature over the list
     verify_commitment_signature(
@@ -411,7 +414,7 @@ pub(crate) fn handle_slashing(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use cosmwasm_std::testing::mock_env;
+    use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::Addr;
     use cosmwasm_std::{from_json, testing::message_info};
     use std::collections::HashMap;
@@ -534,5 +537,51 @@ pub(crate) mod tests {
             attrs.get("canonical_app_hash").unwrap(),
             &hex::encode(&evidence.canonical_app_hash)
         );
+    }
+
+    #[test]
+    fn handle_public_randomness_commit_validates_num_pub_rand() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let (fp_btc_pk_hex, pr_commit, sig) = get_public_randomness_commitment();
+
+        // Test with num_pub_rand = 0 (should fail)
+        let result = handle_public_randomness_commit(
+            deps.as_mut(),
+            &env,
+            &fp_btc_pk_hex,
+            pr_commit.start_height,
+            0, // Zero value should be rejected
+            &pr_commit.commitment,
+            &sig,
+        );
+
+        // Should return InvalidNumPubRand error
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ContractError::InvalidNumPubRand(val) => {
+                assert_eq!(val, 0);
+            }
+            _ => panic!("Expected InvalidNumPubRand error"),
+        }
+
+        // Test with num_pub_rand = 1 (should pass validation but may fail later due to missing FP)
+        let result = handle_public_randomness_commit(
+            deps.as_mut(),
+            &env,
+            &fp_btc_pk_hex,
+            pr_commit.start_height,
+            1, // Valid value should pass this validation
+            &pr_commit.commitment,
+            &sig,
+        );
+
+        // Should not return InvalidNumPubRand error
+        // It may still fail with other errors like NotFoundFinalityProvider, but that's expected
+        // since we're only testing the num_pub_rand validation here
+        if let Err(e) = result {
+            // Make sure it's NOT the InvalidNumPubRand error
+            assert!(!matches!(e, ContractError::InvalidNumPubRand(_)));
+        }
     }
 }

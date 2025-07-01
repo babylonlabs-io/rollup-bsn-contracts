@@ -34,6 +34,8 @@ pub enum ContractError {
     InvalidPubRandHeight(u64, u64),
     #[error("Invalid finality signature: {0}")]
     InvalidSignature(String),
+    #[error("Invalid num_pub_rand value: {0}. Must be at least 1 to prevent integer underflow")]
+    InvalidNumPubRand(u64),
     #[error("{0}")]
     MerkleError(#[from] MerkleError),
     #[error("Public randomness not found for finality provider {0} at height {1}")]
