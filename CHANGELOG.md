@@ -39,4 +39,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Improvements
 
-* [#24](https://github.com/cosmos/cosmos-sdk/pull/24) Validate public randomness commitment.
+* [#23](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/23) Clean up dependencies to cosmos-bsn-contracts.
+* [#24](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/24) Validate public randomness commitment.
