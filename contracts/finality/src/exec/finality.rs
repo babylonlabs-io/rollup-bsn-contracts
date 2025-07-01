@@ -1,17 +1,16 @@
 use std::collections::HashSet;
 
 use crate::error::ContractError;
-use crate::msg::ExecuteMsg;
+use crate::msg::{BabylonMsg, ExecuteMsg};
 use crate::queries::query_last_pub_rand_commit;
 use crate::state::config::CONFIG;
-use crate::state::finality::{BLOCK_HASHES, BLOCK_VOTES, EVIDENCES, SIGNATURES};
+use crate::state::finality::{Evidence, BLOCK_HASHES, BLOCK_VOTES, EVIDENCES, SIGNATURES};
 use crate::state::public_randomness::{
     get_pub_rand_commit_for_height, PUB_RAND_COMMITS, PUB_RAND_VALUES,
 };
 use crate::utils::query_finality_provider;
-use babylon_bindings::BabylonMsg;
 
-use babylon_apis::finality_api::{Evidence, PubRandCommit};
+use crate::state::public_randomness::PubRandCommit;
 use babylon_merkle::Proof;
 use cosmwasm_std::{
     to_json_binary, Addr, Deps, DepsMut, Env, Event, MessageInfo, Response, WasmMsg,
@@ -387,15 +386,16 @@ pub(crate) fn handle_slashing(
     let mut res = Response::new();
     // Send msg to Babylon
 
-    let msg = BabylonMsg::EquivocationEvidence {
+    let msg = BabylonMsg::MsgEquivocationEvidence {
         signer: sender.to_string(),
-        fp_btc_pk: evidence.fp_btc_pk.clone(),
+        fp_btc_pk_hex: hex::encode(&evidence.fp_btc_pk),
         block_height: evidence.block_height,
-        pub_rand: evidence.pub_rand.clone(),
-        canonical_app_hash: evidence.canonical_app_hash.clone(),
-        fork_app_hash: evidence.fork_app_hash.clone(),
-        canonical_finality_sig: evidence.canonical_finality_sig.clone(),
-        fork_finality_sig: evidence.fork_finality_sig.clone(),
+        pub_rand_hex: hex::encode(&evidence.pub_rand),
+        canonical_app_hash_hex: hex::encode(&evidence.canonical_app_hash),
+        fork_app_hash_hex: hex::encode(&evidence.fork_app_hash),
+        canonical_finality_sig_hex: hex::encode(&evidence.canonical_finality_sig),
+        fork_finality_sig_hex: hex::encode(&evidence.fork_finality_sig),
+        signing_context: "".to_string(), // TODO: support signing context
     };
 
     // Convert to CosmosMsg
@@ -443,15 +443,19 @@ pub(crate) mod tests {
         let add_finality_signature = get_add_finality_sig();
         let proof = add_finality_signature.proof.unwrap();
 
-        let initial_height = pr_commit.start_height;
+        // Convert the PubRandCommit in the type defined in this contract
+        let pr_commit = PubRandCommit {
+            start_height: pr_commit.start_height,
+            num_pub_rand: pr_commit.num_pub_rand,
+            height: pr_commit.height,
+            commitment: pr_commit.commitment,
+        };
 
         // Verify finality signature
-        if proof.index < 0 {
-            panic!("Proof index should be non-negative");
-        }
+        assert!(proof.index >= 0, "Proof index should be non-negative");
         let res = verify_finality_signature(
             &pk_hex,
-            initial_height + proof.index.unsigned_abs(),
+            pr_commit.start_height + proof.index.unsigned_abs(),
             &pub_rand_one,
             // we need to add a typecast below because the provided proof is of type
             // tendermint_proto::crypto::Proof, whereas the fn expects babylon_merkle::proof

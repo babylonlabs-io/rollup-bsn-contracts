@@ -25,20 +25,14 @@ library = []
 anybuf           = { workspace = true }
 hex              = { workspace = true }
 k256             = { workspace = true }
-prost            = { workspace = true }
 thiserror        = { workspace = true }
 
 cosmwasm-schema  = { workspace = true }
 cosmwasm-std     = { workspace = true }
 cw-controllers   = { workspace = true }
 cw-storage-plus  = { workspace = true }
-cw-utils         = { workspace = true }
 
-babylon-apis     = { workspace = true }
-babylon-bindings = { workspace = true }
-babylon-bitcoin  = { workspace = true }
 babylon-merkle   = { workspace = true }
-babylon-proto    = { workspace = true }
 eots             = { workspace = true }
 
 [dev-dependencies]
@@ -48,6 +42,4 @@ derivative            = { workspace = true }
 cosmwasm-vm           = { workspace = true }
 cw-multi-test         = { workspace = true }
 
-babylon-bindings-test = { workspace = true }
-btc-staking           = { workspace = true }
 test-utils            = { workspace = true }

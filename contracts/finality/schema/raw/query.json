@@ -5,19 +5,6 @@
     {
       "type": "object",
       "required": [
-        "admin"
-      ],
-      "properties": {
-        "admin": {
-          "type": "object",
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
         "block_voters"
       ],
       "properties": {
@@ -37,20 +24,6 @@
               "minimum": 0.0
             }
           },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "description": "`Config` returns the configuration of the finality contract",
-      "type": "object",
-      "required": [
-        "config"
-      ],
-      "properties": {
-        "config": {
-          "type": "object",
           "additionalProperties": false
         }
       },
@@ -95,6 +68,32 @@
               "type": "string"
             }
           },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "admin"
+      ],
+      "properties": {
+        "admin": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "config"
+      ],
+      "properties": {
+        "config": {
+          "type": "object",
           "additionalProperties": false
         }
       },

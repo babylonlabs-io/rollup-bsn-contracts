@@ -1,4 +1,4 @@
-use babylon_bindings::BabylonMsg;
+use crate::msg::BabylonMsg;
 use cosmwasm_std::{
     entry_point, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, StdResult,
 };

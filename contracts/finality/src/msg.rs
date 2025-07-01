@@ -1,14 +1,13 @@
+use crate::state::finality::Evidence;
+use babylon_merkle::Proof;
+use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_std::{Addr, Binary, CosmosMsg};
+
 #[cfg(not(target_arch = "wasm32"))]
 use {
-    crate::state::config::Config, babylon_apis::finality_api::PubRandCommit,
+    crate::state::config::Config, crate::state::public_randomness::PubRandCommit,
     cw_controllers::AdminResponse, std::collections::HashSet,
 };
-
-use babylon_apis::finality_api::Evidence;
-use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary};
-
-use babylon_merkle::Proof;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -100,7 +99,7 @@ pub enum ExecuteMsg {
     },
     /// Slashing message.
     ///
-    /// This message slashs a finality provider for misbehavior.
+    /// This message slashes a finality provider for misbehavior.
     /// The caller must provide evidence of the misbehavior in the form of an Evidence struct.
     /// If the evidence is valid, the finality contract will send the evidence to the Babylon
     /// Genesis chain for actual slashing.
@@ -124,4 +123,39 @@ pub enum ExecuteMsg {
 #[cw_serde]
 pub struct FinalitySignatureResponse {
     pub signature: Vec<u8>,
+}
+
+/// Messages that the finality contract can send to Babylon node's Cosmos SDK layer
+#[cw_serde]
+pub enum BabylonMsg {
+    /// MsgEquivocationEvidence is the message sent to Babylon to notify it of consumer chain slashing.
+    MsgEquivocationEvidence {
+        /// `signer` is the address submitting the evidence
+        signer: String,
+        /// `fp_btc_pk_hex` is the BTC PK of the finality provider that casts this vote
+        fp_btc_pk_hex: String,
+        /// `block_height` is the height of the conflicting blocks
+        block_height: u64,
+        /// `pub_rand_hex` is the public randomness the finality provider has committed to.
+        pub_rand_hex: String,
+        /// `canonical_app_hash_hex` is the AppHash of the canonical block
+        canonical_app_hash_hex: String,
+        /// `fork_app_hash_hex` is the AppHash of the fork block
+        fork_app_hash_hex: String,
+        /// `canonical_finality_sig_hex` is the finality signature to the canonical block
+        canonical_finality_sig_hex: String,
+        /// `fork_finality_sig_hex` is the finality signature to the fork block
+        fork_finality_sig_hex: String,
+        /// `signing_context` is the context in which the finality signatures were used
+        signing_context: String,
+    },
+}
+
+// make BabylonMsg to implement CosmosMsg::CustomMsg
+impl cosmwasm_std::CustomMsg for BabylonMsg {}
+
+impl From<BabylonMsg> for CosmosMsg<BabylonMsg> {
+    fn from(original: BabylonMsg) -> Self {
+        CosmosMsg::Custom(original)
+    }
 }

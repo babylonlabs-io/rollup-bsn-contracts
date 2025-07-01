@@ -29,6 +29,7 @@
     "title": "ExecuteMsg",
     "oneOf": [
       {
+        "description": "This message allows a finality provider to commit to a sequence of public randomness values that will be revealed later during finality signature submissions.\n\nThe commitment is a Merkle root containing the public randomness values. When submitting finality signatures later, the provider must include Merkle proofs that verify against this commitment.\n\nThis commitment mechanism ensures that finality providers cannot adaptively choose their public randomness values after seeing block contents, which is important for security.",
         "type": "object",
         "required": [
           "commit_public_randomness"
@@ -101,23 +102,32 @@
             ],
             "properties": {
               "block_hash": {
-                "$ref": "#/definitions/Binary"
+                "description": "Hash of the block being finalized",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/Binary"
+                  }
+                ]
               },
               "fp_pubkey_hex": {
+                "description": "The BTC public key of the finality provider submitting the signature",
                 "type": "string"
               },
               "height": {
+                "description": "The block height this finality signature is for",
                 "type": "integer",
                 "format": "uint64",
                 "minimum": 0.0
               },
               "l1_block_hash": {
+                "description": "Optional L1 block hash (rollup-specific)",
                 "type": [
                   "string",
                   "null"
                 ]
               },
               "l1_block_number": {
+                "description": "Optional L1 block number (rollup-specific)",
                 "type": [
                   "integer",
                   "null"
@@ -126,13 +136,28 @@
                 "minimum": 0.0
               },
               "proof": {
-                "$ref": "#/definitions/Proof"
+                "description": "Merkle proof verifying that pub_rand was included in the earlier commitment",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/Proof"
+                  }
+                ]
               },
               "pub_rand": {
-                "$ref": "#/definitions/Binary"
+                "description": "The public randomness used for signing this block",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/Binary"
+                  }
+                ]
               },
               "signature": {
-                "$ref": "#/definitions/Binary"
+                "description": "Finality signature on (height || block_hash) signed by finality provider",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/Binary"
+                  }
+                ]
               }
             },
             "additionalProperties": false
@@ -141,7 +166,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Slashing message.\n\nThis message can be called by the admin only.",
+        "description": "Slashing message.\n\nThis message slashes a finality provider for misbehavior. The caller must provide evidence of the misbehavior in the form of an Evidence struct. If the evidence is valid, the finality contract will send the evidence to the Babylon Genesis chain for actual slashing.",
         "type": "object",
         "required": [
           "slashing"
@@ -167,7 +192,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Enable or disable finality gadget.\n\nThis message can be called by the admin only. If disabled, the verifier should bypass the EOTS verification logic, allowing the OP derivation derivation pipeline to pass through. Note this should be implemented in the verifier and is not enforced by the contract itself.",
+        "description": "Set enabled status of the finality contract.\n\nThis message can be called by the admin only. If disabled, the finality contract and the BTC staking finality will not be used by the rollup. Note this should be implemented in the rollup's finality gadget daemon program and is not enforced by the contract itself.",
         "type": "object",
         "required": [
           "set_enabled"
@@ -189,6 +214,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Update the admin address.\n\nThis message can be called by the admin only. The new admin address must be a valid Cosmos address.",
         "type": "object",
         "required": [
           "update_admin"
@@ -336,19 +362,6 @@
       {
         "type": "object",
         "required": [
-          "admin"
-        ],
-        "properties": {
-          "admin": {
-            "type": "object",
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "type": "object",
-        "required": [
           "block_voters"
         ],
         "properties": {
@@ -368,20 +381,6 @@
                 "minimum": 0.0
               }
             },
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "description": "`Config` returns the configuration of the finality contract",
-        "type": "object",
-        "required": [
-          "config"
-        ],
-        "properties": {
-          "config": {
-            "type": "object",
             "additionalProperties": false
           }
         },
@@ -426,6 +425,32 @@
                 "type": "string"
               }
             },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "admin"
+        ],
+        "properties": {
+          "admin": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "config"
+        ],
+        "properties": {
+          "config": {
+            "type": "object",
             "additionalProperties": false
           }
         },

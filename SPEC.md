@@ -1,33 +1,37 @@
 # Finality contract specification for the rollup integration
 
-- [Finality contract specification for the rollup integration](#finality-contract-specification-for-the-rollup-integration)
-  - [1. Changelog](#1-changelog)
-  - [2. Abstract](#2-abstract)
-  - [3. Background](#3-background)
-    - [3.1. BTC staking integration](#31-btc-staking-integration)
-    - [3.2. The role of the finality contract](#32-the-role-of-the-finality-contract)
-  - [4. Keywords](#4-keywords)
-  - [5. Specification](#5-specification)
-    - [5.1. Babylon Genesis chain message interfaces](#51-babylon-genesis-chain-message-interfaces)
-      - [5.1.1. Message: EquivocationEvidence (MUST)](#511-message-equivocationevidence-must)
-    - [5.2. Babylon Genesis chain gRPC queries](#52-babylon-genesis-chain-grpc-queries)
-      - [5.2.1. QueryFinalityProvider (MUST)](#521-queryfinalityprovider-must)
-    - [5.3. Finality Contract message handlers](#53-finality-contract-message-handlers)
-      - [5.3.1. CommitPublicRandomness (MUST)](#531-commitpublicrandomness-must)
-      - [5.3.2. SubmitFinalitySignature (MUST)](#532-submitfinalitysignature-must)
-      - [5.3.3. Slashing (MUST)](#533-slashing-must)
-      - [5.3.4. SetEnabled (SHOULD)](#534-setenabled-should)
-      - [5.3.5. UpdateAdmin (SHOULD)](#535-updateadmin-should)
-    - [5.4. Finality contract queries](#54-finality-contract-queries)
-      - [5.4.1. BlockVoters (MUST)](#541-blockvoters-must)
-      - [5.4.2. FirstPubRandCommit (MUST)](#542-firstpubrandcommit-must)
-      - [5.4.3. LastPubRandCommit (MUST)](#543-lastpubrandcommit-must)
-      - [5.4.4. Admin (SHOULD)](#544-admin-should)
-      - [5.4.5. Config (SHOULD)](#545-config-should)
-      - [5.4.6. IsEnabled (SHOULD)](#546-isenabled-should)
-  - [6. Implementation status](#6-implementation-status)
-    - [6.1. Babylon implementation status](#61-babylon-implementation-status)
-    - [6.2. Finality contracct implementation status](#62-finality-contracct-implementation-status)
+- [1. Changelog](#1-changelog)
+- [2. Abstract](#2-abstract)
+- [3. Background](#3-background)
+  - [3.1. BTC staking integration](#31-btc-staking-integration)
+  - [3.2. The role of the finality contract](#32-the-role-of-the-finality-contract)
+- [4. Keywords](#4-keywords)
+- [5. Specification](#5-specification)
+  - [5.1. Babylon Genesis chain message interfaces](#51-babylon-genesis-chain-message-interfaces)
+    - [5.1.1. Message: EquivocationEvidence (MUST)](#511-message-equivocationevidence-must)
+  - [5.2. Babylon Genesis chain gRPC queries](#52-babylon-genesis-chain-grpc-queries)
+    - [5.2.1. QueryFinalityProvider (MUST)](#521-queryfinalityprovider-must)
+  - [5.3. Contract Instantiation](#53-contract-instantiation)
+  - [5.4. Finality Contract message handlers](#54-finality-contract-message-handlers)
+    - [5.4.1. CommitPublicRandomness (MUST)](#541-commitpublicrandomness-must)
+    - [5.4.2. SubmitFinalitySignature (MUST)](#542-submitfinalitysignature-must)
+    - [5.4.3. Slashing (MUST)](#543-slashing-must)
+    - [5.4.4. SetEnabled (SHOULD)](#544-setenabled-should)
+    - [5.4.5. UpdateAdmin (SHOULD)](#545-updateadmin-should)
+  - [5.5. Contract State Storage](#55-contract-state-storage)
+    - [5.5.1. Core Configuration](#551-core-configuration)
+    - [5.5.2. Finality State Storage](#552-finality-state-storage)
+    - [5.5.3. Public Randomness Storage](#553-public-randomness-storage)
+  - [5.6. Finality contract queries](#56-finality-contract-queries)
+    - [5.6.1. BlockVoters (MUST)](#561-blockvoters-must)
+    - [5.6.2. FirstPubRandCommit (MUST)](#562-firstpubrandcommit-must)
+    - [5.6.3. LastPubRandCommit (MUST)](#563-lastpubrandcommit-must)
+    - [5.6.4. Admin (SHOULD)](#564-admin-should)
+    - [5.6.5. Config (SHOULD)](#565-config-should)
+    - [5.6.6. IsEnabled (SHOULD)](#566-isenabled-should)
+- [6. Implementation status](#6-implementation-status)
+  - [6.1. Babylon implementation status](#61-babylon-implementation-status)
+  - [6.2. Finality contracct implementation status](#62-finality-contracct-implementation-status)
 
 ## 1. Changelog
 
@@ -101,26 +105,26 @@ The Babylon Genesis chain MUST provide a message interface for finality
 contracts to report equivocation evidence when finality providers double-sign:
 
 ```rust
-use babylon_bindings::BabylonMsg;
-
 // Interface provided by Babylon Genesis chain
-BabylonMsg::EquivocationEvidence {
+BabylonMsg::MsgEquivocationEvidence {
     /// Address of the entity reporting the equivocation
     signer: String,
-    /// BTC public key of the equivocating finality provider
-    fp_btc_pk: Vec<u8>,
+    /// BTC public key of the equivocating finality provider (hex-encoded)
+    fp_btc_pk_hex: String,
     /// Block height at which an equivocation occurred
     block_height: u64,
-    /// Public randomness value used in both signatures
-    pub_rand: Vec<u8>,
-    /// Application hash of the canonical block
-    canonical_app_hash: Vec<u8>,
-    /// Application hash of the fork block
-    fork_app_hash: Vec<u8>,
-    /// EOTS signature on the canonical block
-    canonical_finality_sig: Vec<u8>,
-    /// EOTS signature on the fork block
-    fork_finality_sig: Vec<u8>,
+    /// Public randomness value used in both signatures (hex-encoded)
+    pub_rand_hex: String,
+    /// Application hash of the canonical block (hex-encoded)
+    canonical_app_hash_hex: String,
+    /// Application hash of the fork block (hex-encoded)
+    fork_app_hash_hex: String,
+    /// EOTS signature on the canonical block (hex-encoded)
+    canonical_finality_sig_hex: String,
+    /// EOTS signature on the fork block (hex-encoded)
+    fork_finality_sig_hex: String,
+    /// Signing context used for the signatures (hex-encoded)
+    signing_context: String,
 }
 ```
 
@@ -158,14 +162,10 @@ func WhitelistedGrpcQuery() wasmkeeper.AcceptedQueries {
 }
 ```
 
-#### 5.2.1. QueryFinalityProvider (MUST)
+Query `/babylon.btcstkconsumer.v1.Query/FinalityProvider` returns the finality
+provider information for the given consumer and the finality provider BTC PK.
 
-Currently, the finality contract only utilizes the
-`/babylon.btcstkconsumer.v1.Query/FinalityProvider` endpoint (implemented in
-[Babylon](https://github.com/babylonlabs-io/babylon/blob/main/x/btcstaking/keeper/grpc_query.go))
-to query finality provider information. The request and response types are
-defined as follows:
-<!-- TODO: use a release rather than a commit for the pointer -->
+#### 5.2.1. QueryFinalityProvider (MUST)
 
 ```protobuf
 // QueryFinalityProviderRequest requests information about a finality provider
@@ -248,18 +248,40 @@ enum BTCSigType {
 }
 ```
 
-The finality contract MAY interface with the Cosmos SDK layer through CosmWasm's
-`query_grpc` method. The request and response structs in Rust MUST match the
-protobuf messages, in that each field MUST use the same name, type and tag
-number as in protobuf.
+This query is used for verifying that finality providers exist and have valid
+voting power before accepting their finality signatures or public randomness
+commitments.
 
-### 5.3. Finality Contract message handlers
+### 5.3. Contract Instantiation
+
+**InstantiateMsg Structure:**
+```rust
+pub struct InstantiateMsg {
+    pub admin: String,
+    pub consumer_id: String,
+    pub is_enabled: bool,
+}
+```
+
+**Expected Behavior:** When deploying the finality contract, the following parameters must be provided:
+
+**Required Parameters:**
+- `admin`: String - The initial admin address for the contract who can update settings and enable/disable the finality gadget
+- `consumer_id`: String - The unique identifier for this consumer chain (e.g., "op-stack-l2-11155420")  
+- `is_enabled`: bool - Whether the finality gadget should be enabled at instantiation
+
+**Instantiation Process:**
+1. **Admin Setup**: Set the provided admin address as the contract administrator
+2. **Configuration Storage**: Save the consumer_id in the contract configuration
+3. **State Initialization**: Set the enabled/disabled state based on the is_enabled parameter
+4. **Response**: Return a success response with instantiation attributes
+
+### 5.4. Finality Contract message handlers
 
 The finality contract message requirements are divided into core finality
 functionality (MUST) and administrative functionality (SHOULD):
 
 ```rust
-use babylon_apis::finality_api::Evidence;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Binary};
 use babylon_merkle::Proof;
@@ -316,7 +338,7 @@ pub enum ExecuteMsg {
     },
     /// Slashing message.
     ///
-    /// This message slashs a finality provider for misbehavior.
+    /// This message slashes a finality provider for misbehavior.
     /// The caller must provide evidence of the misbehavior in the form of an Evidence struct.
     /// If the evidence is valid, the finality contract will send the evidence to the Babylon
     /// Genesis chain for actual slashing.
@@ -344,7 +366,7 @@ pub enum ExecuteMsg {
 }
 ```
 
-#### 5.3.1. CommitPublicRandomness (MUST)
+#### 5.4.1. CommitPublicRandomness (MUST)
 
 **Message Structure:**
 ```rust
@@ -378,7 +400,7 @@ CommitPublicRandomness {
    - Save to the public randomness commitment state using key `(fp_pubkey_hex, start_height)`
    - Record the current block height as the commitment block height
 
-#### 5.3.2. SubmitFinalitySignature (MUST)
+#### 5.4.2. SubmitFinalitySignature (MUST)
 
 **Message Structure:**
 ```rust
@@ -434,7 +456,7 @@ SubmitFinalitySignature {
      - Add `fp_pubkey_hex` to the HashSet
      - Save updated HashSet back to the contract state
 
-#### 5.3.3. Slashing (MUST)
+#### 5.4.3. Slashing (MUST)
 
 **Message Structure:**
 ```rust
@@ -464,7 +486,7 @@ Slashing {
    - Canonical and fork block hashes from evidence
    - Canonical and fork finality signatures from evidence
 
-#### 5.3.4. SetEnabled (SHOULD)
+#### 5.4.4. SetEnabled (SHOULD)
 
 **Message Structure:**
 ```rust
@@ -488,7 +510,7 @@ SetEnabled {
    - Save the `enabled` parameter value to the contract state
    - Emit appropriate event indicating the state change
 
-#### 5.3.5. UpdateAdmin (SHOULD)
+#### 5.4.5. UpdateAdmin (SHOULD)
 
 **Message Structure:**
 ```rust
@@ -512,14 +534,87 @@ UpdateAdmin {
    - The new admin address from `admin` parameter replaces the current admin
    - Emit appropriate event indicating the admin change
 
-### 5.4. Finality contract queries
+### 5.5. Contract State Storage
+
+This section documents the actual state storage structure used by the finality contract implementation.
+
+#### 5.5.1. Core Configuration
+
+**ADMIN**: Admin controller for contract administration
+- Type: `Admin` (from cw-controllers)
+- Storage key: `"admin"`
+- Purpose: Manages contract administrative functions
+
+**CONFIG**: Contract configuration settings
+- Type: `Item<Config>`
+- Storage key: `"config"`
+- Structure:
+  ```rust
+  pub struct Config {
+      pub consumer_id: String,
+  }
+  ```
+
+**IS_ENABLED**: Finality gadget enabled status
+- Type: `Item<bool>`
+- Storage key: `"is_enabled"`
+- Purpose: Controls whether the finality gadget is active
+
+#### 5.5.2. Finality State Storage
+
+**SIGNATURES**: Finality provider signatures by height and provider
+- Type: `Map<(u64, &str), Vec<u8>>`
+- Storage key: `"fp_sigs"`
+- Key format: `(block_height, fp_pubkey_hex)`
+- Purpose: Stores EOTS signatures submitted by finality providers
+
+**BLOCK_HASHES**: Block hashes by height and provider
+- Type: `Map<(u64, &str), Vec<u8>>`
+- Storage key: `"block_hashes"`
+- Key format: `(block_height, fp_pubkey_hex)`
+- Purpose: Stores block hashes that finality providers have voted for
+
+**BLOCK_VOTES**: Voting aggregation by height and block hash
+- Type: `Map<(u64, &[u8]), HashSet<String>>`
+- Storage key: `"block_votes"`
+- Key format: `(block_height, block_hash_bytes)`
+- Purpose: Maps each (height, block_hash) combination to the set of finality provider public keys that voted for it
+
+**EVIDENCES**: Slashing evidence by height and provider
+- Type: `Map<(u64, &str), Evidence>`
+- Storage key: `"evidences"`
+- Key format: `(block_height, fp_pubkey_hex)`
+- Purpose: Stores equivocation evidence for slashed finality providers
+
+#### 5.5.3. Public Randomness Storage
+
+**PUB_RAND_COMMITS**: Public randomness commitments
+- Type: `Map<(&str, u64), PubRandCommit>`
+- Storage key: `"fp_pub_rand_commit"`
+- Key format: `(fp_pubkey_hex, start_height)`
+- Structure:
+  ```rust
+  pub struct PubRandCommit {
+      pub start_height: u64,
+      pub num_pub_rand: u64,
+      pub height: u64,
+      pub commitment: Vec<u8>,
+  }
+  ```
+
+**PUB_RAND_VALUES**: Individual public randomness values
+- Type: `Map<(&str, u64), Vec<u8>>`
+- Storage key: `"fp_pub_rand"`
+- Key format: `(fp_pubkey_hex, block_height)`
+- Purpose: Stores individual public randomness values revealed during finality signature submission
+
+### 5.6. Finality contract queries
 
 The finality contract query requirements are divided into core finality
 functionality (MUST) and administrative functionality (SHOULD):
 
 ```rust
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use babylon_apis::finality_api::PubRandCommit;
 use cw_controllers::AdminResponse;
 use std::collections::HashSet;
 
@@ -550,7 +645,7 @@ pub enum QueryMsg {
 }
 ```
 
-#### 5.4.1. BlockVoters (MUST)
+#### 5.6.1. BlockVoters (MUST)
 
 **Query Structure:**
 ```rust
@@ -576,7 +671,7 @@ the set of finality providers that voted for a specific block:
    - IF no votes found: RETURN `None`
    - IF votes exist: RETURN `Some(HashSet of fp_pubkey_hex strings)`
 
-#### 5.4.2. FirstPubRandCommit (MUST)
+#### 5.6.2. FirstPubRandCommit (MUST)
 
 **Query Structure:**
 ```rust
@@ -608,7 +703,7 @@ WHERE PubRandCommit contains:
 - `commitment`: `Binary`
 - `signature`: `Binary`
 
-#### 5.4.3. LastPubRandCommit (MUST)
+#### 5.6.3. LastPubRandCommit (MUST)
 
 **Query Structure:**
 ```rust
@@ -640,7 +735,7 @@ WHERE PubRandCommit contains:
 - `commitment`: `Binary`
 - `signature`: `Binary`
 
-#### 5.4.4. Admin (SHOULD)
+#### 5.6.4. Admin (SHOULD)
 
 **Query Structure:**
 ```rust
@@ -662,7 +757,7 @@ query to return the current admin address:
 WHERE AdminResponse contains:
 - `admin`: `Option<String>`
 
-#### 5.4.5. Config (SHOULD)
+#### 5.6.5. Config (SHOULD)
 
 **Query Structure:**
 ```rust
@@ -681,14 +776,10 @@ query to return the contract configuration:
    - Return Config struct with all configuration values
    - All configuration fields should be populated
    
-WHERE Config contains implementation-specific fields such as:
-- `consumer_id`: `String`         
-- `babylon_tag`: `String`         
-- `btc_confirmation_depth`: `u32` 
-- `checkpoint_finalization_timeout`: `u64` 
-- other implementation-specific parameters
+WHERE Config contains:
+- `consumer_id`: `String` - The consumer chain identifier for this finality contract
 
-#### 5.4.6. IsEnabled (SHOULD)
+#### 5.6.6. IsEnabled (SHOULD)
 
 **Query Structure:**
 ```rust

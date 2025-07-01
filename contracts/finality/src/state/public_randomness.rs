@@ -1,5 +1,6 @@
 use crate::error::ContractError;
-use babylon_apis::finality_api::PubRandCommit;
+use crate::state::Bytes;
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Order::{Ascending, Descending};
 use cosmwasm_std::{StdResult, Storage};
 use cw_storage_plus::{Bound, Map};
@@ -8,6 +9,34 @@ use cw_storage_plus::{Bound, Map};
 pub(crate) const PUB_RAND_COMMITS: Map<(&str, u64), PubRandCommit> = Map::new("fp_pub_rand_commit");
 /// Map of public randomness values by fp and block height
 pub(crate) const PUB_RAND_VALUES: Map<(&str, u64), Vec<u8>> = Map::new("fp_pub_rand");
+
+/// `PubRandCommit` is a commitment to a series of public randomness.
+/// Currently, the commitment is a root of a Merkle tree that includes a series of public randomness
+/// values
+#[cw_serde]
+pub struct PubRandCommit {
+    /// `start_height` is the height of the first commitment
+    pub start_height: u64,
+    /// `num_pub_rand` is the number of committed public randomness
+    pub num_pub_rand: u64,
+    /// `height` defines the height that the commit was submitted
+    pub height: u64,
+    /// `commitment` is the value of the commitment.
+    /// Currently, it's the root of the Merkle tree constructed by the public randomness
+    pub commitment: Bytes,
+}
+
+impl PubRandCommit {
+    /// `in_range` checks if the given height is within the range of the commitment
+    pub fn in_range(&self, height: u64) -> bool {
+        self.start_height <= height && height <= self.end_height()
+    }
+
+    /// `end_height` returns the height of the last commitment
+    pub fn end_height(&self) -> u64 {
+        self.start_height + self.num_pub_rand - 1
+    }
+}
 
 // Copied from contracts/btc-staking/src/state/public_randomness.rs
 pub fn get_pub_rand_commit_for_height(
