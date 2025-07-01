@@ -6,7 +6,7 @@ use std::collections::HashSet;
 pub(crate) const SIGNATURES: Map<(u64, &str), Vec<u8>> = Map::new("fp_sigs");
 
 /// Map of block hashes by block height and fp
-pub(crate) const BLOCK_HASHES: Map<(u64, &str), Vec<u8>> = Map::new("block_hashes");
+pub(crate) const APP_BLOCK_HASHES: Map<(u64, &str), Vec<u8>> = Map::new("app_block_hashes");
 
 /// Map of (block height, block hash) tuples to the list of fps that voted for this combination
 pub(crate) const BLOCK_VOTES: Map<(u64, &[u8]), HashSet<String>> = Map::new("block_votes");

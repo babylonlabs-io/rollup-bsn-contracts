@@ -92,7 +92,7 @@
           "submit_finality_signature": {
             "type": "object",
             "required": [
-              "block_hash",
+              "app_block_hash",
               "fp_pubkey_hex",
               "height",
               "proof",
@@ -100,7 +100,7 @@
               "signature"
             ],
             "properties": {
-              "block_hash": {
+              "app_block_hash": {
                 "$ref": "#/definitions/Binary"
               },
               "fp_pubkey_hex": {

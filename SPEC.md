@@ -310,8 +310,8 @@ pub enum ExecuteMsg {
         /// Merkle proof verifying that pub_rand was included in the earlier commitment
         proof: Proof,
         /// Hash of the block being finalized
-        block_hash: Binary,
-        /// Finality signature on (height || block_hash) signed by finality provider
+        app_block_hash: Binary,
+        /// Finality signature on (height || app_block_hash) signed by finality provider
         signature: Binary,
     },
     /// Slashing message.
@@ -387,7 +387,7 @@ SubmitFinalitySignature {
     height: u64,
     pub_rand: Binary,
     proof: Proof,
-    block_hash: Binary,
+    app_block_hash: Binary,
     signature: Binary,
 }
 ```
@@ -403,7 +403,7 @@ SubmitFinalitySignature {
 3. **Duplicate Vote Check**: Check if an identical vote already exists:
    - Query finality signature state using key `(height, fp_pubkey_hex)`
    - Query blocks using key `(height, fp_pubkey_hex)`
-   - If both exist and match the provided `block_hash` and `signature`, reject as duplicate
+   - If both exist and match the provided `app_block_hash` and `signature`, reject as duplicate
 
 4. **Public Randomness Commitment Retrieval**: Find the public randomness commitment that covers the target height:
    - Query public randomness commitment state to find commitment where `start_height <= height <= start_height + num_pub_rand - 1`
@@ -414,12 +414,12 @@ SubmitFinalitySignature {
    - Verify `proof.total == pr_commit.num_pub_rand`
    - Verify the inclusion proof for the public randomness value against `pr_commit.commitment`
    - Verify the EOTS signature using:
-     - Message: `SHA256(height || block_hash)`
+     - Message: `SHA256(height || app_block_hash)`
      - Public randomness value and EOTS signature
 
 6. **Equivocation Detection**: Check if the finality provider has already voted for a different block at this height:
    - Query blocks using key `(height, fp_pubkey_hex)`
-   - If exists and differs from current `block_hash`:
+   - If exists and differs from current `app_block_hash`:
      - Extract the secret key using EOTS from the two different signatures
      - Create `Evidence` struct with both signatures and block hashes
      - Save evidence to the contract state using key `(height, fp_pubkey_hex)`
@@ -430,7 +430,7 @@ SubmitFinalitySignature {
    - Save block hash to the contract state using key `(height, fp_pubkey_hex)`
    - Save public randomness value to the contract state using key `(fp_pubkey_hex, height)`
    - Update the blocks storage:
-     - Get existing voters for key `(height, block_hash_bytes)` or create empty HashSet
+     - Get existing voters for key `(height, app_block_hash_bytes)` or create empty HashSet
      - Add `fp_pubkey_hex` to the HashSet
      - Save updated HashSet back to the contract state
 

@@ -4,7 +4,7 @@ use crate::error::ContractError;
 use crate::msg::ExecuteMsg;
 use crate::queries::query_last_pub_rand_commit;
 use crate::state::config::CONFIG;
-use crate::state::finality::{BLOCK_HASHES, BLOCK_VOTES, EVIDENCES, SIGNATURES};
+use crate::state::finality::{APP_BLOCK_HASHES, BLOCK_VOTES, EVIDENCES, SIGNATURES};
 use crate::state::public_randomness::{
     get_pub_rand_commit_for_height, PUB_RAND_COMMITS, PUB_RAND_VALUES,
 };
@@ -194,10 +194,9 @@ pub fn handle_finality_signature(
     // extracting its secret key, and emit an event
     let canonical_sig: Option<Vec<u8>> =
         SIGNATURES.may_load(deps.storage, (height, fp_btc_pk_hex))?;
-    let canonical_block_app_hash: Option<Vec<u8>> =
-        BLOCK_HASHES.may_load(deps.storage, (height, fp_btc_pk_hex))?;
-    if let (Some(canonical_sig), Some(canonical_block_app_hash)) =
-        (canonical_sig, canonical_block_app_hash)
+    let canonical_app_block_hash = APP_BLOCK_HASHES.may_load(deps.storage, (height, fp_btc_pk_hex))?;
+    if let (Some(canonical_sig), Some(canonical_app_block_hash)) =
+        (canonical_sig, canonical_app_block_hash)
     {
         // the finality provider has voted for a fork before!
         // If this evidence is at the same height as this signature, slash this finality provider
@@ -207,7 +206,7 @@ pub fn handle_finality_signature(
             fp_btc_pk: hex::decode(fp_btc_pk_hex)?,
             block_height: height,
             pub_rand: pub_rand.to_vec(),
-            canonical_app_hash: canonical_block_app_hash,
+            canonical_app_hash: canonical_app_block_hash,
             canonical_finality_sig: canonical_sig,
             fork_app_hash: block_app_hash.to_vec(),
             fork_finality_sig: signature.to_vec(),
@@ -225,7 +224,7 @@ pub fn handle_finality_signature(
 
     // This signature is good, save the vote to the store
     SIGNATURES.save(deps.storage, (height, fp_btc_pk_hex), &signature.to_vec())?;
-    BLOCK_HASHES.save(
+    APP_BLOCK_HASHES.save(
         deps.storage,
         (height, fp_btc_pk_hex),
         &block_app_hash.to_vec(),

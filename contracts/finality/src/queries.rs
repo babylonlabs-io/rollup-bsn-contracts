@@ -16,10 +16,10 @@ pub fn query_block_voters(
     height: u64,
     hash: String,
 ) -> Result<Option<HashSet<String>>, ContractError> {
-    let block_hash_bytes: Vec<u8> = hex::decode(&hash).map_err(ContractError::HexError)?;
+    let app_block_hash_bytes: Vec<u8> = hex::decode(&hash).map_err(ContractError::HexError)?;
     // find all FPs that voted for this (height, hash) combination
     let fp_pubkey_hex_list = BLOCK_VOTES
-        .may_load(deps.storage, (height, &block_hash_bytes))
+        .may_load(deps.storage, (height, &app_block_hash_bytes))
         .map_err(|e| {
             ContractError::QueryBlockVoterError(
                 height,
