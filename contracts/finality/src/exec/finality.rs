@@ -35,10 +35,8 @@ pub fn handle_public_randomness_commit(
         return Err(ContractError::InvalidNumPubRand(num_pub_rand));
     }
 
-    // Ensure the finality provider is registered
-    check_fp_exist(deps.as_ref(), fp_pubkey_hex)?;
-
-    // TODO: ensure log_2(num_pub_rand) is an integer?
+    // Ensure the finality provider is registered and not slashed
+    ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_pubkey_hex)?;
 
     // Verify signature over the list
     verify_commitment_signature(
@@ -133,10 +131,9 @@ pub fn handle_finality_signature(
     block_app_hash: &[u8],
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
-    // Ensure the finality provider exists
-    check_fp_exist(deps.as_ref(), fp_btc_pk_hex)?;
+    // Ensure the finality provider exists and is not slashed
+    ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
 
-    // TODO: Ensure the finality provider is not slashed at this time point (#82)
     // NOTE: It's possible that the finality provider equivocates for height h, and the signature is
     // processed at height h' > h. In this case:
     // - We should reject any new signature from this finality provider, since it's known to be adversarial.
@@ -314,15 +311,16 @@ fn msg_to_sign(height: u64, block_app_hash: &[u8]) -> Vec<u8> {
     msg
 }
 
-fn check_fp_exist(deps: Deps, fp_pubkey_hex: &str) -> Result<(), ContractError> {
+fn ensure_fp_exists_and_not_slashed(deps: Deps, fp_pubkey_hex: &str) -> Result<(), ContractError> {
     let config = CONFIG.load(deps.storage)?;
     let fp = query_finality_provider(deps, config.consumer_id.clone(), fp_pubkey_hex.to_string());
     match fp {
-        Ok(_value) => {
-            // TODO: check the slash
-            // value.slashed_babylon_height != value.height;
-            Ok(())
-        }
+        Ok(value) if value.is_slashed() => Err(ContractError::SlashedFinalityProvider(
+            fp_pubkey_hex.to_string(),
+            value.slashed_babylon_height,
+            value.slashed_btc_height,
+        )),
+        Ok(_) => Ok(()),
         Err(_e) => Err(ContractError::NotFoundFinalityProvider(
             config.consumer_id,
             fp_pubkey_hex.to_string(),
