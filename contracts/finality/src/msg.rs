@@ -128,28 +128,26 @@ pub struct FinalitySignatureResponse {
 /// Messages that the finality contract can send to Babylon node's Cosmos SDK layer
 #[cw_serde]
 pub enum BabylonMsg {
-    /// EquivocationEvidence is the message sent to Babylon to notify it of consumer chain slashing.
-    EquivocationEvidence {
+    /// MsgEquivocationEvidence is the message sent to Babylon to notify it of consumer chain slashing.
+    MsgEquivocationEvidence {
         /// `signer` is the address submitting the evidence
         signer: String,
-        /// `fp_btc_pk` is the BTC PK of the finality provider that casts this vote
-        fp_btc_pk: Vec<u8>,
+        /// `fp_btc_pk_hex` is the BTC PK of the finality provider that casts this vote
+        fp_btc_pk_hex: String,
         /// `block_height` is the height of the conflicting blocks
         block_height: u64,
-        /// `pub_rand` is the public randomness the finality provider has committed to.
-        pub_rand: Vec<u8>,
-        /// `canonical_app_hash` is the AppHash of the canonical block
-        canonical_app_hash: Vec<u8>,
-        /// `fork_app_hash` is the AppHash of the fork block
-        fork_app_hash: Vec<u8>,
-        /// `canonical_finality_sig` is the finality signature to the canonical block,
-        /// where finality signature is an EOTS signature, i.e.,
-        /// the `s` in a Schnorr signature `(r, s)`.
-        /// `r` is the public randomness already committed by the finality provider.
-        canonical_finality_sig: Vec<u8>,
-        /// `fork_finality_sig` is the finality signature to the fork block,
-        /// where finality signature is an EOTS signature.
-        fork_finality_sig: Vec<u8>,
+        /// `pub_rand_hex` is the public randomness the finality provider has committed to.
+        pub_rand_hex: String,
+        /// `canonical_app_hash_hex` is the AppHash of the canonical block
+        canonical_app_hash_hex: String,
+        /// `fork_app_hash_hex` is the AppHash of the fork block
+        fork_app_hash_hex: String,
+        /// `canonical_finality_sig_hex` is the finality signature to the canonical block
+        canonical_finality_sig_hex: String,
+        /// `fork_finality_sig_hex` is the finality signature to the fork block
+        fork_finality_sig_hex: String,
+        /// `signing_context` is the context in which the finality signatures were used
+        signing_context: String,
     },
 }
 

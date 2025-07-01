@@ -388,15 +388,16 @@ pub(crate) fn handle_slashing(
     let mut res = Response::new();
     // Send msg to Babylon
 
-    let msg = BabylonMsg::EquivocationEvidence {
+    let msg = BabylonMsg::MsgEquivocationEvidence {
         signer: sender.to_string(),
-        fp_btc_pk: evidence.fp_btc_pk.clone(),
+        fp_btc_pk_hex: hex::encode(&evidence.fp_btc_pk),
         block_height: evidence.block_height,
-        pub_rand: evidence.pub_rand.clone(),
-        canonical_app_hash: evidence.canonical_app_hash.clone(),
-        fork_app_hash: evidence.fork_app_hash.clone(),
-        canonical_finality_sig: evidence.canonical_finality_sig.clone(),
-        fork_finality_sig: evidence.fork_finality_sig.clone(),
+        pub_rand_hex: hex::encode(&evidence.pub_rand),
+        canonical_app_hash_hex: hex::encode(&evidence.canonical_app_hash),
+        fork_app_hash_hex: hex::encode(&evidence.fork_app_hash),
+        canonical_finality_sig_hex: hex::encode(&evidence.canonical_finality_sig),
+        fork_finality_sig_hex: hex::encode(&evidence.fork_finality_sig),
+        signing_context: "".to_string(), // TODO: support signing context
     };
 
     // Convert to CosmosMsg
