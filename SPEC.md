@@ -105,8 +105,6 @@ The Babylon Genesis chain MUST provide a message interface for finality
 contracts to report equivocation evidence when finality providers double-sign:
 
 ```rust
-use babylon_bindings::BabylonMsg;
-
 // Interface provided by Babylon Genesis chain
 BabylonMsg::EquivocationEvidence {
     /// Address of the entity reporting the equivocation
@@ -338,7 +336,7 @@ pub enum ExecuteMsg {
     },
     /// Slashing message.
     ///
-    /// This message slashs a finality provider for misbehavior.
+    /// This message slashes a finality provider for misbehavior.
     /// The caller must provide evidence of the misbehavior in the form of an Evidence struct.
     /// If the evidence is valid, the finality contract will send the evidence to the Babylon
     /// Genesis chain for actual slashing.

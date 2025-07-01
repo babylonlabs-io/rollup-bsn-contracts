@@ -3,12 +3,11 @@ use crate::exec::admin::set_enabled;
 use crate::exec::finality::{
     handle_finality_signature, handle_public_randomness_commit, handle_slashing,
 };
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{BabylonMsg, ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::queries::{
     query_block_voters, query_config, query_first_pub_rand_commit, query_last_pub_rand_commit,
 };
 use crate::state::config::{Config, ADMIN, CONFIG, IS_ENABLED};
-use babylon_bindings::BabylonMsg;
 use cosmwasm_std::{
     to_json_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, StdResult,
 };

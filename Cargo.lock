@@ -217,16 +217,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "babylon-bindings"
-version = "0.4.0"
-source = "git+https://github.com/babylonlabs-io/cosmos-bsn-contracts#49ea2a81de1b430afeb1951e4925ef9b4834529e"
-dependencies = [
- "babylon-apis",
- "cosmwasm-schema",
- "cosmwasm-std",
-]
-
-[[package]]
 name = "babylon-bitcoin"
 version = "0.14.0"
 source = "git+https://github.com/babylonlabs-io/cosmos-bsn-contracts#49ea2a81de1b430afeb1951e4925ef9b4834529e"
@@ -1136,7 +1126,6 @@ version = "0.14.1"
 dependencies = [
  "anybuf",
  "anyhow",
- "babylon-bindings",
  "babylon-merkle",
  "cosmwasm-schema",
  "cosmwasm-std",

@@ -1,9 +1,10 @@
-use babylon_bindings::BabylonMsg;
 use cosmwasm_std::{
     entry_point, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, StdResult,
 };
 use error::ContractError;
 use msg::{ExecuteMsg, InstantiateMsg};
+
+use crate::msg::BabylonMsg;
 
 pub mod contract;
 pub mod error;

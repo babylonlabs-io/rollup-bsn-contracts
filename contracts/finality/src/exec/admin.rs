@@ -1,10 +1,9 @@
-use babylon_bindings::BabylonMsg;
-use cosmwasm_std::{DepsMut, MessageInfo, Response};
-
 use crate::{
     error::ContractError,
+    msg::BabylonMsg,
     state::config::{ADMIN, IS_ENABLED},
 };
+use cosmwasm_std::{DepsMut, MessageInfo, Response};
 
 // Enable or disable the finality gadget.
 // Only callable by contract admin.

@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::error::ContractError;
-use crate::msg::ExecuteMsg;
+use crate::msg::{BabylonMsg, ExecuteMsg};
 use crate::queries::query_last_pub_rand_commit;
 use crate::state::config::CONFIG;
 use crate::state::finality::{Evidence, BLOCK_HASHES, BLOCK_VOTES, EVIDENCES, SIGNATURES};
@@ -9,7 +9,6 @@ use crate::state::public_randomness::{
     get_pub_rand_commit_for_height, PUB_RAND_COMMITS, PUB_RAND_VALUES,
 };
 use crate::utils::query_finality_provider;
-use babylon_bindings::BabylonMsg;
 
 use crate::state::public_randomness::PubRandCommit;
 use babylon_merkle::Proof;

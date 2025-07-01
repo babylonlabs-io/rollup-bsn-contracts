@@ -166,7 +166,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Slashing message.\n\nThis message slashs a finality provider for misbehavior. The caller must provide evidence of the misbehavior in the form of an Evidence struct. If the evidence is valid, the finality contract will send the evidence to the Babylon Genesis chain for actual slashing.",
+        "description": "Slashing message.\n\nThis message slashes a finality provider for misbehavior. The caller must provide evidence of the misbehavior in the form of an Evidence struct. If the evidence is valid, the finality contract will send the evidence to the Babylon Genesis chain for actual slashing.",
         "type": "object",
         "required": [
           "slashing"

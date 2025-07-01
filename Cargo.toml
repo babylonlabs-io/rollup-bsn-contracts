@@ -19,7 +19,6 @@ fix-lint        = "./scripts/fix-lint.sh"
 integration     = "./scripts/integration_test.sh"
 
 [workspace.dependencies]
-babylon-bindings      = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
 babylon-merkle        = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
 eots                  = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
 

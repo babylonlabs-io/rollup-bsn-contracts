@@ -1,7 +1,7 @@
 use crate::state::finality::Evidence;
 use babylon_merkle::Proof;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary};
+use cosmwasm_std::{Addr, Binary, CosmosMsg};
 
 #[cfg(not(target_arch = "wasm32"))]
 use {
@@ -99,7 +99,7 @@ pub enum ExecuteMsg {
     },
     /// Slashing message.
     ///
-    /// This message slashs a finality provider for misbehavior.
+    /// This message slashes a finality provider for misbehavior.
     /// The caller must provide evidence of the misbehavior in the form of an Evidence struct.
     /// If the evidence is valid, the finality contract will send the evidence to the Babylon
     /// Genesis chain for actual slashing.
@@ -123,4 +123,41 @@ pub enum ExecuteMsg {
 #[cw_serde]
 pub struct FinalitySignatureResponse {
     pub signature: Vec<u8>,
+}
+
+/// Messages that the finality contract can send to Babylon node's Cosmos SDK layer
+#[cw_serde]
+pub enum BabylonMsg {
+    /// EquivocationEvidence is the message sent to Babylon to notify it of consumer chain slashing.
+    EquivocationEvidence {
+        /// `signer` is the address submitting the evidence
+        signer: String,
+        /// `fp_btc_pk` is the BTC PK of the finality provider that casts this vote
+        fp_btc_pk: Vec<u8>,
+        /// `block_height` is the height of the conflicting blocks
+        block_height: u64,
+        /// `pub_rand` is the public randomness the finality provider has committed to.
+        pub_rand: Vec<u8>,
+        /// `canonical_app_hash` is the AppHash of the canonical block
+        canonical_app_hash: Vec<u8>,
+        /// `fork_app_hash` is the AppHash of the fork block
+        fork_app_hash: Vec<u8>,
+        /// `canonical_finality_sig` is the finality signature to the canonical block,
+        /// where finality signature is an EOTS signature, i.e.,
+        /// the `s` in a Schnorr signature `(r, s)`.
+        /// `r` is the public randomness already committed by the finality provider.
+        canonical_finality_sig: Vec<u8>,
+        /// `fork_finality_sig` is the finality signature to the fork block,
+        /// where finality signature is an EOTS signature.
+        fork_finality_sig: Vec<u8>,
+    },
+}
+
+// make BabylonMsg to implement CosmosMsg::CustomMsg
+impl cosmwasm_std::CustomMsg for BabylonMsg {}
+
+impl From<BabylonMsg> for CosmosMsg<BabylonMsg> {
+    fn from(original: BabylonMsg) -> Self {
+        CosmosMsg::Custom(original)
+    }
 }
