@@ -452,9 +452,7 @@ pub(crate) mod tests {
         };
 
         // Verify finality signature
-        if proof.index < 0 {
-            panic!("Proof index should be non-negative");
-        }
+        assert!(proof.index >= 0, "Proof index should be non-negative");
         let res = verify_finality_signature(
             &pk_hex,
             pr_commit.start_height + proof.index.unsigned_abs(),

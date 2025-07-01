@@ -1,8 +1,6 @@
-use crate::{
-    error::ContractError,
-    msg::BabylonMsg,
-    state::config::{ADMIN, IS_ENABLED},
-};
+use crate::error::ContractError;
+use crate::msg::BabylonMsg;
+use crate::state::config::{ADMIN, IS_ENABLED};
 use cosmwasm_std::{DepsMut, MessageInfo, Response};
 
 // Enable or disable the finality gadget.
