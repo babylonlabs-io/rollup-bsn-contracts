@@ -36,7 +36,7 @@ pub fn handle_public_randomness_commit(
     }
 
     // Ensure the finality provider is registered and not slashed
-    ensure_fp_exists_and_unslashed(deps.as_ref(), fp_pubkey_hex)?;
+    ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_pubkey_hex)?;
 
     // Verify signature over the list
     verify_commitment_signature(
@@ -132,7 +132,7 @@ pub fn handle_finality_signature(
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
     // Ensure the finality provider exists and is not slashed
-    ensure_fp_exists_and_unslashed(deps.as_ref(), fp_btc_pk_hex)?;
+    ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
 
     // NOTE: It's possible that the finality provider equivocates for height h, and the signature is
     // processed at height h' > h. In this case:
@@ -311,7 +311,7 @@ fn msg_to_sign(height: u64, block_app_hash: &[u8]) -> Vec<u8> {
     msg
 }
 
-fn ensure_fp_exists_and_unslashed(deps: Deps, fp_pubkey_hex: &str) -> Result<(), ContractError> {
+fn ensure_fp_exists_and_not_slashed(deps: Deps, fp_pubkey_hex: &str) -> Result<(), ContractError> {
     let config = CONFIG.load(deps.storage)?;
     let fp = query_finality_provider(deps, config.consumer_id.clone(), fp_pubkey_hex.to_string());
     match fp {
