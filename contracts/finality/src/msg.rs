@@ -93,14 +93,13 @@ pub enum ExecuteMsg {
         /// Merkle proof verifying that pub_rand was included in the earlier commitment
         proof: Proof,
         /// Hash of the block being finalized
-        // FIXME: Rename to block_app_hash for consistency / clarity
         block_hash: Binary,
         /// Finality signature on (height || block_hash) signed by finality provider
         signature: Binary,
     },
     /// Slashing message.
     ///
-    /// This message slashs a finality provider for misbehavior.
+    /// This message slashes a finality provider for misbehavior.
     /// The caller must provide evidence of the misbehavior in the form of an Evidence struct.
     /// If the evidence is valid, the finality contract will send the evidence to the Babylon
     /// Genesis chain for actual slashing.
