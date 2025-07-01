@@ -194,7 +194,8 @@ pub fn handle_finality_signature(
     // extracting its secret key, and emit an event
     let canonical_sig: Option<Vec<u8>> =
         SIGNATURES.may_load(deps.storage, (height, fp_btc_pk_hex))?;
-    let canonical_app_block_hash = APP_BLOCK_HASHES.may_load(deps.storage, (height, fp_btc_pk_hex))?;
+    let canonical_app_block_hash =
+        APP_BLOCK_HASHES.may_load(deps.storage, (height, fp_btc_pk_hex))?;
     if let (Some(canonical_sig), Some(canonical_app_block_hash)) =
         (canonical_sig, canonical_app_block_hash)
     {
