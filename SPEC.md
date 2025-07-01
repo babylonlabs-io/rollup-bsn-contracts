@@ -106,23 +106,25 @@ contracts to report equivocation evidence when finality providers double-sign:
 
 ```rust
 // Interface provided by Babylon Genesis chain
-BabylonMsg::EquivocationEvidence {
+BabylonMsg::MsgEquivocationEvidence {
     /// Address of the entity reporting the equivocation
     signer: String,
-    /// BTC public key of the equivocating finality provider
-    fp_btc_pk: Vec<u8>,
+    /// BTC public key of the equivocating finality provider (hex-encoded)
+    fp_btc_pk_hex: String,
     /// Block height at which an equivocation occurred
     block_height: u64,
-    /// Public randomness value used in both signatures
-    pub_rand: Vec<u8>,
-    /// Application hash of the canonical block
-    canonical_app_hash: Vec<u8>,
-    /// Application hash of the fork block
-    fork_app_hash: Vec<u8>,
-    /// EOTS signature on the canonical block
-    canonical_finality_sig: Vec<u8>,
-    /// EOTS signature on the fork block
-    fork_finality_sig: Vec<u8>,
+    /// Public randomness value used in both signatures (hex-encoded)
+    pub_rand_hex: String,
+    /// Application hash of the canonical block (hex-encoded)
+    canonical_app_hash_hex: String,
+    /// Application hash of the fork block (hex-encoded)
+    fork_app_hash_hex: String,
+    /// EOTS signature on the canonical block (hex-encoded)
+    canonical_finality_sig_hex: String,
+    /// EOTS signature on the fork block (hex-encoded)
+    fork_finality_sig_hex: String,
+    /// Signing context used for the signatures (hex-encoded)
+    signing_context: String,
 }
 ```
 
