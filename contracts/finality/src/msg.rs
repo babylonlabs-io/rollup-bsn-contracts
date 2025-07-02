@@ -92,7 +92,6 @@ pub enum ExecuteMsg {
         /// Merkle proof verifying that pub_rand was included in the earlier commitment
         proof: Proof,
         /// Hash of the block being finalized
-        // FIXME: Rename to block_app_hash for consistency / clarity
         block_hash: Binary,
         /// Finality signature on (height || block_hash) signed by finality provider
         signature: Binary,
