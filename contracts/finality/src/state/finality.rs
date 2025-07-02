@@ -32,7 +32,7 @@ pub struct Evidence {
 }
 
 /// Map of signatures by block height and fp
-pub(crate) const SIGNATURES: Map<(u64, &str), Vec<u8>> = Map::new("fp_sigs");
+pub(crate) const SIGNATURES: Map<(u64, &str), Vec<u8>> = Map::new("signatures");
 
 /// Map of block hashes by block height and fp
 pub(crate) const BLOCK_HASHES: Map<(u64, &str), Vec<u8>> = Map::new("block_hashes");
