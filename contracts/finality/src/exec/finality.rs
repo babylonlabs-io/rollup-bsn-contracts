@@ -217,9 +217,6 @@ pub fn handle_finality_signature(
         // zero, extracting its BTC SK, and emit an event
         let (msg, ev) = slash_finality_provider(&info, &fp_btc_pk_hex, &evidence)?;
         res = res.add_message(msg).add_event(ev);
-
-        // Return immediately after detecting equivocation
-        return Ok(res);
     }
 
     // This signature is good, save the vote to the store
