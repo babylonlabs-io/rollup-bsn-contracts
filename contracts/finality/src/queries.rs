@@ -1,18 +1,20 @@
+use babylon_bindings::BabylonQuery;
+use cosmwasm_std::{Deps, StdResult, Storage};
+use cw_controllers::AdminResponse;
+use std::collections::HashSet;
+
 use crate::error::ContractError;
 use crate::state::config::{Config, ADMIN, CONFIG, IS_ENABLED};
 use crate::state::finality::BLOCK_VOTES;
 use crate::state::public_randomness::get_pub_rand_commit;
 use crate::state::public_randomness::PubRandCommit;
-use cosmwasm_std::{Deps, StdResult, Storage};
-use cw_controllers::AdminResponse;
-use std::collections::HashSet;
 
-pub fn query_config(deps: Deps) -> StdResult<Config> {
+pub fn query_config(deps: Deps<BabylonQuery>) -> StdResult<Config> {
     CONFIG.load(deps.storage)
 }
 
 pub fn query_block_voters(
-    deps: Deps,
+    deps: Deps<BabylonQuery>,
     height: u64,
     hash_hex: String,
 ) -> Result<Option<HashSet<String>>, ContractError> {
@@ -46,10 +48,10 @@ pub fn query_last_pub_rand_commit(
     Ok(res.into_iter().next())
 }
 
-pub fn query_is_enabled(deps: Deps) -> StdResult<bool> {
+pub fn query_is_enabled(deps: Deps<BabylonQuery>) -> StdResult<bool> {
     IS_ENABLED.load(deps.storage)
 }
 
-pub fn query_admin(deps: Deps) -> StdResult<AdminResponse> {
+pub fn query_admin(deps: Deps<BabylonQuery>) -> StdResult<AdminResponse> {
     ADMIN.query_admin(deps)
 }

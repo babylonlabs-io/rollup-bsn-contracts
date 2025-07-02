@@ -1,4 +1,5 @@
 use crate::msg::BabylonMsg;
+use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{
     entry_point, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, StdResult,
 };
@@ -15,7 +16,7 @@ pub mod utils;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut,
+    deps: DepsMut<BabylonQuery>,
     env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
@@ -24,13 +25,17 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, env: Env, msg: msg::QueryMsg) -> Result<QueryResponse, ContractError> {
+pub fn query(
+    deps: Deps<BabylonQuery>,
+    env: Env,
+    msg: msg::QueryMsg,
+) -> Result<QueryResponse, ContractError> {
     contract::query(deps, env, msg)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut,
+    deps: DepsMut<BabylonQuery>,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,

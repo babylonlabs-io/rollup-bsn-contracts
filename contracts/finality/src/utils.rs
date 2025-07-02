@@ -1,4 +1,5 @@
 use anybuf::{Anybuf, Bufany};
+use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{Binary, Deps, StdResult};
 
 /// FinalityProviderResponse defines a finality provider with voting power information.
@@ -20,7 +21,7 @@ pub struct FinalityProviderResponse {
 }
 
 pub fn query_finality_provider(
-    deps: Deps,
+    deps: Deps<BabylonQuery>,
     consumer_id: String,
     fp_btc_pk_hex: String,
 ) -> StdResult<FinalityProviderResponse> {

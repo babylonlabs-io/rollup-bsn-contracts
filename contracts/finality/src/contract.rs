@@ -7,13 +7,14 @@ use crate::queries::{
     query_block_voters, query_config, query_first_pub_rand_commit, query_last_pub_rand_commit,
 };
 use crate::state::config::{Config, ADMIN, CONFIG, IS_ENABLED};
+use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{
     to_json_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, StdResult,
 };
 use cw_controllers::AdminError;
 
 pub fn instantiate(
-    mut deps: DepsMut,
+    mut deps: DepsMut<BabylonQuery>,
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
@@ -30,7 +31,11 @@ pub fn instantiate(
     Ok(Response::new().add_attribute("action", "instantiate"))
 }
 
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
+pub fn query(
+    deps: Deps<BabylonQuery>,
+    _env: Env,
+    msg: QueryMsg,
+) -> Result<QueryResponse, ContractError> {
     match msg {
         QueryMsg::Config {} => Ok(to_json_binary(&query_config(deps)?)?),
         QueryMsg::Admin {} => Ok(to_json_binary(&ADMIN.query_admin(deps)?)?),
@@ -48,7 +53,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 
 pub fn execute(
-    deps: DepsMut,
+    deps: DepsMut<BabylonQuery>,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -106,10 +111,13 @@ pub fn execute(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use std::marker::PhantomData;
 
+    use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage};
     use cosmwasm_std::{
         from_json,
-        testing::{message_info, mock_dependencies, mock_env},
+        testing::{message_info, mock_env},
+        OwnedDeps,
     };
     use cw_controllers::AdminResponse;
 
@@ -117,9 +125,20 @@ pub(crate) mod tests {
     pub(crate) const INIT_ADMIN: &str = "initial_admin";
     const NEW_ADMIN: &str = "new_admin";
 
+    pub type BabylonDeps = OwnedDeps<MockStorage, MockApi, MockQuerier, BabylonQuery>;
+
+    pub fn mock_deps_babylon() -> BabylonDeps {
+        OwnedDeps {
+            storage: MockStorage::default(),
+            api: MockApi::default(),
+            querier: MockQuerier::default(),
+            custom_query_type: PhantomData,
+        }
+    }
+
     #[test]
     fn instantiate_works() {
-        let mut deps = mock_dependencies();
+        let mut deps = mock_deps_babylon();
         let init_admin = deps.api.addr_make(INIT_ADMIN);
         let consumer_id = "op".to_string();
 
@@ -148,7 +167,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_update_admin() {
-        let mut deps = mock_dependencies();
+        let mut deps = mock_deps_babylon();
         let init_admin = deps.api.addr_make(INIT_ADMIN);
         let new_admin = deps.api.addr_make(NEW_ADMIN);
         // Create an InstantiateMsg with admin set to Some(INIT_ADMIN.into())
