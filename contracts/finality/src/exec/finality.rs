@@ -552,4 +552,123 @@ pub(crate) mod tests {
             assert!(!matches!(e, ContractError::InvalidNumPubRand(_)));
         }
     }
+
+    #[test]
+    fn verify_commitment_signature_works() {
+        // Define test values
+        let (fp_btc_pk_hex, pr_commit, sig) = get_public_randomness_commitment();
+
+        // Verify commitment signature
+        let res = verify_commitment_signature(
+            &fp_btc_pk_hex,
+            pr_commit.start_height,
+            pr_commit.num_pub_rand,
+            &pr_commit.commitment,
+            &sig,
+        );
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn verify_finality_signature_works() {
+        // Read public randomness commitment test data
+        let (pk_hex, pr_commit, _) = get_public_randomness_commitment();
+        let pub_rand_one = get_pub_rand_value();
+        let add_finality_signature = get_add_finality_sig();
+        let proof = add_finality_signature.proof.unwrap();
+
+        // Convert the PubRandCommit in the type defined in this contract
+        let pr_commit = PubRandCommit {
+            start_height: pr_commit.start_height,
+            num_pub_rand: pr_commit.num_pub_rand,
+            height: pr_commit.height,
+            commitment: pr_commit.commitment,
+        };
+
+        // Verify finality signature
+        assert!(proof.index >= 0, "Proof index should be non-negative");
+        let res = verify_finality_signature(
+            &pk_hex,
+            pr_commit.start_height + proof.index.unsigned_abs(),
+            &pub_rand_one,
+            // we need to add a typecast below because the provided proof is of type
+            // tendermint_proto::crypto::Proof, whereas the fn expects babylon_merkle::proof
+            &proof.into(),
+            &pr_commit,
+            &add_finality_signature.block_app_hash,
+            &add_finality_signature.finality_sig,
+        );
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn verify_slashing_works() {
+        // Read test data
+        let (pk_hex, pub_rand, _) = get_public_randomness_commitment();
+        let pub_rand_one = get_pub_rand_value();
+        let add_finality_signature = get_add_finality_sig();
+        let add_finality_signature_2 = get_add_finality_sig_2();
+        let proof = add_finality_signature.proof.unwrap();
+
+        let initial_height = pub_rand.start_height;
+        let block_height = initial_height + proof.index.unsigned_abs();
+
+        // Create evidence struct
+        let evidence = Evidence {
+            fp_btc_pk: hex::decode(&pk_hex).unwrap(),
+            block_height,
+            pub_rand: pub_rand_one.to_vec(),
+            canonical_app_hash: add_finality_signature.block_app_hash.to_vec(),
+            canonical_finality_sig: add_finality_signature.finality_sig.to_vec(),
+            fork_app_hash: add_finality_signature_2.block_app_hash.to_vec(),
+            fork_finality_sig: add_finality_signature_2.finality_sig.to_vec(),
+        };
+
+        // Create mock environment
+        let env = mock_env(); // You'll need to add this mock helper
+        let info = message_info(&Addr::unchecked("test"), &[]);
+        // Test slash_finality_provider
+        let (wasm_msg, event) = slash_finality_provider(&env, &info, &pk_hex, &evidence).unwrap();
+
+        // Verify the WasmMsg is correctly constructed
+        match wasm_msg {
+            WasmMsg::Execute {
+                contract_addr,
+                msg,
+                funds,
+            } => {
+                assert_eq!(contract_addr, env.contract.address.to_string());
+                assert!(funds.is_empty());
+                let msg_evidence = from_json::<ExecuteMsg>(&msg).unwrap();
+                match msg_evidence {
+                    ExecuteMsg::Slashing {
+                        sender: _,
+                        evidence: msg_evidence,
+                    } => {
+                        assert_eq!(evidence, msg_evidence);
+                    }
+                    _ => panic!("Expected Slashing msg"),
+                }
+            }
+            _ => panic!("Expected Execute msg"),
+        }
+
+        // Verify the event attributes
+        assert_eq!(event.ty, "slashed_finality_provider");
+        let attrs: HashMap<_, _> = event
+            .attributes
+            .iter()
+            .map(|a| (a.key.clone(), a.value.clone()))
+            .collect();
+        assert_eq!(attrs.get("module").unwrap(), "finality");
+        assert_eq!(attrs.get("finality_provider").unwrap(), &pk_hex);
+        assert_eq!(
+            attrs.get("block_height").unwrap(),
+            &block_height.to_string()
+        );
+        assert_eq!(
+            attrs.get("canonical_app_hash").unwrap(),
+            &hex::encode(&evidence.canonical_app_hash)
+        );
+    }
 }
