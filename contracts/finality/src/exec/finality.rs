@@ -123,7 +123,7 @@ pub fn handle_finality_signature(
     info: MessageInfo,
     fp_btc_pk_hex: &str,
     l1_block_number: Option<u64>,
-    l1_block_hash: Option<String>,
+    l1_block_hash_hex: Option<String>,
     height: u64,
     pub_rand: &[u8],
     proof: &Proof,
@@ -251,8 +251,8 @@ pub fn handle_finality_signature(
     if let Some(l1_block_number) = l1_block_number {
         event = event.add_attribute("l1_block_number", l1_block_number.to_string());
     }
-    if let Some(l1_block_hash) = l1_block_hash {
-        event = event.add_attribute("l1_block_hash", l1_block_hash);
+    if let Some(l1_block_hash_hex) = l1_block_hash_hex {
+        event = event.add_attribute("l1_block_hash_hex", l1_block_hash_hex);
     }
 
     res = res.add_event(event);
