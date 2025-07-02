@@ -335,8 +335,8 @@ pub enum ExecuteMsg {
         /// Merkle proof verifying that pub_rand was included in the earlier commitment
         proof: Proof,
         /// Hash of the block being finalized
-        block_hash: Binary,
-        /// Finality signature on (height || block_hash) signed by finality provider
+        block_hash_hex: String,
+        /// Finality signature on (height || block_hash_hex) signed by finality provider
         signature: Binary,
     },
 
@@ -402,7 +402,7 @@ SubmitFinalitySignature {
     height: u64,
     pub_rand: Binary,
     proof: Proof,
-    block_hash: Binary,
+    block_hash_hex: String,
     signature: Binary,
 }
 ```
@@ -418,7 +418,7 @@ SubmitFinalitySignature {
 3. **Duplicate Vote Check**: Check if an identical vote already exists:
    - Query finality signature state using key `(height, fp_pubkey_hex)`
    - Query blocks using key `(height, fp_pubkey_hex)`
-   - If both exist and match the provided `block_hash` and `signature`, reject as duplicate
+   - If both exist and match the provided `block_hash_hex` and `signature`, reject as duplicate
 
 4. **Public Randomness Commitment Retrieval**: Find the public randomness commitment that covers the target height:
    - Query public randomness commitment state to find commitment where `start_height <= height <= start_height + num_pub_rand - 1`
@@ -434,7 +434,7 @@ SubmitFinalitySignature {
 
 6. **Equivocation Detection and Handling**: Check if the finality provider has already voted for a different block at this height:
    - Query blocks using key `(height, fp_pubkey_hex)`
-   - If exists and differs from current `block_hash`:
+   - If exists and differs from current `block_hash_hex`:
      - Extract the secret key using EOTS from the two different signatures
      - Create `Evidence` struct with both signatures and block hashes
      - Save evidence to the contract state using key `(height, fp_pubkey_hex)`
@@ -443,7 +443,7 @@ SubmitFinalitySignature {
 
 7. **Storage Operations**: Store the finality signature and related data:
    - Save signature to the contract state using key `(height, fp_pubkey_hex)`
-   - Save block hash to the contract state using key `(height, fp_pubkey_hex)`
+   - Save block hash (decoded from hex) to the contract state using key `(height, fp_pubkey_hex)`
    - Save public randomness value to the contract state using key `(fp_pubkey_hex, height)`
    - Update the blocks storage:
      - Get existing voters for key `(height, block_hash_bytes)` or create empty HashSet
@@ -617,7 +617,7 @@ use std::collections::HashSet;
 pub enum QueryMsg {    
     // MUST: Core finality queries
     #[returns(Option<HashSet<String>>)]
-    BlockVoters { height: u64, hash: String },
+    BlockVoters { height: u64, hash_hex: String },
     /// `FirstPubRandCommit` returns the first public random commitment (if any) for a given FP.
     ///
     /// `btc_pk_hex` is the BTC public key of the finality provider, in hex format.
@@ -644,8 +644,8 @@ pub enum QueryMsg {
 **Query Structure:**
 ```rust
 BlockVoters {
-    height: u64,      // Block height to query voters for
-    hash: String      // Block hash in hex format
+    height: u64,         // Block height to query voters for
+    hash_hex: String     // Block hash in hex format
 }
 ```
 
@@ -655,7 +655,7 @@ keys in hex format
 **Expected Behavior:** Finality contracts MUST implement this query to return
 the set of finality providers that voted for a specific block:
 
-1. Decode hash from hex string to bytes
+1. Decode hash_hex from hex string to bytes
    - IF decode fails: RETURN error
 
 2. Query block votes storage using key (height, hash_bytes)

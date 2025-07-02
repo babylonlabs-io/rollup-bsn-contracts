@@ -34,9 +34,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
     match msg {
         QueryMsg::Config {} => Ok(to_json_binary(&query_config(deps)?)?),
         QueryMsg::Admin {} => Ok(to_json_binary(&ADMIN.query_admin(deps)?)?),
-        QueryMsg::BlockVoters { height, hash } => {
-            Ok(to_json_binary(&query_block_voters(deps, height, hash)?)?)
-        }
+        QueryMsg::BlockVoters { height, hash_hex } => Ok(to_json_binary(&query_block_voters(
+            deps, height, hash_hex,
+        )?)?),
         QueryMsg::FirstPubRandCommit { btc_pk_hex } => Ok(to_json_binary(
             &query_first_pub_rand_commit(deps.storage, &btc_pk_hex)?,
         )?),
@@ -74,7 +74,7 @@ pub fn execute(
         ExecuteMsg::SubmitFinalitySignature {
             fp_pubkey_hex,
             l1_block_number,
-            l1_block_hash,
+            l1_block_hash_hex,
             height,
             pub_rand,
             proof,
@@ -85,7 +85,7 @@ pub fn execute(
             info,
             &fp_pubkey_hex,
             l1_block_number,
-            l1_block_hash,
+            l1_block_hash_hex,
             height,
             &pub_rand,
             &proof,

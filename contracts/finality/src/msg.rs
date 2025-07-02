@@ -20,7 +20,7 @@ pub struct InstantiateMsg {
 pub enum QueryMsg {
     // MUST: Core finality queries
     #[returns(Option<HashSet<String>>)]
-    BlockVoters { height: u64, hash: String },
+    BlockVoters { height: u64, hash_hex: String },
     /// `FirstPubRandCommit` returns the first public random commitment (if any) for a given FP.
     ///
     /// `btc_pk_hex` is the BTC public key of the finality provider, in hex format.
@@ -84,8 +84,8 @@ pub enum ExecuteMsg {
         fp_pubkey_hex: String,
         /// Optional L1 block number (rollup-specific)
         l1_block_number: Option<u64>,
-        /// Optional L1 block hash (rollup-specific)
-        l1_block_hash: Option<String>,
+        /// Optional L1 block hash hex (rollup-specific)
+        l1_block_hash_hex: Option<String>,
         /// The block height this finality signature is for
         height: u64,
         /// The public randomness used for signing this block
