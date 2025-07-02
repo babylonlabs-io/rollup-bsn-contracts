@@ -1,26 +1,29 @@
+use k256::ecdsa::signature::Verifier;
+use k256::schnorr::{Signature, VerifyingKey};
+use k256::sha2::{Digest, Sha256};
 use std::collections::HashSet;
+
+use cosmwasm_std::{Deps, DepsMut, Env, Event, MessageInfo, Response};
+
+use babylon_bindings::BabylonQuery;
+use babylon_merkle::Proof;
 
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::queries::query_last_pub_rand_commit;
 use crate::state::config::CONFIG;
 use crate::state::finality::{Evidence, BLOCK_HASHES, BLOCK_VOTES, EVIDENCES, SIGNATURES};
+use crate::state::public_randomness::PubRandCommit;
 use crate::state::public_randomness::{
-    get_pub_rand_commit_for_height, PUB_RAND_COMMITS, PUB_RAND_VALUES,
+    get_current_epoch, get_timestamped_pub_rand_commit_for_height, PUB_RAND_COMMITS,
+    PUB_RAND_VALUES,
 };
 use crate::utils::query_finality_provider;
 
-use crate::state::public_randomness::PubRandCommit;
-use babylon_merkle::Proof;
-use cosmwasm_std::{Deps, DepsMut, Env, Event, MessageInfo, Response};
-use k256::ecdsa::signature::Verifier;
-use k256::schnorr::{Signature, VerifyingKey};
-use k256::sha2::{Digest, Sha256};
-
 // Most logic copied from contracts/btc-staking/src/finality.rs
 pub fn handle_public_randomness_commit(
-    deps: DepsMut,
-    env: &Env,
+    deps: DepsMut<BabylonQuery>,
+    _env: &Env,
     fp_pubkey_hex: &str,
     start_height: u64,
     num_pub_rand: u64,
@@ -60,10 +63,11 @@ pub fn handle_public_randomness_commit(
     }
 
     // All good, store the given public randomness commitment
+    let current_epoch = get_current_epoch(&deps.as_ref())?;
     let pr_commit = PubRandCommit {
         start_height,
         num_pub_rand,
-        height: env.block.height,
+        epoch: current_epoch,
         commitment: commitment.to_vec(),
     };
 
@@ -116,7 +120,7 @@ pub(crate) fn verify_commitment_signature(
 // Most logic copied from contracts/btc-staking/src/finality.rs
 #[allow(clippy::too_many_arguments)]
 pub fn handle_finality_signature(
-    deps: DepsMut,
+    deps: DepsMut<BabylonQuery>,
     info: MessageInfo,
     fp_btc_pk_hex: &str,
     l1_block_number: Option<u64>,
@@ -168,7 +172,8 @@ pub fn handle_finality_signature(
     }
 
     // Find the public randomness commitment for this height from this finality provider
-    let pr_commit = get_pub_rand_commit_for_height(deps.storage, fp_btc_pk_hex, height)?;
+    let pr_commit =
+        get_timestamped_pub_rand_commit_for_height(&deps.as_ref(), fp_btc_pk_hex, height)?;
 
     // Verify the finality signature message
     verify_finality_signature(
@@ -215,7 +220,7 @@ pub fn handle_finality_signature(
 
         // slash this finality provider, including setting its voting power to
         // zero, extracting its BTC SK, and emit an event
-        let (msg, ev) = slash_finality_provider(&info, &fp_btc_pk_hex, &evidence)?;
+        let (msg, ev) = slash_finality_provider(&info, fp_btc_pk_hex, &evidence)?;
         res = res.add_message(msg).add_event(ev);
     }
 
@@ -301,7 +306,10 @@ fn msg_to_sign(height: u64, block_app_hash: &[u8]) -> Vec<u8> {
     msg
 }
 
-fn ensure_fp_exists_and_not_slashed(deps: Deps, fp_pubkey_hex: &str) -> Result<(), ContractError> {
+fn ensure_fp_exists_and_not_slashed(
+    deps: Deps<BabylonQuery>,
+    fp_pubkey_hex: &str,
+) -> Result<(), ContractError> {
     let config = CONFIG.load(deps.storage)?;
     let fp = query_finality_provider(deps, config.consumer_id.clone(), fp_pubkey_hex.to_string());
     match fp {
@@ -373,10 +381,11 @@ fn slash_finality_provider(
 pub(crate) mod tests {
     use super::*;
     use cosmwasm_std::testing::message_info;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env};
+    use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::Addr;
     use std::collections::HashMap;
 
+    use crate::contract::tests::mock_deps_babylon;
     use babylon_test_utils::{
         get_add_finality_sig, get_add_finality_sig_2, get_pub_rand_value,
         get_public_randomness_commitment,
@@ -406,11 +415,13 @@ pub(crate) mod tests {
         let add_finality_signature = get_add_finality_sig();
         let proof = add_finality_signature.proof.unwrap();
 
+        let current_epoch = 1;
+
         // Convert the PubRandCommit in the type defined in this contract
         let pr_commit = PubRandCommit {
             start_height: pr_commit.start_height,
             num_pub_rand: pr_commit.num_pub_rand,
-            height: pr_commit.height,
+            epoch: current_epoch,
             commitment: pr_commit.commitment,
         };
 
@@ -514,7 +525,7 @@ pub(crate) mod tests {
 
     #[test]
     fn handle_public_randomness_commit_validates_num_pub_rand() {
-        let mut deps = mock_dependencies();
+        let mut deps = mock_deps_babylon();
         let env = mock_env();
         let (fp_btc_pk_hex, pr_commit, sig) = get_public_randomness_commitment();
 
