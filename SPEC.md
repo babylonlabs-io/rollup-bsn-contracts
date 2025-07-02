@@ -318,7 +318,10 @@ pub enum ExecuteMsg {
     ///
     /// This is a message that can be called by a finality provider to submit their finality
     /// signature to the Consumer chain.
-    /// The signature is verified by the Consumer chain using the finality provider's public key
+    /// The signature is verified by the Consumer chain using the finality provider's public key.
+    /// If an equivocation is detected (signing two different blocks at the same height),
+    /// the contract will automatically extract the secret key using EOTS and submit evidence
+    /// to Babylon Genesis for slashing.
     ///
     /// This message is equivalent to the `MsgAddFinalitySig` message in the Babylon finality protobuf
     /// defs.
@@ -335,16 +338,6 @@ pub enum ExecuteMsg {
         block_hash: Binary,
         /// Finality signature on (height || block_hash) signed by finality provider
         signature: Binary,
-    },
-    /// Slashing message.
-    ///
-    /// This message slashes a finality provider for misbehavior.
-    /// The caller must provide evidence of the misbehavior in the form of an Evidence struct.
-    /// If the evidence is valid, the finality contract will send the evidence to the Babylon
-    /// Genesis chain for actual slashing.
-    Slashing {
-        sender: Addr,
-        evidence: Evidence,
     },
 
     /// Set enabled status of the finality contract.
@@ -439,13 +432,14 @@ SubmitFinalitySignature {
      - Message: `SHA256(height || block_hash)`
      - Public randomness value and EOTS signature
 
-6. **Equivocation Detection**: Check if the finality provider has already voted for a different block at this height:
+6. **Equivocation Detection and Handling**: Check if the finality provider has already voted for a different block at this height:
    - Query blocks using key `(height, fp_pubkey_hex)`
    - If exists and differs from current `block_hash`:
      - Extract the secret key using EOTS from the two different signatures
      - Create `Evidence` struct with both signatures and block hashes
      - Save evidence to the contract state using key `(height, fp_pubkey_hex)`
-     - Send `BabylonMsg::EquivocationEvidence` to trigger slashing
+     - Send `BabylonMsg::EquivocationEvidence` to trigger slashing on Babylon Genesis
+     - Emit appropriate event indicating equivocation detection
 
 7. **Storage Operations**: Store the finality signature and related data:
    - Save signature to the contract state using key `(height, fp_pubkey_hex)`
