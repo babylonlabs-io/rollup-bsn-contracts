@@ -6,7 +6,7 @@ use crate::queries::query_last_pub_rand_commit;
 use crate::state::config::CONFIG;
 use crate::state::finality::{Evidence, BLOCK_HASHES, BLOCK_VOTES, EVIDENCES, SIGNATURES};
 use crate::state::public_randomness::{
-    get_pub_rand_commit_for_height, PUB_RAND_COMMITS, PUB_RAND_VALUES,
+    get_pub_rand_commit_for_height, PUB_RAND_COMMITS,
 };
 use crate::utils::query_finality_provider;
 
@@ -180,10 +180,6 @@ pub fn handle_finality_signature(
         block_hash,
         signature,
     )?;
-
-    // The public randomness value is good, save it.
-    // TODO?: Don't save public randomness values, to save storage space (#122)
-    PUB_RAND_VALUES.save(deps.storage, (fp_btc_pk_hex, height), &pub_rand.to_vec())?;
 
     // Build the response
     let mut res: Response<BabylonMsg> = Response::new();

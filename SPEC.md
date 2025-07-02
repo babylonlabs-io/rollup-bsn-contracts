@@ -596,12 +596,6 @@ This section documents the actual state storage structure used by the finality c
   }
   ```
 
-**PUB_RAND_VALUES**: Individual public randomness values
-- Type: `Map<(&str, u64), Vec<u8>>`
-- Storage key: `"fp_pub_rand"`
-- Key format: `(fp_pubkey_hex, block_height)`
-- Purpose: Stores individual public randomness values revealed during finality signature submission
-
 ### 5.6. Finality contract queries
 
 The finality contract query requirements are divided into core finality
