@@ -6,9 +6,9 @@ use cosmwasm_std::{StdResult, Storage};
 use cw_storage_plus::{Bound, Map};
 
 /// Map of public randomness commitments by fp and block height
-pub(crate) const PUB_RAND_COMMITS: Map<(&str, u64), PubRandCommit> = Map::new("fp_pub_rand_commit");
+pub(crate) const PUB_RAND_COMMITS: Map<(&str, u64), PubRandCommit> = Map::new("pub_rand_commits");
 /// Map of public randomness values by fp and block height
-pub(crate) const PUB_RAND_VALUES: Map<(&str, u64), Vec<u8>> = Map::new("fp_pub_rand");
+pub(crate) const PUB_RAND_VALUES: Map<(&str, u64), Vec<u8>> = Map::new("pub_rand_values");
 
 /// `PubRandCommit` is a commitment to a series of public randomness.
 /// Currently, the commitment is a root of a Merkle tree that includes a series of public randomness
