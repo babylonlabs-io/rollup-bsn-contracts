@@ -43,6 +43,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Improvements
 
+* [#39](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/31) Remove
+  PUB_RAND_VALUES storage.
 * [#31](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/31) Rename `hash` to `hash_hex`.
 * [#23](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/23) Clean up dependencies to cosmos-bsn-contracts.
 * [#24](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/24) Validate public randomness commitment.

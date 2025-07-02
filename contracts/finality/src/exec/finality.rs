@@ -5,9 +5,7 @@ use crate::msg::BabylonMsg;
 use crate::queries::query_last_pub_rand_commit;
 use crate::state::config::CONFIG;
 use crate::state::finality::{Evidence, BLOCK_HASHES, BLOCK_VOTES, EVIDENCES, SIGNATURES};
-use crate::state::public_randomness::{
-    get_pub_rand_commit_for_height, PUB_RAND_COMMITS,
-};
+use crate::state::public_randomness::{get_pub_rand_commit_for_height, PUB_RAND_COMMITS};
 use crate::utils::query_finality_provider;
 
 use crate::state::public_randomness::PubRandCommit;
