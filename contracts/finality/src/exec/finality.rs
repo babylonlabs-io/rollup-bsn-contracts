@@ -377,7 +377,7 @@ pub(crate) mod tests {
     use cosmwasm_std::Addr;
     use std::collections::HashMap;
 
-    use test_utils::{
+    use babylon_test_utils::{
         get_add_finality_sig, get_add_finality_sig_2, get_pub_rand_value,
         get_public_randomness_commitment,
     };

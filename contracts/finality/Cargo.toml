@@ -42,4 +42,4 @@ derivative            = { workspace = true }
 cosmwasm-vm           = { workspace = true }
 cw-multi-test         = { workspace = true }
 
-test-utils            = { workspace = true }
+babylon-test-utils    = { workspace = true }

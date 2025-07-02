@@ -19,8 +19,8 @@ fix-lint        = "./scripts/fix-lint.sh"
 integration     = "./scripts/integration_test.sh"
 
 [workspace.dependencies]
-babylon-merkle        = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
-eots                  = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
+babylon-merkle   = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
+eots             = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
 
 anybuf = { version = "0.5.0" }
 anyhow = "1.0.82"
@@ -59,17 +59,16 @@ rust_decimal = "1.35"
 k256 = { version = "0.13.1", default-features = false, features = ["schnorr"] }
 
 # dev deps
-test-utils            = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
-cosmwasm-vm = { version = "2.1.4", default-features = false, features = [
-    "iterator",
-    "stargate",
-] }
 assert_matches = "1"
-criterion = { version = "0.5.0" }
-rand = "0.8.5"
-pbjson-types = "0.5.1"
-thousands = "0.2.0"
 cargo_metadata = "0.18.1"
+criterion = { version = "0.5.0" }
+pbjson-types = "0.5.1"
+rand = "0.8.5"
+thousands = "0.2.0"
+
+cosmwasm-vm        = { version = "2.1.4", default-features = false, features = ["iterator", "stargate"] }
+
+babylon-test-utils = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
 
 [profile.release]
 codegen-units    = 1
