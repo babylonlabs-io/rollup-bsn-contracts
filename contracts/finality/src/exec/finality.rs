@@ -1,12 +1,12 @@
-use std::collections::HashSet;
-
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::queries::query_last_pub_rand_commit;
 use crate::state::config::CONFIG;
-use crate::state::finality::{Evidence, BLOCK_HASHES, BLOCK_VOTES, EVIDENCES, SIGNATURES};
+use crate::state::finality::{
+    insert_signatory, Evidence, FinalitySigInfo, EVIDENCES, FINALITY_SIGNATURES,
+};
 use crate::state::public_randomness::{
-    get_pub_rand_commit_for_height, PUB_RAND_COMMITS, PUB_RAND_VALUES,
+    get_pub_rand_commit_for_height, insert_pub_rand_value, PUB_RAND_COMMITS,
 };
 use crate::utils::query_finality_provider;
 
@@ -156,10 +156,13 @@ pub fn handle_finality_signature(
         return Err(ContractError::EmptySignature);
     }
 
-    // Ensure the finality provider has not cast the same vote yet
-    let existing_sig = SIGNATURES.may_load(deps.storage, (height, fp_btc_pk_hex))?;
-    match existing_sig {
-        Some(existing_sig) if existing_sig == signature => {
+    // Load any type of existing finality signature by the finality provider at the same height
+    let existing_finality_sig: Option<FinalitySigInfo> =
+        FINALITY_SIGNATURES.may_load(deps.storage, (height, fp_btc_pk_hex))?;
+
+    // For optimization purposes, check if the finality signature submission is the same as the existing one
+    match existing_finality_sig {
+        Some(existing_finality_sig) if existing_finality_sig.finality_sig == signature => {
             deps.api.debug(&format!("Received duplicated finality vote. Height: {height}, Finality Provider: {fp_btc_pk_hex}"));
             // Exactly the same vote already exists, return success to the provider
             return Ok(Response::new());
@@ -167,9 +170,9 @@ pub fn handle_finality_signature(
         _ => {}
     }
 
+    // Next, we are verifying the finality signature message
     // Find the public randomness commitment for this height from this finality provider
     let pr_commit = get_pub_rand_commit_for_height(deps.storage, fp_btc_pk_hex, height)?;
-
     // Verify the finality signature message
     verify_finality_signature(
         fp_btc_pk_hex,
@@ -181,21 +184,12 @@ pub fn handle_finality_signature(
         signature,
     )?;
 
-    // The public randomness value is good, save it.
-    // TODO?: Don't save public randomness values, to save storage space (#122)
-    PUB_RAND_VALUES.save(deps.storage, (fp_btc_pk_hex, height), &pub_rand.to_vec())?;
-
-    // Build the response
+    // Finality signature message is good, build the response
     let mut res: Response<BabylonMsg> = Response::new();
 
     // If this finality provider has signed a different block at the same height before,
     // create equivocation evidence and send it directly to Babylon Genesis for slashing
-    let canonical_sig: Option<Vec<u8>> =
-        SIGNATURES.may_load(deps.storage, (height, fp_btc_pk_hex))?;
-    let canonical_block_hash: Option<Vec<u8>> =
-        BLOCK_HASHES.may_load(deps.storage, (height, fp_btc_pk_hex))?;
-    if let (Some(canonical_sig), Some(canonical_block_hash)) = (canonical_sig, canonical_block_hash)
-    {
+    if let Some(existing_finality_sig) = existing_finality_sig {
         // The finality provider has voted for a different block at the same height!
         // Create equivocation evidence and send it to Babylon Genesis for slashing
 
@@ -204,8 +198,8 @@ pub fn handle_finality_signature(
             fp_btc_pk: hex::decode(fp_btc_pk_hex)?,
             block_height: height,
             pub_rand: pub_rand.to_vec(),
-            canonical_app_hash: canonical_block_hash,
-            canonical_finality_sig: canonical_sig,
+            canonical_app_hash: existing_finality_sig.block_hash.clone(),
+            canonical_finality_sig: existing_finality_sig.finality_sig.clone(),
             fork_app_hash: block_hash.to_vec(),
             fork_finality_sig: signature.to_vec(),
         };
@@ -217,22 +211,25 @@ pub fn handle_finality_signature(
         // zero, extracting its BTC SK, and emit an event
         let (msg, ev) = slash_finality_provider(&info, &fp_btc_pk_hex, &evidence)?;
         res = res.add_message(msg).add_event(ev);
+        // TODO: should we return here?
+        // We might want to store the new finality signature, but the FINALITY_SIGNATURES storage
+        // can hold up to only one finality signature per height and fp.
     }
 
+    // TODO: in the case of an existing finality signature,
+    // we are overriding the existing finality signature.
     // This signature is good, save the vote to the store
-    SIGNATURES.save(deps.storage, (height, fp_btc_pk_hex), &signature.to_vec())?;
-    BLOCK_HASHES.save(deps.storage, (height, fp_btc_pk_hex), &block_hash.to_vec())?;
+    let finality_sig = FinalitySigInfo {
+        finality_sig: signature.to_vec(),
+        block_hash: block_hash.to_vec(),
+    };
+    FINALITY_SIGNATURES.save(deps.storage, (height, fp_btc_pk_hex), &finality_sig)?;
 
-    // Check if the key (height, block_hash) exists
-    let mut block_votes_fp_set = BLOCK_VOTES
-        .may_load(deps.storage, (height, block_hash))?
-        .unwrap_or_else(HashSet::new);
+    // Store public randomness separately
+    insert_pub_rand_value(deps.storage, fp_btc_pk_hex, height, pub_rand)?;
 
-    // Add the fp_btc_pk_hex to the set
-    block_votes_fp_set.insert(fp_btc_pk_hex.to_string());
-
-    // Save the updated set back to storage
-    BLOCK_VOTES.save(deps.storage, (height, block_hash), &block_votes_fp_set)?;
+    // Add the fp_btc_pk_hex to the set using the helper
+    insert_signatory(deps.storage, height, block_hash, fp_btc_pk_hex)?;
 
     let mut event = Event::new("submit_finality_signature")
         .add_attribute("fp_pubkey_hex", fp_btc_pk_hex)
