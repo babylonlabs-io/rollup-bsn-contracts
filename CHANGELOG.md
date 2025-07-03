@@ -40,6 +40,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ### State breaking
 
 * [#35](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/35) chore: use consistent naming for state maps
+* [#40](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/40) Refactor votes storage.
 
 ### Improvements
 
