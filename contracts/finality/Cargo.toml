@@ -43,3 +43,4 @@ cosmwasm-vm           = { workspace = true }
 cw-multi-test         = { workspace = true }
 
 test-utils            = { workspace = true }
+rand                  = { workspace = true }

@@ -37,3 +37,6 @@ pub fn execute(
 ) -> Result<Response<BabylonMsg>, ContractError> {
     contract::execute(deps, env, info, msg)
 }
+
+#[cfg(test)]
+pub mod testutil;

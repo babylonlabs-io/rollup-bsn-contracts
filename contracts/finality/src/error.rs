@@ -60,4 +60,6 @@ pub enum ContractError {
     AlreadyEnabled,
     #[error("Finality gadget is already disabled")]
     AlreadyDisabled,
+    #[error("Public randomness already exists for finality provider {0} at height {1}")]
+    PubRandAlreadyExists(String, u64),
 }
