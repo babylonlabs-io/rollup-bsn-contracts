@@ -5,7 +5,7 @@ use crate::state::finality::{
     insert_signatory, Evidence, FinalitySigInfo, EVIDENCES, FINALITY_SIGNATURES,
 };
 use crate::state::public_randomness::{
-    get_pub_rand_commit_for_height, insert_pub_rand_value, PUB_RAND_COMMITS,
+    get_pub_rand_commit_for_height, insert_pub_rand_commit, insert_pub_rand_value, PubRandCommit,
 };
 use crate::utils::query_finality_provider;
 use babylon_merkle::Proof;
@@ -13,7 +13,6 @@ use cosmwasm_std::{Deps, DepsMut, Env, Event, MessageInfo, Response};
 use k256::ecdsa::signature::Verifier;
 use k256::schnorr::{Signature, VerifyingKey};
 use k256::sha2::{Digest, Sha256};
-use std::collections::HashSet;
 
 pub fn handle_public_randomness_commit(
     deps: DepsMut,

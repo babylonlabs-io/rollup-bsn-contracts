@@ -179,9 +179,8 @@ pub fn insert_pub_rand_value(
 mod tests {
     use super::*;
     use crate::testutil::datagen::*;
-    use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
-    use rand::{thread_rng, Rng};
+    use rand::{rng, Rng};
 
     #[test]
     fn insert_pub_rand_commit_validates_num_pub_rand() {
@@ -315,14 +314,14 @@ mod tests {
     fn test_insert_pub_rand_value() {
         let mut deps = mock_dependencies();
         let fp_btc_pk_hex = get_random_fp_pk_hex();
-        let num_sets = thread_rng().gen_range(1..=5);
+        let num_sets = rng().random_range(1..=5);
         let mut all_heights = std::collections::HashSet::new();
         let mut pub_rands = Vec::new();
         let mut last_height = 0u64;
         for _ in 0..num_sets {
-            let set_len = thread_rng().gen_range(1..=10);
+            let set_len = rng().random_range(1..=10);
             // Ensure a gap of at least 1 between sets
-            let start_height = last_height + thread_rng().gen_range(1..=5);
+            let start_height = last_height + rng().random_range(1..=5);
             let heights: Vec<u64> = (start_height..start_height + set_len).collect();
             for &height in &heights {
                 assert!(!all_heights.contains(&height), "Height overlap detected");
