@@ -1,9 +1,8 @@
 use crate::error::ContractError;
 use crate::exec::admin::set_enabled;
-use crate::exec::finality::{
-    handle_finality_signature, handle_public_randomness_commit, handle_slashing,
-};
-use crate::msg::{BabylonMsg, ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::exec::finality::{handle_finality_signature, handle_public_randomness_commit};
+use crate::msg::BabylonMsg;
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::queries::{
     query_block_voters, query_config, query_first_pub_rand_commit, query_last_pub_rand_commit,
 };
@@ -35,9 +34,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
     match msg {
         QueryMsg::Config {} => Ok(to_json_binary(&query_config(deps)?)?),
         QueryMsg::Admin {} => Ok(to_json_binary(&ADMIN.query_admin(deps)?)?),
-        QueryMsg::BlockVoters { height, hash } => {
-            Ok(to_json_binary(&query_block_voters(deps, height, hash)?)?)
-        }
+        QueryMsg::BlockVoters { height, hash_hex } => Ok(to_json_binary(&query_block_voters(
+            deps, height, hash_hex,
+        )?)?),
         QueryMsg::FirstPubRandCommit { btc_pk_hex } => Ok(to_json_binary(
             &query_first_pub_rand_commit(deps.storage, &btc_pk_hex)?,
         )?),
@@ -75,26 +74,24 @@ pub fn execute(
         ExecuteMsg::SubmitFinalitySignature {
             fp_pubkey_hex,
             l1_block_number,
-            l1_block_hash,
+            l1_block_hash_hex,
             height,
             pub_rand,
             proof,
-            block_hash: block_app_hash,
+            block_hash,
             signature,
         } => handle_finality_signature(
             deps,
-            env,
             info,
             &fp_pubkey_hex,
             l1_block_number,
-            l1_block_hash,
+            l1_block_hash_hex,
             height,
             &pub_rand,
             &proof,
-            &block_app_hash,
+            &block_hash,
             &signature,
         ),
-        ExecuteMsg::Slashing { sender, evidence } => handle_slashing(&sender, &evidence),
         ExecuteMsg::SetEnabled { enabled } => set_enabled(deps, info, enabled),
         ExecuteMsg::UpdateAdmin { admin } => ADMIN
             .execute_update_admin(deps, info, Some(api.addr_validate(&admin)?))

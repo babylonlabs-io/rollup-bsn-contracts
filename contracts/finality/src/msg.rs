@@ -1,7 +1,6 @@
-use crate::state::finality::Evidence;
 use babylon_merkle::Proof;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, CosmosMsg};
+use cosmwasm_std::{Binary, CosmosMsg};
 
 #[cfg(not(target_arch = "wasm32"))]
 use {
@@ -21,7 +20,7 @@ pub struct InstantiateMsg {
 pub enum QueryMsg {
     // MUST: Core finality queries
     #[returns(Option<HashSet<String>>)]
-    BlockVoters { height: u64, hash: String },
+    BlockVoters { height: u64, hash_hex: String },
     /// `FirstPubRandCommit` returns the first public random commitment (if any) for a given FP.
     ///
     /// `btc_pk_hex` is the BTC public key of the finality provider, in hex format.
@@ -74,7 +73,9 @@ pub enum ExecuteMsg {
     ///
     /// This is a message that can be called by a finality provider to submit their finality
     /// signature to the Consumer chain.
-    /// The signature is verified by the Consumer chain using the finality provider's public key
+    /// The signature is verified by the Consumer chain using the finality provider's public key.
+    /// If the finality provider has already signed a different block at the same height,
+    /// they will be slashed by sending an equivocation evidence to Babylon Genesis.
     ///
     /// This message is equivalent to the `MsgAddFinalitySig` message in the Babylon finality protobuf
     /// defs.
@@ -83,8 +84,8 @@ pub enum ExecuteMsg {
         fp_pubkey_hex: String,
         /// Optional L1 block number (rollup-specific)
         l1_block_number: Option<u64>,
-        /// Optional L1 block hash (rollup-specific)
-        l1_block_hash: Option<String>,
+        /// Optional L1 block hash hex (rollup-specific)
+        l1_block_hash_hex: Option<String>,
         /// The block height this finality signature is for
         height: u64,
         /// The public randomness used for signing this block
@@ -96,13 +97,6 @@ pub enum ExecuteMsg {
         /// Finality signature on (height || block_hash) signed by finality provider
         signature: Binary,
     },
-    /// Slashing message.
-    ///
-    /// This message slashes a finality provider for misbehavior.
-    /// The caller must provide evidence of the misbehavior in the form of an Evidence struct.
-    /// If the evidence is valid, the finality contract will send the evidence to the Babylon
-    /// Genesis chain for actual slashing.
-    Slashing { sender: Addr, evidence: Evidence },
 
     // SHOULD: Administrative messages
     /// Set enabled status of the finality contract.
