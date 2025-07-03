@@ -6,6 +6,18 @@ use std::collections::HashSet;
 
 use crate::state::Bytes;
 
+/// Map of (block height, block hash) tuples to the finality signature for that block.
+pub(crate) const FINALITY_SIGNATURES: Map<(u64, &str), FinalitySigInfo> =
+    Map::new("finality_signatures");
+
+/// Map of (block height, block hash) tuples to the list of signatories
+/// for that block.
+pub(crate) const SIGNATORIES_BY_BLOCK_HASH: Map<(u64, &[u8]), HashSet<String>> =
+    Map::new("signatories_by_block_hash");
+
+/// Map of evidence by block height and fp
+pub(crate) const EVIDENCES: Map<(u64, &str), Evidence> = Map::new("evidences");
+
 /// Evidence is the evidence that a finality provider has signed finality
 /// signatures with correct public randomness on two conflicting Babylon headers
 #[cw_serde]
@@ -33,27 +45,15 @@ pub struct Evidence {
     pub fork_finality_sig: Bytes,
 }
 
+/// FinalitySigInfo is a struct that contains the finality signature and
+/// block hash for a given block height and fp
 #[cw_serde]
-// FinalitySigInfo is a struct that contains the finality signature and
-// block hash for a given block height and fp
 pub struct FinalitySigInfo {
-    // the finality signature
+    /// the finality signature
     pub finality_sig: Vec<u8>,
-    // the block hash that the finality signature is for
+    /// the block hash that the finality signature is for
     pub block_hash: Vec<u8>,
 }
-
-/// Map of (block height, block hash) tuples to the finality signature for that block.
-pub(crate) const FINALITY_SIGNATURES: Map<(u64, &str), FinalitySigInfo> =
-    Map::new("finality_signatures");
-
-/// Map of (block height, block hash) tuples to the list of signatories
-/// for that block.
-pub(crate) const SIGNATORIES_BY_BLOCK_HASH: Map<(u64, &[u8]), HashSet<String>> =
-    Map::new("signatories_by_block_hash");
-
-/// Map of evidence by block height and fp
-pub(crate) const EVIDENCES: Map<(u64, &str), Evidence> = Map::new("evidences");
 
 /// Inserts a signatory into the SIGNATORIES_BY_BLOCK_HASH map for the given height and block hash.
 /// The function does not do any checks:
