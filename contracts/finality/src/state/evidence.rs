@@ -106,16 +106,7 @@ mod tests {
         let loaded = get_evidence(deps.as_ref().storage, height, &fp_btc_pk_hex).unwrap();
         assert!(loaded.is_some());
         let loaded = loaded.unwrap();
-        assert_eq!(loaded.fp_btc_pk, evidence.fp_btc_pk);
-        assert_eq!(loaded.block_height, evidence.block_height);
-        assert_eq!(loaded.pub_rand, evidence.pub_rand);
-        assert_eq!(loaded.canonical_app_hash, evidence.canonical_app_hash);
-        assert_eq!(loaded.fork_app_hash, evidence.fork_app_hash);
-        assert_eq!(
-            loaded.canonical_finality_sig,
-            evidence.canonical_finality_sig
-        );
-        assert_eq!(loaded.fork_finality_sig, evidence.fork_finality_sig);
+        assert_eq!(loaded, evidence);
     }
 
     #[test]
