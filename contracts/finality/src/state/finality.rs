@@ -11,7 +11,7 @@ pub(crate) const FINALITY_SIGNATURES: Map<(u64, &str), FinalitySigInfo> =
     Map::new("finality_signatures");
 
 /// Map of (block height, block hash) tuples to the list of signatories
-/// for that block.
+/// (each identified by the BTC public key in hex) for that block.
 pub(crate) const SIGNATORIES_BY_BLOCK_HASH: Map<(u64, &[u8]), HashSet<String>> =
     Map::new("signatories_by_block_hash");
 
