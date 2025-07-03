@@ -35,9 +35,9 @@ pub struct Evidence {
 }
 
 /// Stores an Evidence object in the EVIDENCES map for the given height and finality provider.
-/// If there's already an  Evidence entry for the same key, return an error, as this
+/// If there's already an Evidence entry for the same key, return an error, as this
 /// should not happen.
-pub fn set_evidence(
+pub fn insert_evidence(
     storage: &mut dyn Storage,
     height: u64,
     fp_btc_pk_hex: &str,
@@ -91,10 +91,10 @@ mod tests {
         let fp_btc_pk_hex = get_random_fp_pk_hex();
         let evidence = get_random_evidence(height, &fp_btc_pk_hex);
         // Store evidence
-        set_evidence(deps.as_mut().storage, height, &fp_btc_pk_hex, &evidence).unwrap();
+        insert_evidence(deps.as_mut().storage, height, &fp_btc_pk_hex, &evidence).unwrap();
         // Try to store again and expect an error
         let err =
-            set_evidence(deps.as_mut().storage, height, &fp_btc_pk_hex, &evidence).unwrap_err();
+            insert_evidence(deps.as_mut().storage, height, &fp_btc_pk_hex, &evidence).unwrap_err();
         match err {
             ContractError::EvidenceAlreadyExists(ref pk, h) => {
                 assert_eq!(pk, &fp_btc_pk_hex);
