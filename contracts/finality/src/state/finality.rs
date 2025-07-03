@@ -1,8 +1,9 @@
 use cosmwasm_schema::cw_serde;
+use cosmwasm_std::Deps;
 use cw_storage_plus::Map;
 use std::collections::HashSet;
 
-use crate::state::Bytes;
+use crate::{error::ContractError, state::Bytes};
 
 /// Evidence is the evidence that a finality provider has signed finality
 /// signatures with correct public randomness on two conflicting Babylon headers
@@ -42,3 +43,22 @@ pub(crate) const BLOCK_VOTES: Map<(u64, &[u8]), HashSet<String>> = Map::new("blo
 
 /// Map of evidence by block height and fp
 pub(crate) const EVIDENCES: Map<(u64, &str), Evidence> = Map::new("evidences");
+
+pub fn get_block_voters(
+    deps: Deps,
+    height: u64,
+    hash_hex: String,
+) -> Result<Option<HashSet<String>>, ContractError> {
+    let block_hash_bytes: Vec<u8> = hex::decode(&hash_hex).map_err(ContractError::HexError)?;
+    // find all FPs that voted for this (height, hash_hex) combination
+    let fp_pubkey_hex_list = BLOCK_VOTES
+        .may_load(deps.storage, (height, &block_hash_bytes))
+        .map_err(|e| {
+            ContractError::QueryBlockVoterError(
+                height,
+                hash_hex.clone(),
+                format!("Original error: {:?}", e),
+            )
+        })?;
+    Ok(fp_pubkey_hex_list)
+}

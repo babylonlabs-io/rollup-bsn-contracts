@@ -101,3 +101,185 @@ pub fn get_pub_rand_commit(
     // Return the results or an empty vector if no results found
     Ok(res)
 }
+
+pub fn get_first_pub_rand_commit(
+    storage: &dyn Storage,
+    fp_btc_pk_hex: &str,
+) -> Result<Option<PubRandCommit>, ContractError> {
+    let res = get_pub_rand_commit(storage, fp_btc_pk_hex, None, Some(1), Some(false))?;
+    Ok(res.into_iter().next())
+}
+
+pub fn get_last_pub_rand_commit(
+    storage: &dyn Storage,
+    fp_btc_pk_hex: &str,
+) -> Result<Option<PubRandCommit>, ContractError> {
+    let res = get_pub_rand_commit(storage, fp_btc_pk_hex, None, Some(1), Some(true))?;
+    Ok(res.into_iter().next())
+}
+
+/// `insert_pub_rand_commit` inserts a public randomness commitment into the storage.
+/// It ensures that the new commitment does not overlap with the existing ones.
+pub fn insert_pub_rand_commit(
+    storage: &mut dyn Storage,
+    fp_pubkey_hex: &str,
+    pr_commit: PubRandCommit,
+) -> Result<(), ContractError> {
+    // Validate num_pub_rand is at least 1 to prevent integer underflow
+    if pr_commit.num_pub_rand == 0 {
+        return Err(ContractError::InvalidNumPubRand(pr_commit.num_pub_rand));
+    }
+
+    // Get last public randomness commitment
+    let last_pr_commit = get_last_pub_rand_commit(storage, fp_pubkey_hex)?;
+
+    // Ensure height and start_height do not overlap, i.e., height < start_height
+    if let Some(last_pr_commit) = last_pr_commit {
+        let last_pr_end_height = last_pr_commit.end_height();
+        if pr_commit.start_height <= last_pr_end_height {
+            return Err(ContractError::InvalidPubRandHeight(
+                pr_commit.start_height,
+                last_pr_end_height,
+            ));
+        }
+    }
+
+    // All good, store the given public randomness commitment
+    PUB_RAND_COMMITS.save(storage, (fp_pubkey_hex, pr_commit.start_height), &pr_commit)?;
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::testing::{mock_dependencies, mock_env};
+
+    #[test]
+    fn insert_pub_rand_commit_validates_num_pub_rand() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let fp_btc_pk_hex = "020000000000000000000000000000000000000000000000000000000000000000";
+        let start_height = 100_u64;
+        let commitment = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+
+        // Test with num_pub_rand = 0 (should fail)
+        let invalid_commit = PubRandCommit {
+            start_height,
+            num_pub_rand: 0, // Zero value should be rejected
+            height: env.block.height,
+            commitment: commitment.clone(),
+        };
+
+        let result = insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk_hex, invalid_commit);
+
+        // Should return InvalidNumPubRand error
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            ContractError::InvalidNumPubRand(val) => {
+                assert_eq!(val, 0);
+            }
+            e => panic!("Expected InvalidNumPubRand error, got: {:?}", e),
+        }
+
+        // Test with num_pub_rand = 1 (should pass validation)
+        let valid_commit = PubRandCommit {
+            start_height,
+            num_pub_rand: 1, // Valid value should pass this validation
+            height: env.block.height,
+            commitment,
+        };
+
+        let result = insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk_hex, valid_commit);
+
+        // Should pass the num_pub_rand validation
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn insert_pub_rand_commit_height_overlap_validation() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+
+        // === SETUP: First commitment covering heights 100-109 ===
+        let fp_btc_pk_hex = "020000000000000000000000000000000000000000000000000000000000000000";
+        let initial_start_height = 100_u64;
+        let initial_num_pub_rand = 10_u64; // This covers heights 100-109
+        let initial_commitment = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+
+        // Store initial commitment directly
+        let initial_commit = PubRandCommit {
+            start_height: initial_start_height,
+            num_pub_rand: initial_num_pub_rand,
+            height: env.block.height,
+            commitment: initial_commitment,
+        };
+        insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk_hex, initial_commit).unwrap();
+
+        // === TEST CASE 1: Overlapping start height (should fail) ===
+        let overlapping_start_height = 105_u64; // Overlaps with 100-109 range
+        let overlapping_num_pub_rand = 5_u64;
+        let overlapping_commitment = vec![
+            11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+        ];
+
+        let overlapping_commit = PubRandCommit {
+            start_height: overlapping_start_height,
+            num_pub_rand: overlapping_num_pub_rand,
+            height: env.block.height,
+            commitment: overlapping_commitment,
+        };
+
+        let overlapping_result =
+            insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk_hex, overlapping_commit);
+
+        // Should fail due to overlap
+        assert!(matches!(
+            overlapping_result,
+            Err(ContractError::InvalidPubRandHeight(105, 109))
+        ));
+
+        // === TEST CASE 2: Exactly at boundary (should fail) ===
+        let boundary_start_height = 109_u64; // Exactly at the end height of previous range
+        let boundary_num_pub_rand = 5_u64;
+        let boundary_commitment = vec![
+            21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
+        ];
+
+        let boundary_commit = PubRandCommit {
+            start_height: boundary_start_height,
+            num_pub_rand: boundary_num_pub_rand,
+            height: env.block.height,
+            commitment: boundary_commitment,
+        };
+
+        let boundary_result =
+            insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk_hex, boundary_commit);
+
+        // Should fail due to boundary overlap
+        assert!(matches!(
+            boundary_result,
+            Err(ContractError::InvalidPubRandHeight(109, 109))
+        ));
+
+        // === TEST CASE 3: Valid non-overlapping commitment (should pass height validation) ===
+        let valid_start_height = 110_u64; // Right after previous range ends (100-109)
+        let valid_num_pub_rand = 5_u64;
+        let valid_commitment = vec![
+            31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46,
+        ];
+
+        let valid_commit = PubRandCommit {
+            start_height: valid_start_height,
+            num_pub_rand: valid_num_pub_rand,
+            height: env.block.height,
+            commitment: valid_commitment,
+        };
+
+        let valid_result =
+            insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk_hex, valid_commit);
+
+        // Should pass height overlap validation
+        assert!(valid_result.is_ok());
+    }
+}
