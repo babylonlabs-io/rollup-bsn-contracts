@@ -34,7 +34,7 @@ pub fn query_block_voters(
             )
         })?;
     if let Some(set) = fp_pubkey_hex_set {
-        let mut result = Vec::new();
+        let mut result = Vec::with_capacity(set.len());
         for fp_btc_pk_hex in set.iter() {
             let sig = FINALITY_SIGNATURES
                 .may_load(deps.storage, (height, fp_btc_pk_hex.as_str()))?
