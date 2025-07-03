@@ -37,8 +37,9 @@ pub fn handle_public_randomness_commit(
     )?;
 
     // insert the public randomness commitment into the storage
-    // note that `insert_pub_rand_commit` ensures that the new commitment
-    // does not overlap with the existing ones
+    // note that `insert_pub_rand_commit` has ensured that
+    // - the new commitment does not overlap with the existing ones
+    // - the new commitment does not have num_pub_rand = 0
     insert_pub_rand_commit(
         deps.storage,
         fp_pubkey_hex,
