@@ -93,19 +93,14 @@ mod tests {
         // Store evidence
         insert_evidence(deps.as_mut().storage, height, &fp_btc_pk_hex, &evidence).unwrap();
         // Try to store again and expect an error
-        let err =
-            insert_evidence(deps.as_mut().storage, height, &fp_btc_pk_hex, &evidence).unwrap_err();
-        match err {
-            ContractError::EvidenceAlreadyExists(ref pk, h) => {
-                assert_eq!(pk, &fp_btc_pk_hex);
-                assert_eq!(h, height);
-            }
-            _ => panic!("Expected EvidenceAlreadyExists error, got {:?}", err),
-        }
+        assert_eq!(
+            insert_evidence(deps.as_mut().storage, height, &fp_btc_pk_hex, &evidence).unwrap_err(),
+            ContractError::EvidenceAlreadyExists(fp_btc_pk_hex.clone(), height)
+        );
         // Retrieve evidence
-        let loaded = get_evidence(deps.as_ref().storage, height, &fp_btc_pk_hex).unwrap();
-        assert!(loaded.is_some());
-        let loaded = loaded.unwrap();
+        let loaded = get_evidence(deps.as_ref().storage, height, &fp_btc_pk_hex)
+            .unwrap()
+            .unwrap();
         assert_eq!(loaded, evidence);
     }
 
