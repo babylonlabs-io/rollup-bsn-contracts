@@ -82,6 +82,7 @@ mod tests {
     use crate::testutil::datagen::*;
     use cosmwasm_std::testing::mock_dependencies;
     use rand::{thread_rng, Rng};
+    use std::collections::HashSet;
 
     #[test]
     fn test_insert_signatory_adds_to_set() {
@@ -89,7 +90,7 @@ mod tests {
         let height = thread_rng().gen_range(1..1000);
         let block_hash = get_random_block_hash();
         let num_signatories = thread_rng().gen_range(1..=20);
-        let mut signatories_set = std::collections::HashSet::new();
+        let mut signatories_set = HashSet::new();
         while signatories_set.len() < num_signatories {
             signatories_set.insert(get_random_fp_pk_hex());
         }
