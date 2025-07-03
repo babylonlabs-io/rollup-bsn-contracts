@@ -575,13 +575,29 @@ This section documents the actual state storage structure used by the finality c
 - Key format: `(block_height, block_hash_bytes)`
 - Purpose: Maps each (height, block_hash) combination to the set of finality provider public keys that voted for it
 
+#### 5.5.3. Equivocation Evidence State Storage
+
 **EVIDENCES**: Slashing evidence by height and provider
 - Type: `Map<(u64, &str), Evidence>`
 - Storage key: `"evidences"`
 - Key format: `(block_height, fp_pubkey_hex)`
-- Purpose: Stores equivocation evidence for slashed finality providers
+- Purpose: Stores equivocation evidence for slashed finality providers. Each (block_height, fp_pubkey_hex) pair can have at most one evidence entry; evidence is immutable once set.
+- Insertion: Use the `set_evidence` helper, which will return an `EvidenceAlreadyExists(fp_pubkey_hex, block_height)` error if evidence already exists for the same key. This prevents accidental overwrites and ensures idempotency.
+- Retrieval: Use the `get_evidence` helper to fetch evidence for a given (block_height, fp_pubkey_hex) pair. Returns `None` if not present.
+- Structure:
+  ```rust
+  pub struct Evidence {
+      pub fp_btc_pk: Vec<u8>,           // BTC PK of the finality provider
+      pub block_height: u64,            // Height of the conflicting blocks
+      pub pub_rand: Vec<u8>,            // Public randomness committed to
+      pub canonical_app_hash: Vec<u8>,  // AppHash of the canonical block
+      pub fork_app_hash: Vec<u8>,       // AppHash of the fork block
+      pub canonical_finality_sig: Vec<u8>, // EOTS signature for canonical block
+      pub fork_finality_sig: Vec<u8>,       // EOTS signature for fork block
+  }
+  ```
 
-#### 5.5.3. Public Randomness Storage
+#### 5.5.4. Public Randomness Storage
 
 **PUB_RAND_VALUES**: Individual public randomness values
 - Type: `Map<(&str, u64), Vec<u8>>`
