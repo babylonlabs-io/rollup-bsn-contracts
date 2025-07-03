@@ -59,6 +59,7 @@ rust_decimal = "1.35"
 k256 = { version = "0.13.1", default-features = false, features = ["schnorr"] }
 
 # dev deps
+rand = "0.9.1"
 test-utils            = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
 cosmwasm-vm = { version = "2.1.4", default-features = false, features = [
     "iterator",
