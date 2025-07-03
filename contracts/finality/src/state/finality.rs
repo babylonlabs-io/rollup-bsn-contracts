@@ -56,6 +56,12 @@ pub(crate) const SIGNATORIES_BY_BLOCK_HASH: Map<(u64, &[u8]), HashSet<String>> =
 pub(crate) const EVIDENCES: Map<(u64, &str), Evidence> = Map::new("evidences");
 
 /// Inserts a signatory into the SIGNATORIES_BY_BLOCK_HASH map for the given height and block hash.
+/// The function does not do any checks:
+/// - If the signatory is already there, the set will remain the same.
+/// - If the signatory is a new one, the caller is responsible for ensuring that they are
+///   inserting the right one. An insertion without a corresponding entry for a finality provider
+///   in the FINALITY_SIGNATURES or PUB_RAND_VALUES storage might point to a storage corruption.
+///   TODO: Should we have checks to avoid the above storage corruption situation?
 pub fn insert_signatory(
     storage: &mut dyn Storage,
     height: u64,

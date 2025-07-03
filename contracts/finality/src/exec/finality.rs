@@ -225,7 +225,9 @@ pub fn handle_finality_signature(
     };
     FINALITY_SIGNATURES.save(deps.storage, (height, fp_btc_pk_hex), &finality_sig)?;
 
-    // Store public randomness separately
+    // Store public randomness
+    // We expect that this will error if a public randomness has already been
+    // stored for this finality provider at this height.
     insert_pub_rand_value(deps.storage, fp_btc_pk_hex, height, pub_rand)?;
 
     // Add the fp_btc_pk_hex to the set using the helper

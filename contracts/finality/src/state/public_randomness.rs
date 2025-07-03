@@ -107,7 +107,9 @@ pub fn get_pub_rand_commit(
 ///
 /// - If no value exists, it inserts the value.
 /// - If the same value already exists, it is a no-op and returns Ok(())
-/// - If a different value exists, it returns ContractError::PubRandAlreadyExists
+/// - If a different value exists, it returns ContractError::PubRandAlreadyExists.
+///   This is an error as the contract should recognize only a single public randomness value
+///   for a specific height per finality provider.
 pub fn insert_pub_rand_value(
     storage: &mut dyn Storage,
     fp_btc_pk_hex: &str,
