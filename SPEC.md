@@ -556,21 +556,22 @@ This section documents the actual state storage structure used by the finality c
 
 #### 5.5.2. Finality State Storage
 
-**SIGNATURES**: Finality provider signatures by height and provider
-- Type: `Map<(u64, &str), Vec<u8>>`
-- Storage key: `"fp_sigs"`
+**FINALITY_SIGNATURES**: Finality signatures by height and provider
+- Type: `Map<(u64, &str), FinalitySigInfo>`
+- Storage key: `"finality_signatures"`
 - Key format: `(block_height, fp_pubkey_hex)`
-- Purpose: Stores EOTS signatures submitted by finality providers
+- Purpose: Stores finality signature information including signature and block hash
+- Structure:
+  ```rust
+  pub struct FinalitySigInfo {
+      pub finality_sig: Vec<u8>,  // The EOTS finality signature
+      pub block_hash: Vec<u8>,    // The block hash that the signature is for
+  }
+  ```
 
-**BLOCK_HASHES**: Block hashes by height and provider
-- Type: `Map<(u64, &str), Vec<u8>>`
-- Storage key: `"block_hashes"`
-- Key format: `(block_height, fp_pubkey_hex)`
-- Purpose: Stores block hashes that finality providers have voted for
-
-**BLOCK_VOTES**: Voting aggregation by height and block hash
+**SIGNATORIES_BY_BLOCK_HASH**: Voting aggregation by height and block hash
 - Type: `Map<(u64, &[u8]), HashSet<String>>`
-- Storage key: `"block_votes"`
+- Storage key: `"signatories_by_block_hash"`
 - Key format: `(block_height, block_hash_bytes)`
 - Purpose: Maps each (height, block_hash) combination to the set of finality provider public keys that voted for it
 
@@ -581,6 +582,12 @@ This section documents the actual state storage structure used by the finality c
 - Purpose: Stores equivocation evidence for slashed finality providers
 
 #### 5.5.3. Public Randomness Storage
+
+**PUB_RAND_VALUES**: Individual public randomness values
+- Type: `Map<(&str, u64), Vec<u8>>`
+- Storage key: `"pub_rand_values"`
+- Key format: `(fp_pubkey_hex, block_height)`
+- Purpose: Stores individual public randomness values revealed during finality signature submission
 
 **PUB_RAND_COMMITS**: Public randomness commitments
 - Type: `Map<(&str, u64), PubRandCommit>`
@@ -601,12 +608,6 @@ This section documents the actual state storage structure used by the finality c
   }
   ```
 
-**PUB_RAND_VALUES**: Individual public randomness values
-- Type: `Map<(&str, u64), Vec<u8>>`
-- Storage key: `"fp_pub_rand"`
-- Key format: `(fp_pubkey_hex, block_height)`
-- Purpose: Stores individual public randomness values revealed during finality signature submission
-
 ### 5.6. Finality contract queries
 
 The finality contract query requirements are divided into core finality
@@ -618,10 +619,17 @@ use cw_controllers::AdminResponse;
 use std::collections::HashSet;
 
 #[cw_serde]
+pub struct BlockVoterInfo {
+    pub fp_btc_pk_hex: String,
+    pub pub_rand: Vec<u8>,
+    pub finality_signature: FinalitySigInfo,
+}
+
+#[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {    
     // MUST: Core finality queries
-    #[returns(Option<HashSet<String>>)]
+    #[returns(Option<Vec<BlockVoterInfo>>)]
     BlockVoters { height: u64, hash_hex: String },
     /// `FirstPubRandCommit` returns the first public random commitment (if any) for a given FP.
     ///
@@ -654,21 +662,32 @@ BlockVoters {
 }
 ```
 
-**Return Type:** `Option<HashSet<String>>` - Set of finality provider BTC public
-keys in hex format
+**Return Type:** `Option<Vec<BlockVoterInfo>>` - List of finality providers and their signatures for the specified block
 
 **Expected Behavior:** Finality contracts MUST implement this query to return
-the set of finality providers that voted for a specific block:
+the finality providers that voted for a specific block along with their complete signature information:
 
 1. Decode hash_hex from hex string to bytes
    - IF decode fails: RETURN error
 
-2. Query block votes storage using key (height, hash_bytes)
+2. Query signatories storage using key (height, hash_bytes)
    - Access the stored set of finality provider public keys
 
-3. Return the set of finality provider BTC public keys (hex format)
+3. For each finality provider in the set:
+   - Query the FINALITY_SIGNATURES storage using key (height, fp_pubkey_hex)
+   - IF signature not found: RETURN error (state corruption)
+   - Query the PUB_RAND_VALUES storage using key (fp_pubkey_hex, height)
+   - IF public randomness not found: RETURN error (state corruption)
+   - Create BlockVoterInfo with fp_btc_pk_hex, pub_rand, and FinalitySigInfo
+
+4. Return the list of BlockVoterInfo
    - IF no votes found: RETURN `None`
-   - IF votes exist: RETURN `Some(HashSet of fp_pubkey_hex strings)`
+   - IF votes exist: RETURN `Some(Vec<BlockVoterInfo>)`
+
+WHERE BlockVoterInfo contains:
+- `fp_btc_pk_hex`: `String` - The finality provider's BTC public key in hex format
+- `pub_rand`: `Vec<u8>` - The public randomness value for the block
+- `finality_signature`: `FinalitySigInfo` - Complete signature information including public randomness, signature, and block hash
 
 #### 5.6.2. FirstPubRandCommit (MUST)
 
