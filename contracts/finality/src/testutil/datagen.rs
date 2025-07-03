@@ -1,6 +1,11 @@
 use crate::state::finality::FinalitySigInfo;
 use rand::{rng, Rng};
 
+pub fn get_random_u64() -> u64 {
+    let mut rng = rng();
+    rng.random_range(1..=1000)
+}
+
 pub fn get_random_block_hash() -> Vec<u8> {
     let mut rng = rng();
     (0..32).map(|_| rng.random()).collect()
