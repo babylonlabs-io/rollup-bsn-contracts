@@ -8,6 +8,7 @@ use cosmwasm_std::{Deps, DepsMut, Env, Event, MessageInfo, Response};
 use babylon_bindings::BabylonQuery;
 use babylon_merkle::Proof;
 
+use crate::custom_queries::get_current_epoch;
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::queries::query_last_pub_rand_commit;
@@ -15,8 +16,7 @@ use crate::state::config::CONFIG;
 use crate::state::finality::{Evidence, BLOCK_HASHES, BLOCK_VOTES, EVIDENCES, SIGNATURES};
 use crate::state::public_randomness::PubRandCommit;
 use crate::state::public_randomness::{
-    get_current_epoch, get_timestamped_pub_rand_commit_for_height, PUB_RAND_COMMITS,
-    PUB_RAND_VALUES,
+    get_timestamped_pub_rand_commit_for_height, PUB_RAND_COMMITS, PUB_RAND_VALUES,
 };
 use crate::utils::query_finality_provider;
 

@@ -7,6 +7,7 @@ use error::ContractError;
 use msg::{ExecuteMsg, InstantiateMsg};
 
 pub mod contract;
+pub mod custom_queries;
 pub mod error;
 pub mod exec;
 pub mod msg;

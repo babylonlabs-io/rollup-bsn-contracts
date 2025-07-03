@@ -4,8 +4,9 @@ use cosmwasm_std::{Deps, StdResult, Storage};
 
 use cw_storage_plus::{Bound, Map};
 
-use babylon_bindings::{BabylonQuerier, BabylonQuery};
+use babylon_bindings::BabylonQuery;
 
+use crate::custom_queries::get_last_finalized_epoch;
 use crate::error::ContractError;
 use crate::state::Bytes;
 
@@ -74,13 +75,6 @@ pub fn get_pub_rand_commit_for_height(
     }
 }
 
-pub fn get_current_epoch(deps: &Deps<BabylonQuery>) -> Result<u64, ContractError> {
-    // Use a Custom query to query the current Babylon epoch
-    let bq = BabylonQuerier::new(&deps.querier);
-    let current_epoch = bq.current_epoch()?;
-    Ok(current_epoch.u64())
-}
-
 // Finds the public randomness commitment that includes the given height for the given finality
 // provider.
 // It also checks that the commitment is timestamped by BTC, meaning that the epoch of the
@@ -108,14 +102,6 @@ pub fn get_timestamped_pub_rand_commit_for_height(
     }
 
     Ok(pr_commit)
-}
-
-pub fn get_last_finalized_epoch(deps: &Deps<BabylonQuery>) -> Result<u64, ContractError> {
-    // Use custom query to query the last finalized Babylon epoch
-    let bq = BabylonQuerier::new(&deps.querier);
-    let last_finalized_epoch = bq.latest_finalized_epoch_info()?;
-
-    Ok(last_finalized_epoch.epoch_number)
 }
 
 // Copied from contracts/btc-staking/src/state/public_randomness.rs
