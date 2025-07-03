@@ -589,10 +589,15 @@ This section documents the actual state storage structure used by the finality c
 - Structure:
   ```rust
   pub struct PubRandCommit {
-      pub start_height: u64,
-      pub num_pub_rand: u64,
-      pub height: u64,
-      pub commitment: Vec<u8>,
+    /// The height of the first commitment
+    pub start_height: u64,
+    /// The amount of committed public randomness
+    pub num_pub_rand: u64,
+    /// The epoch number of Babylon when the commit was submitted
+    pub epoch: u64,
+    /// Value of the commitment.
+    /// Currently, it's the root of the Merkle tree constructed by the public randomness
+    pub commitment: Bytes,
   }
   ```
 
