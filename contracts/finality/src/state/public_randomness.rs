@@ -23,7 +23,7 @@ pub struct PubRandCommit {
     pub start_height: u64,
     /// The amount of committed public randomness
     pub num_pub_rand: u64,
-    /// Defines the Babylon epoch that the commit was submitted
+    /// The epoch number of Babylon when the commit was submitted
     pub epoch: u64,
     /// Value of the commitment.
     /// Currently, it's the root of the Merkle tree constructed by the public randomness
