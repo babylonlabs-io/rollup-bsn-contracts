@@ -241,13 +241,18 @@ mod tests {
         let initial_commitment = get_random_block_hash();
 
         // Store initial commitment directly
-        let initial_commit = PubRandCommit {
+        let initial_commit = &PubRandCommit {
             start_height: initial_start_height,
             num_pub_rand: initial_num_pub_rand,
             height: env.block.height,
             commitment: initial_commitment,
         };
-        insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk_hex, initial_commit).unwrap();
+        insert_pub_rand_commit(
+            deps.as_mut().storage,
+            &fp_btc_pk_hex,
+            initial_commit.clone(),
+        )
+        .unwrap();
 
         // === TEST CASE 1: Overlapping start height (should fail) ===
         let overlapping_start_height = initial_start_height - 1;
@@ -269,12 +274,12 @@ mod tests {
             overlapping_result,
             Err(ContractError::InvalidPubRandHeight(
                 overlapping_start_height,
-                initial_start_height + initial_num_pub_rand - 1,
+                initial_commit.end_height(),
             ))
         );
 
         // === TEST CASE 2: Exactly at boundary (should fail) ===
-        let boundary_start_height = initial_start_height + initial_num_pub_rand - 1;
+        let boundary_start_height = initial_commit.end_height();
         let boundary_num_pub_rand = get_random_u64();
         let boundary_commitment = get_random_block_hash();
 
@@ -292,8 +297,8 @@ mod tests {
         assert_eq!(
             boundary_result,
             Err(ContractError::InvalidPubRandHeight(
-                initial_start_height + initial_num_pub_rand - 1,
-                initial_start_height + initial_num_pub_rand - 1
+                initial_commit.end_height(),
+                initial_commit.end_height()
             ))
         );
 
