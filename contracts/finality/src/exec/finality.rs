@@ -14,7 +14,6 @@ use k256::schnorr::{Signature, VerifyingKey};
 use k256::sha2::{Digest, Sha256};
 use std::collections::HashSet;
 
-// Most logic copied from contracts/btc-staking/src/finality.rs
 pub fn handle_public_randomness_commit(
     deps: DepsMut,
     env: &Env,
@@ -91,7 +90,6 @@ pub(crate) fn verify_commitment_signature(
         .map_err(|e| ContractError::SecP256K1Error(e.to_string()))
 }
 
-// Most logic copied from contracts/btc-staking/src/finality.rs
 #[allow(clippy::too_many_arguments)]
 pub fn handle_finality_signature(
     deps: DepsMut,

@@ -38,7 +38,6 @@ impl PubRandCommit {
     }
 }
 
-// Copied from contracts/btc-staking/src/state/public_randomness.rs
 pub fn get_pub_rand_commit_for_height(
     storage: &dyn Storage,
     fp_btc_pk_hex: &str,
@@ -70,7 +69,6 @@ pub fn get_pub_rand_commit_for_height(
     }
 }
 
-// Copied from contracts/btc-staking/src/state/public_randomness.rs
 const MAX_LIMIT: u32 = 30;
 const DEFAULT_LIMIT: u32 = 10;
 

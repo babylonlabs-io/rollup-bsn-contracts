@@ -101,7 +101,6 @@ pub fn execute(
     }
 }
 
-// Most logic copied from contracts/btc-staking/src/contract.rs
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
