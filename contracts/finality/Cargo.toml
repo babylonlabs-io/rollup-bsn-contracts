@@ -38,7 +38,6 @@ eots             = { workspace = true }
 [dev-dependencies]
 anyhow                = { workspace = true }
 derivative            = { workspace = true }
-rand                  = { workspace = true }
 
 cosmwasm-vm           = { workspace = true }
 cw-multi-test         = { workspace = true }
