@@ -1,20 +1,18 @@
-use std::collections::HashSet;
-
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::state::config::CONFIG;
 use crate::state::finality::{Evidence, BLOCK_HASHES, BLOCK_VOTES, EVIDENCES, SIGNATURES};
+use crate::state::public_randomness::PubRandCommit;
 use crate::state::public_randomness::{
     get_pub_rand_commit_for_height, insert_pub_rand_commit, PUB_RAND_VALUES,
 };
 use crate::utils::query_finality_provider;
-
-use crate::state::public_randomness::PubRandCommit;
 use babylon_merkle::Proof;
 use cosmwasm_std::{Deps, DepsMut, Env, Event, MessageInfo, Response};
 use k256::ecdsa::signature::Verifier;
 use k256::schnorr::{Signature, VerifyingKey};
 use k256::sha2::{Digest, Sha256};
+use std::collections::HashSet;
 
 // Most logic copied from contracts/btc-staking/src/finality.rs
 pub fn handle_public_randomness_commit(
