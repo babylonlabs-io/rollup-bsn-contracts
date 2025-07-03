@@ -74,7 +74,7 @@ pub fn get_pub_rand_commit_for_height(
 const MAX_LIMIT: u32 = 30;
 const DEFAULT_LIMIT: u32 = 10;
 
-pub fn get_pub_rand_commit(
+fn get_pub_rand_commit(
     storage: &dyn Storage,
     fp_btc_pk_hex: &str,
     start_after: Option<u64>,
