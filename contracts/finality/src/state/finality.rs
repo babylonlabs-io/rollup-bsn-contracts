@@ -1,5 +1,4 @@
 use crate::error::ContractError;
-use crate::state::Bytes;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Storage;
 use cw_storage_plus::Map;
