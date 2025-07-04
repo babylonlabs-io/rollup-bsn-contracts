@@ -105,24 +105,6 @@ pub fn handle_finality_signature(
     // Ensure the finality provider exists and is not slashed
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
 
-    // NOTE: It's possible that the finality provider equivocates for height h, and the signature is
-    // processed at height h' > h. In this case:
-    // - We should reject any new signature from this finality provider, since it's known to be adversarial.
-    // - We should set its voting power since height h'+1 to be zero, for to the same reason.
-    // - We should NOT set its voting power between [h, h'] to be zero, since
-    //   - Babylon BTC staking ensures safety upon 2f+1 votes, *even if* f of them are adversarial.
-    //     This is because as long as a block gets 2f+1 votes, any other block with 2f+1 votes has a
-    //     f+1 quorum intersection with this block, contradicting the assumption and leading to
-    //     the safety proof.
-    //     This ensures slashable safety together with EOTS, thus does not undermine Babylon's security guarantee.
-    //   - Due to this reason, when tallying a block, Babylon finalises this block upon 2f+1 votes. If we
-    //     modify voting power table in the history, some finality decisions might be contradicting to the
-    //     signature set and voting power table.
-    //   - To fix the above issue, Babylon has to allow finalised and not-finalised blocks. However,
-    //     this means Babylon will lose safety under an adaptive adversary corrupting even 1
-    //     finality provider. It can simply corrupt a new finality provider and equivocate a
-    //     historical block over and over again, making a previous block not finalisable forever.
-
     // Load any type of existing finality signature by the finality provider at the same height
     let existing_finality_sig: Option<FinalitySigInfo> =
         FINALITY_SIGNATURES.may_load(deps.storage, (height, fp_btc_pk_hex))?;
