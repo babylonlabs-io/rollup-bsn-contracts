@@ -15,7 +15,7 @@ gen-schema      = "./scripts/schema.sh"
 optimize        = "./scripts/optimizer.sh"
 precommit       = "./scripts/precommit.sh"
 lint            = "./scripts/lint.sh"
-fix-lint        = "./scripts/fix-lint.sh"
+fix-lint        = "./scripts/fix_lint.sh"
 integration     = "./scripts/integration_test.sh"
 
 [workspace.dependencies]
