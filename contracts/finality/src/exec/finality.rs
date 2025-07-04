@@ -123,14 +123,6 @@ pub fn handle_finality_signature(
     //     finality provider. It can simply corrupt a new finality provider and equivocate a
     //     historical block over and over again, making a previous block not finalisable forever.
 
-    // Ensure the finality provider has voting power at this height
-    // TODO (lester): use gRPC to query the Babylon Chain
-
-    // Ensure the signature is not empty
-    if signature.is_empty() {
-        return Err(ContractError::EmptySignature);
-    }
-
     // Load any type of existing finality signature by the finality provider at the same height
     let existing_finality_sig: Option<FinalitySigInfo> =
         FINALITY_SIGNATURES.may_load(deps.storage, (height, fp_btc_pk_hex))?;
@@ -190,6 +182,7 @@ pub fn handle_finality_signature(
 
     // TODO: in the case of an existing finality signature,
     // we are overriding the existing finality signature.
+    // https://github.com/babylonlabs-io/rollup-bsn-contracts/issues/44
     // This signature is good, save the vote to the store
     let finality_sig = FinalitySigInfo {
         finality_sig: signature.to_vec(),
