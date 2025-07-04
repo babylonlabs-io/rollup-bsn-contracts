@@ -21,7 +21,8 @@
   - [5.5. Contract State Storage](#55-contract-state-storage)
     - [5.5.1. Core Configuration](#551-core-configuration)
     - [5.5.2. Finality State Storage](#552-finality-state-storage)
-    - [5.5.3. Public Randomness Storage](#553-public-randomness-storage)
+    - [5.5.3. Equivocation Evidence State Storage](#553-equivocation-evidence-state-storage)
+    - [5.5.4. Public Randomness Storage](#554-public-randomness-storage)
   - [5.6. Finality contract queries](#56-finality-contract-queries)
     - [5.6.1. BlockVoters (MUST)](#561-blockvoters-must)
     - [5.6.2. FirstPubRandCommit (MUST)](#562-firstpubrandcommit-must)
@@ -31,7 +32,7 @@
     - [5.6.6. IsEnabled (SHOULD)](#566-isenabled-should)
 - [6. Implementation status](#6-implementation-status)
   - [6.1. Babylon implementation status](#61-babylon-implementation-status)
-  - [6.2. Finality contracct implementation status](#62-finality-contracct-implementation-status)
+  - [6.2. Finality contract implementation status](#62-finality-contract-implementation-status)
 
 ## 1. Changelog
 
@@ -123,7 +124,7 @@ BabylonMsg::MsgEquivocationEvidence {
     canonical_finality_sig_hex: String,
     /// EOTS signature on the fork block (hex-encoded)
     fork_finality_sig_hex: String,
-    /// Signing context used for the signatures (hex-encoded)
+    /// Signing context used for the signatures
     signing_context: String,
 }
 ```
@@ -328,6 +329,10 @@ pub enum ExecuteMsg {
     SubmitFinalitySignature {
         /// The BTC public key of the finality provider submitting the signature
         fp_pubkey_hex: String,
+        /// Optional L1 block number (rollup-specific metadata)
+        l1_block_number: Option<u64>,
+        /// Optional L1 block hash hex (rollup-specific metadata)
+        l1_block_hash_hex: Option<String>,
         /// The block height this finality signature is for
         height: u64,
         /// The public randomness used for signing this block
@@ -335,8 +340,8 @@ pub enum ExecuteMsg {
         /// Merkle proof verifying that pub_rand was included in the earlier commitment
         proof: Proof,
         /// Hash of the block being finalized
-        block_hash_hex: String,
-        /// Finality signature on (height || block_hash_hex) signed by finality provider
+        block_hash: Binary,
+        /// Finality signature on (height || block_hash) signed by finality provider
         signature: Binary,
     },
 
@@ -399,56 +404,60 @@ CommitPublicRandomness {
 ```rust
 SubmitFinalitySignature {
     fp_pubkey_hex: String,
+    l1_block_number: Option<u64>,
+    l1_block_hash_hex: Option<String>,
     height: u64,
     pub_rand: Binary,
     proof: Proof,
-    block_hash_hex: String,
+    block_hash: Binary,
     signature: Binary,
 }
 ```
 
+**Finality Signature Message Format:**
+The finality signature is computed over a message constructed as follows:
+1. Construct the message: `height || block_hash` (where `height` is encoded as 8 bytes in big-endian format)
+2. Apply SHA256 hash to the message: `message_hash = SHA256(height || block_hash)`
+3. Sign the message hash using EOTS with the public randomness
+
 **Expected Behavior:** Finality contracts MUST implement this handler with the following verification logic:
 
-1. **Finality Provider Existence Check**: Verify that the finality provider exists:
+1. **Finality Provider Existence Check**: Verify that the finality provider exists and is not slashed:
    - Use `query_grpc` to call `/babylon.btcstkconsumer.v1.Query/FinalityProvider` with `consumer_id` and `fp_pubkey_hex` parameters
    - Verify the response contains a valid finality provider with non-zero voting power
+   - Ensure the finality provider has not been slashed (`slashed_babylon_height` and `slashed_btc_height` are both 0)
 
-2. **Signature Non-Empty Check**: Ensure the signature parameter is not empty
-
-3. **Duplicate Vote Check**: Check if an identical vote already exists:
+2. **Duplicate Vote Check**: Check if an identical vote already exists:
    - Query finality signature state using key `(height, fp_pubkey_hex)`
-   - Query blocks using key `(height, fp_pubkey_hex)`
-   - If both exist and match the provided `block_hash_hex` and `signature`, reject as duplicate
+   - If the same signature exists for the same block hash, return success (duplicate vote)
+   - If a different signature exists for the same height, proceed to equivocation handling
 
-4. **Public Randomness Commitment Retrieval**: Find the public randomness commitment that covers the target height:
+3. **Public Randomness Commitment Retrieval**: Find the public randomness commitment that covers the target height:
    - Query public randomness commitment state to find commitment where `start_height <= height <= start_height + num_pub_rand - 1`
    - Use the commitment for subsequent verification steps
 
-5. **Finality Signature Verification**:
+4. **Finality Signature Verification**:
    - Verify `height == pr_commit.start_height + proof.index`
    - Verify `proof.total == pr_commit.num_pub_rand`
    - Verify the inclusion proof for the public randomness value against `pr_commit.commitment`
    - Verify the EOTS signature using:
-     - Message: `SHA256(height || block_hash)`
+     - Message: `SHA256(height || block_hash)` (in big-endian format)
      - Public randomness value and EOTS signature
 
-6. **Equivocation Detection and Handling**: Check if the finality provider has already voted for a different block at this height:
-   - Query blocks using key `(height, fp_pubkey_hex)`
-   - If exists and differs from current `block_hash_hex`:
+5. **Equivocation Detection and Handling**: Check if the finality provider has already voted for a different block at this height:
+   - If existing signature differs from current block hash:
      - Extract the secret key using EOTS from the two different signatures
      - Create `Evidence` struct with both signatures and block hashes
      - Save evidence to the contract state using key `(height, fp_pubkey_hex)`
-     - Send `BabylonMsg::EquivocationEvidence` to trigger slashing on Babylon Genesis
-     - Emit appropriate event indicating equivocation detection
+     - Send `BabylonMsg::MsgEquivocationEvidence` to trigger slashing on Babylon Genesis
+     - Emit `slashed_finality_provider` event with extracted secret key
 
-7. **Storage Operations**: Store the finality signature and related data:
-   - Save signature to the contract state using key `(height, fp_pubkey_hex)`
-   - Save block hash (decoded from hex) to the contract state using key `(height, fp_pubkey_hex)`
-   - Save public randomness value to the contract state using key `(fp_pubkey_hex, height)`
-   - Update the blocks storage:
-     - Get existing voters for key `(height, block_hash_bytes)` or create empty HashSet
-     - Add `fp_pubkey_hex` to the HashSet
-     - Save updated HashSet back to the contract state
+6. **Storage Operations**: Store the finality signature and related data atomically:
+   - Use the `insert_finality_sig_and_signatory` helper function to perform all storage operations atomically
+   - This function performs the following operations in sequence:
+     - Save finality signature using key `(height, fp_pubkey_hex)` (will override existing signature)
+     - Add signatory to the set of signatories for the block using key `(height, block_hash)`
+     - Save public randomness value using key `(fp_pubkey_hex, height)` if this is the first vote for this height
 
 #### 5.4.3. Slashing (MUST)
 
@@ -582,7 +591,7 @@ This section documents the actual state storage structure used by the finality c
 - Storage key: `"evidences"`
 - Key format: `(block_height, fp_pubkey_hex)`
 - Purpose: Stores equivocation evidence for slashed finality providers. Each (block_height, fp_pubkey_hex) pair can have at most one evidence entry; evidence is immutable once set.
-- Insertion: Use the `set_evidence` helper, which will return an `EvidenceAlreadyExists(fp_pubkey_hex, block_height)` error if evidence already exists for the same key. This prevents accidental overwrites and ensures idempotency.
+- Insertion: Use the `insert_evidence` helper, which takes an `Evidence` struct directly and will return an `EvidenceAlreadyExists(fp_pubkey_hex, block_height)` error if evidence already exists for the same key. This prevents accidental overwrites and ensures idempotency.
 - Retrieval: Use the `get_evidence` helper to fetch evidence for a given (block_height, fp_pubkey_hex) pair. Returns `None` if not present.
 - Structure:
   ```rust
@@ -679,16 +688,16 @@ BlockVoters {
 the finality providers that voted for a specific block along with their complete signature information:
 
 1. Decode hash_hex from hex string to bytes
-   - IF decode fails: RETURN error
+   - IF decode fails: RETURN error with `QueryBlockVoterError`
 
 2. Query signatories storage using key (height, hash_bytes)
-   - Access the stored set of finality provider public keys
+   - Access the stored set of finality provider public keys from `SIGNATORIES_BY_BLOCK_HASH`
 
 3. For each finality provider in the set:
-   - Query the FINALITY_SIGNATURES storage using key (height, fp_pubkey_hex)
-   - IF signature not found: RETURN error (state corruption)
-   - Query the PUB_RAND_VALUES storage using key (fp_pubkey_hex, height)
-   - IF public randomness not found: RETURN error (state corruption)
+   - Query the `FINALITY_SIGNATURES` storage using key (height, fp_pubkey_hex)
+   - IF signature not found: RETURN error with `QueryBlockVoterError`
+   - Query the `PUB_RAND_VALUES` storage using key (fp_pubkey_hex, height)
+   - IF public randomness not found: RETURN error with `QueryBlockVoterError`
    - Create BlockVoterInfo with fp_btc_pk_hex, pub_rand, and FinalitySigInfo
 
 4. Return the list of BlockVoterInfo
@@ -833,7 +842,7 @@ query to return whether the finality gadget is enabled:
 
 The interfaces in this specification have been fully implemented in the [Babylon codebase](https://github.com/babylonlabs-io/babylon) (`main` branch). This includes all required message types, queries, and expected behaviors for finality contract integration.
 
-### 6.2. Finality contracct implementation status
+### 6.2. Finality contract implementation status
 
 As of this writing, there are two known implementations of finality contracts
 that integrate with Babylon's Bitcoin staking protocol:
@@ -842,7 +851,8 @@ that integrate with Babylon's Bitcoin staking protocol:
    [babylonlabs-io/rollup-bsn-contracts](https://github.com/babylonlabs-io/rollup-bsn-contracts).
    This implementation is a CosmWasm smart contract designed to integrate OP
    Stack rollups with Babylon's Bitcoin staking protocol. The contract is
-   actively developed and maintained by Babylon Labs.
+   actively developed and maintained by Babylon Labs. This implementation
+   follows the specification outlined in this document.
 
 2. **BLITZ** - Available at
    [alt-research/blitz](https://github.com/alt-research/blitz). This
@@ -857,5 +867,4 @@ Finality Gadget is specifically designed for OP Stack chains and leverages
 CosmWasm for deployment on Babylon, whereas BLITZ focuses on Arbitrum Orbit
 chains and includes additional infrastructure components for the Nitro-based
 architecture.
-
 <!-- TODO: add Manta contract after open-source -->
