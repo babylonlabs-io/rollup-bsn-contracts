@@ -49,6 +49,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Improvements
 
+* [#47](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/47) Create state/evidence.rs file and define setters/getters.
 * [#23](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/23) Clean up dependencies to cosmos-bsn-contracts.
 * [#24](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/24) Validate public randomness commitment.
 * [#25](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/25) Improve `check_fp_exist` to ensure FP is not slashed.

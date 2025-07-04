@@ -12,12 +12,11 @@ use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::queries::query_last_pub_rand_commit;
 use crate::state::config::CONFIG;
-use crate::state::finality::{
-    insert_signatory, Evidence, FinalitySigInfo, EVIDENCES, FINALITY_SIGNATURES,
-};
-use crate::state::public_randomness::PubRandCommit;
+use crate::state::evidence::{insert_evidence, Evidence};
+use crate::state::finality::{insert_signatory, FinalitySigInfo, FINALITY_SIGNATURES};
 use crate::state::public_randomness::{
-    get_timestamped_pub_rand_commit_for_height, insert_pub_rand_value, PUB_RAND_COMMITS,
+    get_timestamped_pub_rand_commit_for_height, insert_pub_rand_value, PubRandCommit,
+    PUB_RAND_COMMITS,
 };
 use crate::utils::query_finality_provider;
 
@@ -212,7 +211,7 @@ pub fn handle_finality_signature(
         };
 
         // Save evidence for future reference
-        EVIDENCES.save(deps.storage, (height, fp_btc_pk_hex), &evidence)?;
+        insert_evidence(deps.storage, height, fp_btc_pk_hex, &evidence)?;
 
         // slash this finality provider, including setting its voting power to
         // zero, extracting its BTC SK, and emit an event
