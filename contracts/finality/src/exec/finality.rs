@@ -136,13 +136,12 @@ pub fn handle_finality_signature(
         FINALITY_SIGNATURES.may_load(deps.storage, (height, fp_btc_pk_hex))?;
 
     // For optimization purposes, check if the finality signature submission is the same as the existing one
-    match existing_finality_sig {
-        Some(existing_finality_sig) if existing_finality_sig.finality_sig == signature => {
+    if let Some(existing_sig) = &existing_finality_sig {
+        if existing_sig.finality_sig == signature {
             deps.api.debug(&format!("Received duplicated finality vote. Height: {height}, Finality Provider: {fp_btc_pk_hex}"));
             // Exactly the same vote already exists, return success to the provider
             return Ok(Response::new());
         }
-        _ => {}
     }
 
     // Next, we are verifying the finality signature message
