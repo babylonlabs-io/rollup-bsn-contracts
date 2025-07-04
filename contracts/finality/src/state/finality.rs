@@ -1,4 +1,4 @@
-use crate::{error::ContractError, state::public_randomness::insert_pub_rand_value};
+use crate::error::ContractError;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Storage;
 use cw_storage_plus::Map;
@@ -44,20 +44,15 @@ fn insert_signatory(
     Ok(())
 }
 
-/// Inserts public randomness, finality sig, and signatory into storage.
+/// Inserts finality sig, and signatory into storage.
 /// Returns an error if any of the operations fail.
-pub fn insert_pub_rand_and_finality_sig(
+pub fn insert_finality_sig(
     storage: &mut dyn Storage,
     fp_btc_pk_hex: &str,
     height: u64,
     block_hash: &[u8],
-    pub_rand: &[u8],
     signature: &[u8],
 ) -> Result<(), ContractError> {
-    // Store public randomness, which will error if a public randomness has already been
-    // stored for this finality provider at this height.
-    insert_pub_rand_value(storage, fp_btc_pk_hex, height, pub_rand)?;
-
     // Save the finality signature
     // TODO: in the case of an existing finality signature,
     // we are overriding the existing finality signature.
@@ -80,7 +75,7 @@ pub fn insert_pub_rand_and_finality_sig(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{state::public_randomness::PUB_RAND_VALUES, testutil::datagen::*};
+    use crate::testutil::datagen::*;
     use cosmwasm_std::testing::mock_dependencies;
 
     #[test]
@@ -88,17 +83,15 @@ mod tests {
         let mut deps = mock_dependencies();
         let height = get_random_u64();
         let block_hash = get_random_block_hash();
-        let pub_rand = get_random_block_hash();
         let signature = get_random_block_hash();
         let fp_btc_pk_hex = get_random_fp_pk_hex();
 
         // Insert the data
-        insert_pub_rand_and_finality_sig(
+        insert_finality_sig(
             deps.as_mut().storage,
             &fp_btc_pk_hex,
             height,
             &block_hash,
-            &pub_rand,
             &signature,
         )
         .unwrap();
@@ -109,12 +102,6 @@ mod tests {
             .unwrap();
         assert_eq!(finality_sig_info.finality_sig, signature);
         assert_eq!(finality_sig_info.block_hash, block_hash);
-
-        // Verify public randomness was stored correctly
-        let stored_pub_rand = PUB_RAND_VALUES
-            .load(deps.as_ref().storage, (&fp_btc_pk_hex, height))
-            .unwrap();
-        assert_eq!(stored_pub_rand, pub_rand);
 
         // Verify signatory was added to the set
         let signatories = SIGNATORIES_BY_BLOCK_HASH
@@ -128,24 +115,6 @@ mod tests {
         assert_eq!(
             result,
             Err(ContractError::DuplicateSignatory(fp_btc_pk_hex.clone()))
-        );
-
-        // Test case 2 (should fail): different public randomness for same height/provider
-        let different_pub_rand = get_random_block_hash();
-        let result = insert_pub_rand_and_finality_sig(
-            deps.as_mut().storage,
-            &fp_btc_pk_hex,
-            height,
-            &block_hash,
-            &different_pub_rand,
-            &signature,
-        );
-        assert_eq!(
-            result,
-            Err(ContractError::PubRandAlreadyExists(
-                fp_btc_pk_hex.clone(),
-                height
-            ))
         );
     }
 }

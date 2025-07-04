@@ -2,11 +2,9 @@ use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::state::config::CONFIG;
 use crate::state::evidence::{insert_evidence, Evidence};
-use crate::state::finality::{
-    insert_pub_rand_and_finality_sig, FinalitySigInfo, FINALITY_SIGNATURES,
-};
+use crate::state::finality::{insert_finality_sig, FinalitySigInfo, FINALITY_SIGNATURES};
 use crate::state::public_randomness::{
-    get_pub_rand_commit_for_height, insert_pub_rand_commit, PubRandCommit,
+    get_pub_rand_commit_for_height, insert_pub_rand_commit, insert_pub_rand_value, PubRandCommit,
 };
 use crate::utils::query_finality_provider;
 use babylon_merkle::Proof;
@@ -135,15 +133,8 @@ pub fn handle_finality_signature(
         signature,
     )?;
 
-    // Save the finality signature, public randomness, and signatory in an atomic operation
-    insert_pub_rand_and_finality_sig(
-        deps.storage,
-        fp_btc_pk_hex,
-        height,
-        block_hash,
-        pub_rand,
-        signature,
-    )?;
+    // Save the finality signature and signatory in an atomic operation
+    insert_finality_sig(deps.storage, fp_btc_pk_hex, height, block_hash, signature)?;
 
     // Build the response
     let mut res: Response<BabylonMsg> = Response::new();
@@ -161,8 +152,6 @@ pub fn handle_finality_signature(
     }
     res = res.add_event(event);
 
-    // If this finality provider has signed a different block at the same height before,
-    // create equivocation evidence and send it directly to Babylon Genesis for slashing
     if let Some(existing_finality_sig) = existing_finality_sig {
         // The finality provider has voted for a different block at the same height!
         // Create equivocation evidence and send it to Babylon Genesis for slashing
@@ -185,6 +174,12 @@ pub fn handle_finality_signature(
         // zero, extracting its BTC SK, and emit an event
         let (msg, ev) = slash_finality_provider(&info, &fp_btc_pk_hex, &evidence)?;
         res = res.add_message(msg).add_event(ev);
+    } else {
+        // This is the first time seeing this finality provider submit finality
+        // signature at this height
+
+        // store public randomness
+        insert_pub_rand_value(deps.storage, fp_btc_pk_hex, height, pub_rand)?;
     }
 
     Ok(res)
