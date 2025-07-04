@@ -2,9 +2,11 @@ use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::state::config::CONFIG;
 use crate::state::evidence::{insert_evidence, Evidence};
-use crate::state::finality::{insert_signatory, FinalitySigInfo, FINALITY_SIGNATURES};
+use crate::state::finality::{
+    insert_pub_rand_and_finality_sig, FinalitySigInfo, FINALITY_SIGNATURES,
+};
 use crate::state::public_randomness::{
-    get_pub_rand_commit_for_height, insert_pub_rand_commit, insert_pub_rand_value, PubRandCommit,
+    get_pub_rand_commit_for_height, insert_pub_rand_commit, PubRandCommit,
 };
 use crate::utils::query_finality_provider;
 use babylon_merkle::Proof;
@@ -162,23 +164,15 @@ pub fn handle_finality_signature(
         res = res.add_message(msg).add_event(ev);
     }
 
-    // TODO: in the case of an existing finality signature,
-    // we are overriding the existing finality signature.
-    // https://github.com/babylonlabs-io/rollup-bsn-contracts/issues/44
-    // This signature is good, save the vote to the store
-    let finality_sig = FinalitySigInfo {
-        finality_sig: signature.to_vec(),
-        block_hash: block_hash.to_vec(),
-    };
-    FINALITY_SIGNATURES.save(deps.storage, (height, fp_btc_pk_hex), &finality_sig)?;
-
-    // Store public randomness
-    // We expect that this will error if a public randomness has already been
-    // stored for this finality provider at this height.
-    insert_pub_rand_value(deps.storage, fp_btc_pk_hex, height, pub_rand)?;
-
-    // Add the fp_btc_pk_hex to the set using the helper
-    insert_signatory(deps.storage, height, block_hash, fp_btc_pk_hex)?;
+    // Save the finality signature, public randomness, and signatory in an atomic operation
+    insert_pub_rand_and_finality_sig(
+        deps.storage,
+        fp_btc_pk_hex,
+        height,
+        block_hash,
+        pub_rand,
+        signature,
+    )?;
 
     let mut event = Event::new("submit_finality_signature")
         .add_attribute("fp_pubkey_hex", fp_btc_pk_hex)

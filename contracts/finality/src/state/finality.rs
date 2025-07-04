@@ -1,4 +1,4 @@
-use crate::error::ContractError;
+use crate::{error::ContractError, state::public_randomness::insert_pub_rand_value};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Storage;
 use cw_storage_plus::Map;
@@ -16,7 +16,7 @@ pub(crate) const SIGNATORIES_BY_BLOCK_HASH: Map<(u64, &[u8]), HashSet<String>> =
 /// FinalitySigInfo is a struct that contains the finality signature and
 /// block hash for a given block height and fp
 #[cw_serde]
-pub struct FinalitySigInfo {
+pub(crate) struct FinalitySigInfo {
     /// the finality signature
     pub finality_sig: Vec<u8>,
     /// the block hash that the finality signature is for
@@ -30,7 +30,7 @@ pub struct FinalitySigInfo {
 ///   inserting the right one. An insertion without a corresponding entry for a finality provider
 ///   in the FINALITY_SIGNATURES or PUB_RAND_VALUES storage might point to a storage corruption.
 ///   TODO: Should we have checks to avoid the above storage corruption situation?
-pub fn insert_signatory(
+fn insert_signatory(
     storage: &mut dyn Storage,
     height: u64,
     block_hash: &[u8],
@@ -41,6 +41,39 @@ pub fn insert_signatory(
         .unwrap_or_else(HashSet::new);
     set.insert(signatory.to_string());
     SIGNATORIES_BY_BLOCK_HASH.save(storage, (height, block_hash), &set)?;
+    Ok(())
+}
+
+/// Inserts public randomness, finality sig, and signatory into storage.
+/// Returns an error if any of the operations fail.
+pub fn insert_pub_rand_and_finality_sig(
+    storage: &mut dyn Storage,
+    fp_btc_pk_hex: &str,
+    height: u64,
+    block_hash: &[u8],
+    pub_rand: &[u8],
+    signature: &[u8],
+) -> Result<(), ContractError> {
+    // Save the finality signature
+    // TODO: in the case of an existing finality signature,
+    // we are overriding the existing finality signature.
+    // https://github.com/babylonlabs-io/rollup-bsn-contracts/issues/44
+    FINALITY_SIGNATURES.save(
+        storage,
+        (height, fp_btc_pk_hex),
+        &FinalitySigInfo {
+            finality_sig: signature.to_vec(),
+            block_hash: block_hash.to_vec(),
+        },
+    )?;
+
+    // Store public randomness, which will error if a public randomness has already been
+    // stored for this finality provider at this height.
+    insert_pub_rand_value(storage, fp_btc_pk_hex, height, pub_rand)?;
+
+    // Add the fp_btc_pk_hex to the set
+    insert_signatory(storage, height, block_hash, fp_btc_pk_hex)?;
+
     Ok(())
 }
 
