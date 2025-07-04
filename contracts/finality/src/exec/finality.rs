@@ -6,7 +6,7 @@ use crate::state::finality::{
     insert_pub_rand_and_finality_sig, FinalitySigInfo, FINALITY_SIGNATURES,
 };
 use crate::state::public_randomness::{
-    get_pub_rand_commit_for_height, insert_pub_rand_commit, insert_pub_rand_value, PubRandCommit,
+    get_pub_rand_commit_for_height, insert_pub_rand_commit, PubRandCommit,
 };
 use crate::utils::query_finality_provider;
 use babylon_merkle::Proof;
