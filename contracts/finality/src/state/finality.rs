@@ -1,7 +1,6 @@
 use crate::error::ContractError;
 use crate::state::Bytes;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Deps;
 use cosmwasm_std::Storage;
 use cw_storage_plus::Map;
 use std::collections::HashSet;
@@ -53,25 +52,6 @@ pub struct FinalitySigInfo {
     pub finality_sig: Vec<u8>,
     /// the block hash that the finality signature is for
     pub block_hash: Vec<u8>,
-}
-
-pub fn get_block_voters(
-    deps: Deps,
-    height: u64,
-    hash_hex: String,
-) -> Result<Option<HashSet<String>>, ContractError> {
-    let block_hash_bytes: Vec<u8> = hex::decode(&hash_hex).map_err(ContractError::HexError)?;
-    // find all FPs that voted for this (height, hash_hex) combination
-    let fp_pubkey_hex_list = SIGNATORIES_BY_BLOCK_HASH
-        .may_load(deps.storage, (height, &block_hash_bytes))
-        .map_err(|e| {
-            ContractError::QueryBlockVoterError(
-                height,
-                hash_hex.clone(),
-                format!("Original error: {:?}", e),
-            )
-        })?;
-    Ok(fp_pubkey_hex_list)
 }
 
 /// Inserts a signatory into the SIGNATORIES_BY_BLOCK_HASH map for the given height and block hash.
