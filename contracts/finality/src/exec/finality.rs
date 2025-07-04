@@ -135,8 +135,31 @@ pub fn handle_finality_signature(
         signature,
     )?;
 
-    // Finality signature message is good, build the response
+    // Save the finality signature, public randomness, and signatory in an atomic operation
+    insert_pub_rand_and_finality_sig(
+        deps.storage,
+        fp_btc_pk_hex,
+        height,
+        block_hash,
+        pub_rand,
+        signature,
+    )?;
+
+    // Build the response
     let mut res: Response<BabylonMsg> = Response::new();
+
+    // Add event to the response
+    let mut event = Event::new("submit_finality_signature")
+        .add_attribute("fp_pubkey_hex", fp_btc_pk_hex)
+        .add_attribute("block_height", height.to_string())
+        .add_attribute("block_hash", hex::encode(block_hash));
+    if let Some(l1_block_number) = l1_block_number {
+        event = event.add_attribute("l1_block_number", l1_block_number.to_string());
+    }
+    if let Some(l1_block_hash_hex) = l1_block_hash_hex {
+        event = event.add_attribute("l1_block_hash_hex", l1_block_hash_hex);
+    }
+    res = res.add_event(event);
 
     // If this finality provider has signed a different block at the same height before,
     // create equivocation evidence and send it directly to Babylon Genesis for slashing
@@ -163,30 +186,6 @@ pub fn handle_finality_signature(
         let (msg, ev) = slash_finality_provider(&info, &fp_btc_pk_hex, &evidence)?;
         res = res.add_message(msg).add_event(ev);
     }
-
-    // Save the finality signature, public randomness, and signatory in an atomic operation
-    insert_pub_rand_and_finality_sig(
-        deps.storage,
-        fp_btc_pk_hex,
-        height,
-        block_hash,
-        pub_rand,
-        signature,
-    )?;
-
-    let mut event = Event::new("submit_finality_signature")
-        .add_attribute("fp_pubkey_hex", fp_btc_pk_hex)
-        .add_attribute("block_height", height.to_string())
-        .add_attribute("block_hash", hex::encode(block_hash));
-
-    if let Some(l1_block_number) = l1_block_number {
-        event = event.add_attribute("l1_block_number", l1_block_number.to_string());
-    }
-    if let Some(l1_block_hash_hex) = l1_block_hash_hex {
-        event = event.add_attribute("l1_block_hash_hex", l1_block_hash_hex);
-    }
-
-    res = res.add_event(event);
 
     Ok(res)
 }
