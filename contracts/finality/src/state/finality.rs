@@ -25,10 +25,9 @@ pub struct FinalitySigInfo {
 
 /// Inserts a signatory into the SIGNATORIES_BY_BLOCK_HASH map for the given height and block hash.
 /// The function does not do any checks:
-/// - If the signatory is already there, the set will remain the same.
+/// - If the signatory is already there, return an error.
 /// - If the signatory is a new one, the caller is responsible for ensuring that they are
 ///   inserting the right one. An insertion without a corresponding entry for a finality provider
-///   in the FINALITY_SIGNATURES or PUB_RAND_VALUES storage might point to a storage corruption.
 fn insert_signatory(
     storage: &mut dyn Storage,
     height: u64,
@@ -38,7 +37,9 @@ fn insert_signatory(
     let mut set = SIGNATORIES_BY_BLOCK_HASH
         .may_load(storage, (height, block_hash))?
         .unwrap_or_else(HashSet::new);
-    set.insert(signatory.to_string());
+    if !set.insert(signatory.to_string()) {
+        return Err(ContractError::DuplicateSignatory(signatory.to_string()));
+    }
     SIGNATORIES_BY_BLOCK_HASH.save(storage, (height, block_hash), &set)?;
     Ok(())
 }
@@ -53,6 +54,10 @@ pub fn insert_pub_rand_and_finality_sig(
     pub_rand: &[u8],
     signature: &[u8],
 ) -> Result<(), ContractError> {
+    // Store public randomness, which will error if a public randomness has already been
+    // stored for this finality provider at this height.
+    insert_pub_rand_value(storage, fp_btc_pk_hex, height, pub_rand)?;
+
     // Save the finality signature
     // TODO: in the case of an existing finality signature,
     // we are overriding the existing finality signature.
@@ -65,10 +70,6 @@ pub fn insert_pub_rand_and_finality_sig(
             block_hash: block_hash.to_vec(),
         },
     )?;
-
-    // Store public randomness, which will error if a public randomness has already been
-    // stored for this finality provider at this height.
-    insert_pub_rand_value(storage, fp_btc_pk_hex, height, pub_rand)?;
 
     // Add the fp_btc_pk_hex to the set
     insert_signatory(storage, height, block_hash, fp_btc_pk_hex)?;
@@ -122,18 +123,14 @@ mod tests {
         assert!(signatories.contains(&fp_btc_pk_hex));
         assert_eq!(signatories.len(), 1);
 
-        // Test idempotency with same values
-        let result = insert_pub_rand_and_finality_sig(
-            deps.as_mut().storage,
-            &fp_btc_pk_hex,
-            height,
-            &block_hash,
-            &pub_rand,
-            &signature,
+        // Test case 1 (should fail): duplicate signatory
+        let result = insert_signatory(deps.as_mut().storage, height, &block_hash, &fp_btc_pk_hex);
+        assert_eq!(
+            result,
+            Err(ContractError::DuplicateSignatory(fp_btc_pk_hex.clone()))
         );
-        assert!(result.is_ok());
 
-        // Test error case: different public randomness for same height/provider
+        // Test case 2 (should fail): different public randomness for same height/provider
         let different_pub_rand = get_random_block_hash();
         let result = insert_pub_rand_and_finality_sig(
             deps.as_mut().storage,
@@ -143,13 +140,12 @@ mod tests {
             &different_pub_rand,
             &signature,
         );
-        assert!(result.is_err());
-        match result {
-            Err(ContractError::PubRandAlreadyExists(pk, h)) => {
-                assert_eq!(pk, fp_btc_pk_hex);
-                assert_eq!(h, height);
-            }
-            _ => panic!("Expected PubRandAlreadyExists error"),
-        }
+        assert_eq!(
+            result,
+            Err(ContractError::PubRandAlreadyExists(
+                fp_btc_pk_hex.clone(),
+                height
+            ))
+        );
     }
 }
