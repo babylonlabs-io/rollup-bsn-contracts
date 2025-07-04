@@ -5,7 +5,7 @@ use cosmwasm_std::Storage;
 use cw_storage_plus::Map;
 
 /// Map of evidence by block height and fp
-pub(crate) const EVIDENCES: Map<(u64, &str), Evidence> = Map::new("evidences");
+pub(crate) const EVIDENCES: Map<(u64, &[u8]), Evidence> = Map::new("evidences");
 
 /// Evidence is the evidence that a finality provider has signed finality
 /// signatures with correct public randomness on two conflicting Babylon headers
@@ -39,17 +39,19 @@ pub struct Evidence {
 /// should not happen.
 pub fn insert_evidence(
     storage: &mut dyn Storage,
-    height: u64,
-    fp_btc_pk_hex: &str,
     evidence: &Evidence,
 ) -> Result<(), ContractError> {
-    if EVIDENCES.has(storage, (height, fp_btc_pk_hex)) {
+    if EVIDENCES.has(storage, (evidence.block_height, &evidence.fp_btc_pk)) {
         return Err(ContractError::EvidenceAlreadyExists(
-            fp_btc_pk_hex.to_string(),
-            height,
+            hex::encode(&evidence.fp_btc_pk),
+            evidence.block_height,
         ));
     }
-    EVIDENCES.save(storage, (height, fp_btc_pk_hex), evidence)?;
+    EVIDENCES.save(
+        storage,
+        (evidence.block_height, &evidence.fp_btc_pk),
+        evidence,
+    )?;
     Ok(())
 }
 
@@ -57,9 +59,9 @@ pub fn insert_evidence(
 pub fn get_evidence(
     storage: &dyn Storage,
     height: u64,
-    fp_btc_pk_hex: &str,
+    fp_btc_pk: &[u8],
 ) -> Result<Option<Evidence>, ContractError> {
-    Ok(EVIDENCES.may_load(storage, (height, fp_btc_pk_hex))?)
+    Ok(EVIDENCES.may_load(storage, (height, fp_btc_pk))?)
 }
 
 #[cfg(test)]
@@ -68,36 +70,21 @@ mod tests {
     use crate::testutil::datagen::*;
     use cosmwasm_std::testing::mock_dependencies;
 
-    /// Get a random evidence for a given height and finality provider.
-    /// We are adding it here instead of datagen.rs as it is only used here.
-    /// NOTE: The result is a mocked result, the signatures are not valid.
-    fn get_random_evidence(height: u64, fp_btc_pk_hex: &str) -> Evidence {
-        Evidence {
-            fp_btc_pk: hex::decode(fp_btc_pk_hex).unwrap_or_else(|_| vec![0; 33]),
-            block_height: height,
-            pub_rand: get_random_pub_rand(),
-            canonical_app_hash: get_random_block_hash(),
-            fork_app_hash: get_random_block_hash(),
-            canonical_finality_sig: (0..64).map(|_| rand::random()).collect(),
-            fork_finality_sig: (0..64).map(|_| rand::random()).collect(),
-        }
-    }
-
     #[test]
     fn test_set_and_get_evidence() {
         let mut deps = mock_dependencies();
         let height = get_random_u64();
-        let fp_btc_pk_hex = get_random_fp_pk_hex();
-        let evidence = get_random_evidence(height, &fp_btc_pk_hex);
+        let fp_btc_pk = get_random_fp_pk();
+        let evidence = get_random_evidence(height, &fp_btc_pk);
         // Store evidence
-        insert_evidence(deps.as_mut().storage, height, &fp_btc_pk_hex, &evidence).unwrap();
+        insert_evidence(deps.as_mut().storage, &evidence).unwrap();
         // Try to store again and expect an error
         assert_eq!(
-            insert_evidence(deps.as_mut().storage, height, &fp_btc_pk_hex, &evidence).unwrap_err(),
-            ContractError::EvidenceAlreadyExists(fp_btc_pk_hex.clone(), height)
+            insert_evidence(deps.as_mut().storage, &evidence).unwrap_err(),
+            ContractError::EvidenceAlreadyExists(hex::encode(&fp_btc_pk), height)
         );
         // Retrieve evidence
-        let loaded = get_evidence(deps.as_ref().storage, height, &fp_btc_pk_hex)
+        let loaded = get_evidence(deps.as_ref().storage, height, &fp_btc_pk)
             .unwrap()
             .unwrap();
         assert_eq!(loaded, evidence);
@@ -107,8 +94,8 @@ mod tests {
     fn test_get_evidence_none_if_not_present() {
         let deps = mock_dependencies();
         let height = get_random_u64();
-        let fp_btc_pk_hex = get_random_fp_pk_hex();
-        let loaded = get_evidence(deps.as_ref().storage, height, &fp_btc_pk_hex).unwrap();
+        let fp_btc_pk = get_random_fp_pk();
+        let loaded = get_evidence(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
         assert!(loaded.is_none());
     }
 }

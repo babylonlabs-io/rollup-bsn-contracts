@@ -180,7 +180,7 @@ pub fn handle_finality_signature(
         };
 
         // Save evidence for future reference
-        insert_evidence(deps.storage, height, fp_btc_pk_hex, &evidence)?;
+        insert_evidence(deps.storage, &evidence)?;
 
         // slash this finality provider, including setting its voting power to
         // zero, extracting its BTC SK, and emit an event
