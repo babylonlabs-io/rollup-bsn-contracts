@@ -1,22 +1,18 @@
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
-use crate::queries::query_last_pub_rand_commit;
 use crate::state::config::CONFIG;
 use crate::state::evidence::{insert_evidence, Evidence};
 use crate::state::finality::{insert_signatory, FinalitySigInfo, FINALITY_SIGNATURES};
 use crate::state::public_randomness::{
-    get_pub_rand_commit_for_height, insert_pub_rand_value, PUB_RAND_COMMITS,
+    get_pub_rand_commit_for_height, insert_pub_rand_commit, insert_pub_rand_value, PubRandCommit,
 };
 use crate::utils::query_finality_provider;
-
-use crate::state::public_randomness::PubRandCommit;
 use babylon_merkle::Proof;
 use cosmwasm_std::{Deps, DepsMut, Env, Event, MessageInfo, Response};
 use k256::ecdsa::signature::Verifier;
 use k256::schnorr::{Signature, VerifyingKey};
 use k256::sha2::{Digest, Sha256};
 
-// Most logic copied from contracts/btc-staking/src/finality.rs
 pub fn handle_public_randomness_commit(
     deps: DepsMut,
     env: &Env,
@@ -26,11 +22,6 @@ pub fn handle_public_randomness_commit(
     commitment: &[u8],
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
-    // Validate num_pub_rand is at least 1 to prevent integer underflow
-    if num_pub_rand == 0 {
-        return Err(ContractError::InvalidNumPubRand(num_pub_rand));
-    }
-
     // Ensure the finality provider is registered and not slashed
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_pubkey_hex)?;
 
@@ -43,39 +34,25 @@ pub fn handle_public_randomness_commit(
         signature,
     )?;
 
-    // Get last public randomness commitment
-    // TODO: allow committing public randomness earlier than existing ones?
-    let last_pr_commit = query_last_pub_rand_commit(deps.storage, fp_pubkey_hex)?;
-
-    if let Some(last_pr_commit) = last_pr_commit {
-        // Ensure height and start_height do not overlap, i.e., height < start_height
-        let last_pr_end_height = last_pr_commit.end_height();
-        if start_height <= last_pr_end_height {
-            return Err(ContractError::InvalidPubRandHeight(
-                start_height,
-                last_pr_end_height,
-            ));
-        }
-    }
-
-    // All good, store the given public randomness commitment
-    let pr_commit = PubRandCommit {
-        start_height,
-        num_pub_rand,
-        height: env.block.height,
-        commitment: commitment.to_vec(),
-    };
-
-    PUB_RAND_COMMITS.save(
+    // insert the public randomness commitment into the storage
+    // note that `insert_pub_rand_commit` has ensured that
+    // - the new commitment does not overlap with the existing ones
+    // - the new commitment does not have num_pub_rand = 0
+    insert_pub_rand_commit(
         deps.storage,
-        (fp_pubkey_hex, pr_commit.start_height),
-        &pr_commit,
+        fp_pubkey_hex,
+        PubRandCommit {
+            start_height,
+            num_pub_rand,
+            height: env.block.height,
+            commitment: commitment.to_vec(),
+        },
     )?;
 
     let event = Event::new("public_randomness_commit")
         .add_attribute("fp_pubkey_hex", fp_pubkey_hex)
-        .add_attribute("pr_commit.start_height", pr_commit.start_height.to_string())
-        .add_attribute("pr_commit.num_pub_rand", pr_commit.num_pub_rand.to_string());
+        .add_attribute("pr_commit.start_height", start_height.to_string())
+        .add_attribute("pr_commit.num_pub_rand", num_pub_rand.to_string());
 
     Ok(Response::new().add_event(event))
 }
@@ -112,7 +89,6 @@ pub(crate) fn verify_commitment_signature(
         .map_err(|e| ContractError::SecP256K1Error(e.to_string()))
 }
 
-// Most logic copied from contracts/btc-staking/src/finality.rs
 #[allow(clippy::too_many_arguments)]
 pub fn handle_finality_signature(
     deps: DepsMut,
@@ -370,11 +346,8 @@ fn slash_finality_provider(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use cosmwasm_std::testing::message_info;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env};
-    use cosmwasm_std::Addr;
+    use cosmwasm_std::{testing::message_info, Addr};
     use std::collections::HashMap;
-
     use test_utils::{
         get_add_finality_sig, get_add_finality_sig_2, get_pub_rand_value,
         get_public_randomness_commitment,
@@ -508,51 +481,5 @@ pub(crate) mod tests {
             attrs.get("canonical_app_hash").unwrap(),
             &hex::encode(&evidence.canonical_app_hash)
         );
-    }
-
-    #[test]
-    fn handle_public_randomness_commit_validates_num_pub_rand() {
-        let mut deps = mock_dependencies();
-        let env = mock_env();
-        let (fp_btc_pk_hex, pr_commit, sig) = get_public_randomness_commitment();
-
-        // Test with num_pub_rand = 0 (should fail)
-        let result = handle_public_randomness_commit(
-            deps.as_mut(),
-            &env,
-            &fp_btc_pk_hex,
-            pr_commit.start_height,
-            0, // Zero value should be rejected
-            &pr_commit.commitment,
-            &sig,
-        );
-
-        // Should return InvalidNumPubRand error
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            ContractError::InvalidNumPubRand(val) => {
-                assert_eq!(val, 0);
-            }
-            _ => panic!("Expected InvalidNumPubRand error"),
-        }
-
-        // Test with num_pub_rand = 1 (should pass validation but may fail later due to missing FP)
-        let result = handle_public_randomness_commit(
-            deps.as_mut(),
-            &env,
-            &fp_btc_pk_hex,
-            pr_commit.start_height,
-            1, // Valid value should pass this validation
-            &pr_commit.commitment,
-            &sig,
-        );
-
-        // Should not return InvalidNumPubRand error
-        // It may still fail with other errors like NotFoundFinalityProvider, but that's expected
-        // since we're only testing the num_pub_rand validation here
-        if let Err(e) = result {
-            // Make sure it's NOT the InvalidNumPubRand error
-            assert!(!matches!(e, ContractError::InvalidNumPubRand(_)));
-        }
     }
 }
