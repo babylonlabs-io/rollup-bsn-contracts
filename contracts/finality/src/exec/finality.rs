@@ -135,7 +135,7 @@ pub fn handle_finality_signature(
     let existing_finality_sig: Option<FinalitySigInfo> =
         FINALITY_SIGNATURES.may_load(deps.storage, (height, fp_btc_pk_hex))?;
 
-    // For optimization purposes, check if the finality signature submission is the same as the existing one
+    // check if the finality signature submission is the same as the existing one
     if let Some(existing_sig) = &existing_finality_sig {
         if existing_sig.finality_sig == signature {
             deps.api.debug(&format!("Received duplicated finality vote. Height: {height}, Finality Provider: {fp_btc_pk_hex}"));
@@ -147,6 +147,7 @@ pub fn handle_finality_signature(
     // Next, we are verifying the finality signature message
     // Find the public randomness commitment for this height from this finality provider
     let pr_commit = get_pub_rand_commit_for_height(deps.storage, fp_btc_pk_hex, height)?;
+
     // Verify the finality signature message
     verify_finality_signature(
         fp_btc_pk_hex,
@@ -185,9 +186,6 @@ pub fn handle_finality_signature(
         // zero, extracting its BTC SK, and emit an event
         let (msg, ev) = slash_finality_provider(&info, &fp_btc_pk_hex, &evidence)?;
         res = res.add_message(msg).add_event(ev);
-        // TODO: should we return here?
-        // We might want to store the new finality signature, but the FINALITY_SIGNATURES storage
-        // can hold up to only one finality signature per height and fp.
     }
 
     // TODO: in the case of an existing finality signature,
