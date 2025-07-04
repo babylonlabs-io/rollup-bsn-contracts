@@ -184,7 +184,7 @@ pub fn handle_finality_signature(
 
         // slash this finality provider, including setting its voting power to
         // zero, extracting its BTC SK, and emit an event
-        let (msg, ev) = slash_finality_provider(&info, &fp_btc_pk_hex, &evidence)?;
+        let (msg, ev) = slash_finality_provider(&info, fp_btc_pk_hex, &evidence)?;
         res = res.add_message(msg).add_event(ev);
         // TODO: should we return here?
         // We might want to store the new finality signature, but the FINALITY_SIGNATURES storage
