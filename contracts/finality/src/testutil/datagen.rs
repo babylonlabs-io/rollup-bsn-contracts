@@ -36,9 +36,9 @@ pub fn get_random_finality_sig(block_hash: &[u8]) -> FinalitySigInfo {
 /// Get a random evidence for a given height and finality provider.
 /// We are adding it here instead of datagen.rs as it is only used here.
 /// NOTE: The result is a mocked result, the signatures are not valid.
-pub fn get_random_evidence(height: u64, fp_btc_pk: &[u8]) -> Evidence {
+pub fn get_random_evidence(height: u64, fp_btc_pk_hex: &str) -> Evidence {
     Evidence {
-        fp_btc_pk: fp_btc_pk.to_vec(),
+        fp_btc_pk: hex::decode(fp_btc_pk_hex).unwrap(),
         block_height: height,
         pub_rand: get_random_pub_rand(),
         canonical_app_hash: get_random_block_hash(),

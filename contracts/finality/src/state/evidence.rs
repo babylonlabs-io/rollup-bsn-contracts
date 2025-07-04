@@ -4,8 +4,8 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Storage;
 use cw_storage_plus::Map;
 
-/// Map of evidence by block height and fp
-pub(crate) const EVIDENCES: Map<(u64, &[u8]), Evidence> = Map::new("evidences");
+/// Map of evidence by block height and FP public key in hex
+pub(crate) const EVIDENCES: Map<(u64, &str), Evidence> = Map::new("evidences");
 
 /// Evidence is the evidence that a finality provider has signed finality
 /// signatures with correct public randomness on two conflicting Babylon headers
@@ -41,17 +41,14 @@ pub fn insert_evidence(
     storage: &mut dyn Storage,
     evidence: &Evidence,
 ) -> Result<(), ContractError> {
-    if EVIDENCES.has(storage, (evidence.block_height, &evidence.fp_btc_pk)) {
+    let fp_btc_pk_hex = hex::encode(&evidence.fp_btc_pk);
+    if EVIDENCES.has(storage, (evidence.block_height, &fp_btc_pk_hex)) {
         return Err(ContractError::EvidenceAlreadyExists(
-            hex::encode(&evidence.fp_btc_pk),
+            fp_btc_pk_hex,
             evidence.block_height,
         ));
     }
-    EVIDENCES.save(
-        storage,
-        (evidence.block_height, &evidence.fp_btc_pk),
-        evidence,
-    )?;
+    EVIDENCES.save(storage, (evidence.block_height, &fp_btc_pk_hex), evidence)?;
     Ok(())
 }
 
@@ -59,9 +56,9 @@ pub fn insert_evidence(
 pub fn get_evidence(
     storage: &dyn Storage,
     height: u64,
-    fp_btc_pk: &[u8],
+    fp_btc_pk_hex: &str,
 ) -> Result<Option<Evidence>, ContractError> {
-    Ok(EVIDENCES.may_load(storage, (height, fp_btc_pk))?)
+    Ok(EVIDENCES.may_load(storage, (height, fp_btc_pk_hex))?)
 }
 
 #[cfg(test)]
@@ -74,17 +71,17 @@ mod tests {
     fn test_set_and_get_evidence() {
         let mut deps = mock_dependencies();
         let height = get_random_u64();
-        let fp_btc_pk = get_random_fp_pk();
-        let evidence = get_random_evidence(height, &fp_btc_pk);
+        let fp_btc_pk_hex = get_random_fp_pk_hex();
+        let evidence = get_random_evidence(height, &fp_btc_pk_hex);
         // Store evidence
         insert_evidence(deps.as_mut().storage, &evidence).unwrap();
         // Try to store again and expect an error
         assert_eq!(
             insert_evidence(deps.as_mut().storage, &evidence).unwrap_err(),
-            ContractError::EvidenceAlreadyExists(hex::encode(&fp_btc_pk), height)
+            ContractError::EvidenceAlreadyExists(fp_btc_pk_hex.clone(), height)
         );
         // Retrieve evidence
-        let loaded = get_evidence(deps.as_ref().storage, height, &fp_btc_pk)
+        let loaded = get_evidence(deps.as_ref().storage, height, &fp_btc_pk_hex)
             .unwrap()
             .unwrap();
         assert_eq!(loaded, evidence);
@@ -94,8 +91,8 @@ mod tests {
     fn test_get_evidence_none_if_not_present() {
         let deps = mock_dependencies();
         let height = get_random_u64();
-        let fp_btc_pk = get_random_fp_pk();
-        let loaded = get_evidence(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
+        let fp_btc_pk_hex = get_random_fp_pk_hex();
+        let loaded = get_evidence(deps.as_ref().storage, height, &fp_btc_pk_hex).unwrap();
         assert!(loaded.is_none());
     }
 }
