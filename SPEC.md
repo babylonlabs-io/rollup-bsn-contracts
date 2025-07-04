@@ -21,7 +21,8 @@
   - [5.5. Contract State Storage](#55-contract-state-storage)
     - [5.5.1. Core Configuration](#551-core-configuration)
     - [5.5.2. Finality State Storage](#552-finality-state-storage)
-    - [5.5.3. Public Randomness Storage](#553-public-randomness-storage)
+    - [5.5.3. Equivocation Evidence State Storage](#553-equivocation-evidence-state-storage)
+    - [5.5.4. Public Randomness Storage](#554-public-randomness-storage)
   - [5.6. Finality contract queries](#56-finality-contract-queries)
     - [5.6.1. BlockVoters (MUST)](#561-blockvoters-must)
     - [5.6.2. FirstPubRandCommit (MUST)](#562-firstpubrandcommit-must)
@@ -433,7 +434,7 @@ SubmitFinalitySignature {
      - Public randomness value and EOTS signature
 
 6. **Equivocation Detection and Handling**: Check if the finality provider has already voted for a different block at this height:
-   - Query blocks using key `(height, fp_pubkey_hex)`
+   - Query finality signatures using key `(height, fp_pubkey_hex)`
    - If exists and differs from current `block_hash_hex`:
      - Extract the secret key using EOTS from the two different signatures
      - Create `Evidence` struct with both signatures and block hashes
@@ -441,14 +442,13 @@ SubmitFinalitySignature {
      - Send `BabylonMsg::EquivocationEvidence` to trigger slashing on Babylon Genesis
      - Emit appropriate event indicating equivocation detection
 
-7. **Storage Operations**: Store the finality signature and related data:
-   - Save signature to the contract state using key `(height, fp_pubkey_hex)`
-   - Save block hash (decoded from hex) to the contract state using key `(height, fp_pubkey_hex)`
-   - Save public randomness value to the contract state using key `(fp_pubkey_hex, height)`
-   - Update the blocks storage:
-     - Get existing voters for key `(height, block_hash_bytes)` or create empty HashSet
-     - Add `fp_pubkey_hex` to the HashSet
-     - Save updated HashSet back to the contract state
+7. **Storage Operations**: Store the finality signature and related data atomically:
+   - Use the `insert_pub_rand_and_finality_sig` helper function to perform all storage operations atomically
+   - This function performs the following operations in sequence:
+     - Save public randomness value using key `(fp_pubkey_hex, height)` - will error if already exists with different value
+     - Save finality signature using key `(height, fp_pubkey_hex)` - will override existing signature
+     - Add signatory to the block hash set using key `(height, block_hash_bytes)` - will error if signatory already exists
+   - If any operation fails, the entire transaction is rolled back to maintain consistency
 
 #### 5.4.3. Slashing (MUST)
 
@@ -582,7 +582,7 @@ This section documents the actual state storage structure used by the finality c
 - Storage key: `"evidences"`
 - Key format: `(block_height, fp_pubkey_hex)`
 - Purpose: Stores equivocation evidence for slashed finality providers. Each (block_height, fp_pubkey_hex) pair can have at most one evidence entry; evidence is immutable once set.
-- Insertion: Use the `set_evidence` helper, which will return an `EvidenceAlreadyExists(fp_pubkey_hex, block_height)` error if evidence already exists for the same key. This prevents accidental overwrites and ensures idempotency.
+- Insertion: Use the `insert_evidence` helper, which takes an `Evidence` struct directly and will return an `EvidenceAlreadyExists(fp_pubkey_hex, block_height)` error if evidence already exists for the same key. This prevents accidental overwrites and ensures idempotency.
 - Retrieval: Use the `get_evidence` helper to fetch evidence for a given (block_height, fp_pubkey_hex) pair. Returns `None` if not present.
 - Structure:
   ```rust
