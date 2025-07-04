@@ -4,7 +4,7 @@ use cosmwasm_std::Storage;
 use cw_storage_plus::Map;
 use std::collections::HashSet;
 
-/// Map of (block height, block hash) tuples to the finality signature for that block.
+/// Map of (block height, finality provider public key in hex) tuples to the finality signature for that block.
 pub(crate) const FINALITY_SIGNATURES: Map<(u64, &str), FinalitySigInfo> =
     Map::new("finality_signatures");
 
@@ -29,7 +29,6 @@ pub(crate) struct FinalitySigInfo {
 /// - If the signatory is a new one, the caller is responsible for ensuring that they are
 ///   inserting the right one. An insertion without a corresponding entry for a finality provider
 ///   in the FINALITY_SIGNATURES or PUB_RAND_VALUES storage might point to a storage corruption.
-///   TODO: Should we have checks to avoid the above storage corruption situation?
 fn insert_signatory(
     storage: &mut dyn Storage,
     height: u64,
@@ -80,32 +79,77 @@ pub fn insert_pub_rand_and_finality_sig(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testutil::datagen::*;
+    use crate::{state::public_randomness::PUB_RAND_VALUES, testutil::datagen::*};
     use cosmwasm_std::testing::mock_dependencies;
-    use rand::{rng, Rng};
-    use std::collections::HashSet;
 
     #[test]
-    fn test_insert_signatory_adds_to_set() {
+    fn test_insert_pub_rand_and_finality_sig() {
         let mut deps = mock_dependencies();
         let height = get_random_u64();
         let block_hash = get_random_block_hash();
-        let num_signatories = rng().random_range(1..=20);
-        let mut signatories_set = HashSet::new();
-        while signatories_set.len() < num_signatories {
-            signatories_set.insert(get_random_fp_pk_hex());
-        }
-        let signatories: Vec<_> = signatories_set.into_iter().collect();
-        for signatory in &signatories {
-            insert_signatory(deps.as_mut().storage, height, &block_hash, signatory).unwrap();
-        }
-        // Check that all signatories are present
-        let set = SIGNATORIES_BY_BLOCK_HASH
+        let pub_rand = get_random_block_hash();
+        let signature = get_random_block_hash();
+        let fp_btc_pk_hex = get_random_fp_pk_hex();
+
+        // Insert the data
+        insert_pub_rand_and_finality_sig(
+            deps.as_mut().storage,
+            &fp_btc_pk_hex,
+            height,
+            &block_hash,
+            &pub_rand,
+            &signature,
+        )
+        .unwrap();
+
+        // Verify finality signature was stored correctly
+        let finality_sig_info = FINALITY_SIGNATURES
+            .load(deps.as_ref().storage, (height, &fp_btc_pk_hex))
+            .unwrap();
+        assert_eq!(finality_sig_info.finality_sig, signature);
+        assert_eq!(finality_sig_info.block_hash, block_hash);
+
+        // Verify public randomness was stored correctly
+        let stored_pub_rand = PUB_RAND_VALUES
+            .load(deps.as_ref().storage, (&fp_btc_pk_hex, height))
+            .unwrap();
+        assert_eq!(stored_pub_rand, pub_rand);
+
+        // Verify signatory was added to the set
+        let signatories = SIGNATORIES_BY_BLOCK_HASH
             .load(deps.as_ref().storage, (height, &block_hash))
             .unwrap();
-        for signatory in &signatories {
-            assert!(set.contains(signatory));
+        assert!(signatories.contains(&fp_btc_pk_hex));
+        assert_eq!(signatories.len(), 1);
+
+        // Test idempotency with same values
+        let result = insert_pub_rand_and_finality_sig(
+            deps.as_mut().storage,
+            &fp_btc_pk_hex,
+            height,
+            &block_hash,
+            &pub_rand,
+            &signature,
+        );
+        assert!(result.is_ok());
+
+        // Test error case: different public randomness for same height/provider
+        let different_pub_rand = get_random_block_hash();
+        let result = insert_pub_rand_and_finality_sig(
+            deps.as_mut().storage,
+            &fp_btc_pk_hex,
+            height,
+            &block_hash,
+            &different_pub_rand,
+            &signature,
+        );
+        assert!(result.is_err());
+        match result {
+            Err(ContractError::PubRandAlreadyExists(pk, h)) => {
+                assert_eq!(pk, fp_btc_pk_hex);
+                assert_eq!(h, height);
+            }
+            _ => panic!("Expected PubRandAlreadyExists error"),
         }
-        assert_eq!(set.len(), num_signatories);
     }
 }

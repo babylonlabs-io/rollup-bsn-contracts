@@ -194,7 +194,7 @@ pub fn handle_finality_signature(
 /// Verifies the finality signature message w.r.t. the public randomness commitment:
 /// - Public randomness inclusion proof.
 /// - Finality signature
-pub(crate) fn verify_finality_signature(
+fn verify_finality_signature(
     fp_btc_pk_hex: &str,
     block_height: u64,
     pub_rand: &[u8],

@@ -6,7 +6,7 @@ use cosmwasm_std::{StdResult, Storage};
 use cw_storage_plus::{Bound, Map};
 
 /// Map of public randomness values by fp public key hex and block height
-pub(crate) const PUB_RAND_VALUES: Map<(&str, u64), Vec<u8>> = Map::new("pub_rand_values");
+pub const PUB_RAND_VALUES: Map<(&str, u64), Vec<u8>> = Map::new("pub_rand_values");
 
 /// Map of public randomness commitments by fp and block height
 const PUB_RAND_COMMITS: Map<(&str, u64), PubRandCommit> = Map::new("pub_rand_commits");
