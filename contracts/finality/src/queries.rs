@@ -1,12 +1,11 @@
 use babylon_bindings::BabylonQuery;
-use cosmwasm_std::{Deps, StdResult, Storage};
-use cw_controllers::AdminResponse;
+use cosmwasm_std::Deps;
 
 use crate::error::ContractError;
-use crate::state::config::{Config, ADMIN, CONFIG, IS_ENABLED};
-use crate::state::finality::{FinalitySigInfo, FINALITY_SIGNATURES, SIGNATORIES_BY_BLOCK_HASH};
-use crate::state::public_randomness::PubRandCommit;
-use crate::state::public_randomness::{get_pub_rand_commit, PUB_RAND_VALUES};
+use crate::state::finality::FinalitySigInfo;
+use crate::state::finality::FINALITY_SIGNATURES;
+use crate::state::finality::SIGNATORIES_BY_BLOCK_HASH;
+use crate::state::public_randomness::PUB_RAND_VALUES;
 use cosmwasm_schema::cw_serde;
 
 #[cw_serde]
@@ -14,10 +13,6 @@ pub struct BlockVoterInfo {
     pub fp_btc_pk_hex: String,
     pub pub_rand: Vec<u8>,
     pub finality_signature: FinalitySigInfo,
-}
-
-pub fn query_config(deps: Deps<BabylonQuery>) -> StdResult<Config> {
-    CONFIG.load(deps.storage)
 }
 
 pub fn query_block_voters(
@@ -70,38 +65,12 @@ pub fn query_block_voters(
     }
 }
 
-pub fn query_first_pub_rand_commit(
-    storage: &dyn Storage,
-    fp_btc_pk_hex: &str,
-) -> Result<Option<PubRandCommit>, ContractError> {
-    let res = get_pub_rand_commit(storage, fp_btc_pk_hex, None, Some(1), Some(false))?;
-    Ok(res.into_iter().next())
-}
-
-pub fn query_last_pub_rand_commit(
-    storage: &dyn Storage,
-    fp_btc_pk_hex: &str,
-) -> Result<Option<PubRandCommit>, ContractError> {
-    let res = get_pub_rand_commit(storage, fp_btc_pk_hex, None, Some(1), Some(true))?;
-    Ok(res.into_iter().next())
-}
-
-pub fn query_is_enabled(deps: Deps<BabylonQuery>) -> StdResult<bool> {
-    IS_ENABLED.load(deps.storage)
-}
-
-pub fn query_admin(deps: Deps<BabylonQuery>) -> StdResult<AdminResponse> {
-    ADMIN.query_admin(deps)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::contract::tests::mock_deps_babylon;
-    use crate::state::finality::{FinalitySigInfo, FINALITY_SIGNATURES, SIGNATORIES_BY_BLOCK_HASH};
-    use crate::state::public_randomness::PUB_RAND_VALUES;
     use crate::testutil::datagen::*;
-    use rand::{thread_rng, Rng};
+    use rand::{rng, Rng};
     use std::collections::HashSet;
 
     #[test]
@@ -110,8 +79,8 @@ mod tests {
         let height = 42u64;
         let block_hash: Vec<u8> = get_random_block_hash();
         let block_hash_hex = hex::encode(&block_hash);
-        let mut rng = thread_rng();
-        let num_fps = rng.gen_range(1..=10);
+        let mut rng = rng();
+        let num_fps = rng.random_range(1..=10);
         let mut set = HashSet::new();
         let mut expected: Vec<(String, Vec<u8>, FinalitySigInfo)> = Vec::new();
         for _ in 0..num_fps {

@@ -15,7 +15,7 @@ gen-schema      = "./scripts/schema.sh"
 optimize        = "./scripts/optimizer.sh"
 precommit       = "./scripts/precommit.sh"
 lint            = "./scripts/lint.sh"
-fix-lint        = "./scripts/fix-lint.sh"
+fix-lint        = "./scripts/fix_lint.sh"
 integration     = "./scripts/integration_test.sh"
 
 [workspace.dependencies]
@@ -61,15 +61,12 @@ k256 = { version = "0.13.1", default-features = false, features = ["schnorr"] }
 
 # dev deps
 assert_matches = "1"
+rand = "0.9.1"
 cargo_metadata = "0.18.1"
-criterion = { version = "0.5.0" }
-pbjson-types = "0.5.1"
-rand = "0.8.5"
-thousands = "0.2.0"
-
-cosmwasm-vm        = { version = "2.1.4", default-features = false, features = ["iterator", "stargate"] }
 
 babylon-test-utils = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
+
+cosmwasm-vm = { version = "2.1.4", default-features = false, features = ["iterator", "stargate"] }
 
 [profile.release]
 codegen-units    = 1

@@ -67,7 +67,6 @@ mod tests {
     use super::*;
     use crate::testutil::datagen::*;
     use cosmwasm_std::testing::mock_dependencies;
-    use rand::{thread_rng, Rng};
 
     /// Get a random evidence for a given height and finality provider.
     /// We are adding it here instead of datagen.rs as it is only used here.
@@ -87,7 +86,7 @@ mod tests {
     #[test]
     fn test_set_and_get_evidence() {
         let mut deps = mock_dependencies();
-        let height = thread_rng().gen_range(1..1000);
+        let height = get_random_u64();
         let fp_btc_pk_hex = get_random_fp_pk_hex();
         let evidence = get_random_evidence(height, &fp_btc_pk_hex);
         // Store evidence
@@ -107,7 +106,7 @@ mod tests {
     #[test]
     fn test_get_evidence_none_if_not_present() {
         let deps = mock_dependencies();
-        let height = thread_rng().gen_range(1..1000);
+        let height = get_random_u64();
         let fp_btc_pk_hex = get_random_fp_pk_hex();
         let loaded = get_evidence(deps.as_ref().storage, height, &fp_btc_pk_hex).unwrap();
         assert!(loaded.is_none());

@@ -184,7 +184,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94893f1e0c6eeab764ade8dc4c0db24caf4fe7cbbaafc0eba0a9030f447b5185"
 dependencies = [
  "num-traits",
- "rand",
+ "rand 0.8.5",
  "rayon",
 ]
 
@@ -203,7 +203,7 @@ checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 [[package]]
 name = "babylon-apis"
 version = "0.14.0"
-source = "git+https://github.com/babylonlabs-io/cosmos-bsn-contracts#267e14e2d7d6c4c31e401d8c06fde3a6016a00b4"
+source = "git+https://github.com/babylonlabs-io/cosmos-bsn-contracts#3a4a600d014a5abb0992e1b8ff9dc193a099f295"
 dependencies = [
  "babylon-bitcoin",
  "babylon-merkle",
@@ -228,7 +228,7 @@ dependencies = [
 [[package]]
 name = "babylon-bitcoin"
 version = "0.14.0"
-source = "git+https://github.com/babylonlabs-io/cosmos-bsn-contracts#267e14e2d7d6c4c31e401d8c06fde3a6016a00b4"
+source = "git+https://github.com/babylonlabs-io/cosmos-bsn-contracts#3a4a600d014a5abb0992e1b8ff9dc193a099f295"
 dependencies = [
  "bitcoin",
  "cosmwasm-std",
@@ -243,7 +243,7 @@ dependencies = [
 [[package]]
 name = "babylon-merkle"
 version = "0.14.0"
-source = "git+https://github.com/babylonlabs-io/cosmos-bsn-contracts#267e14e2d7d6c4c31e401d8c06fde3a6016a00b4"
+source = "git+https://github.com/babylonlabs-io/cosmos-bsn-contracts#3a4a600d014a5abb0992e1b8ff9dc193a099f295"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -258,7 +258,7 @@ dependencies = [
 [[package]]
 name = "babylon-proto"
 version = "0.14.0"
-source = "git+https://github.com/babylonlabs-io/cosmos-bsn-contracts#267e14e2d7d6c4c31e401d8c06fde3a6016a00b4"
+source = "git+https://github.com/babylonlabs-io/cosmos-bsn-contracts#3a4a600d014a5abb0992e1b8ff9dc193a099f295"
 dependencies = [
  "bitvec",
  "cosmos-sdk-proto",
@@ -271,7 +271,7 @@ dependencies = [
 [[package]]
 name = "babylon-test-utils"
 version = "0.14.0"
-source = "git+https://github.com/babylonlabs-io/cosmos-bsn-contracts#267e14e2d7d6c4c31e401d8c06fde3a6016a00b4"
+source = "git+https://github.com/babylonlabs-io/cosmos-bsn-contracts#3a4a600d014a5abb0992e1b8ff9dc193a099f295"
 dependencies = [
  "babylon-apis",
  "babylon-bitcoin",
@@ -561,7 +561,7 @@ dependencies = [
  "k256",
  "num-traits",
  "p256",
- "rand_core",
+ "rand_core 0.6.4",
  "rayon",
  "sha2",
  "thiserror 1.0.69",
@@ -616,7 +616,7 @@ dependencies = [
  "cosmwasm-derive",
  "derive_more",
  "hex",
- "rand_core",
+ "rand_core 0.6.4",
  "rmp-serde",
  "schemars",
  "serde",
@@ -643,7 +643,7 @@ dependencies = [
  "crc32fast",
  "derivative",
  "hex",
- "rand_core",
+ "rand_core 0.6.4",
  "schemars",
  "serde",
  "serde_json",
@@ -727,7 +727,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0dc92fb57ca44df6db8059111ab3af99a63d5d0f8375d9972e319a379c6bab76"
 dependencies = [
  "generic-array",
- "rand_core",
+ "rand_core 0.6.4",
  "subtle",
  "zeroize",
 ]
@@ -1003,7 +1003,7 @@ dependencies = [
  "ed25519",
  "hashbrown 0.14.5",
  "hex",
- "rand_core",
+ "rand_core 0.6.4",
  "sha2",
  "zeroize",
 ]
@@ -1026,7 +1026,7 @@ dependencies = [
  "ff",
  "generic-array",
  "group",
- "rand_core",
+ "rand_core 0.6.4",
  "sec1",
  "subtle",
  "zeroize",
@@ -1076,7 +1076,7 @@ dependencies = [
 [[package]]
 name = "eots"
 version = "0.14.0"
-source = "git+https://github.com/babylonlabs-io/cosmos-bsn-contracts#267e14e2d7d6c4c31e401d8c06fde3a6016a00b4"
+source = "git+https://github.com/babylonlabs-io/cosmos-bsn-contracts#3a4a600d014a5abb0992e1b8ff9dc193a099f295"
 dependencies = [
  "hex",
  "k256",
@@ -1118,7 +1118,7 @@ version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c0b50bfb653653f9ca9095b427bed08ab8d75a137839d9ad64eb11810d5b6393"
 dependencies = [
- "rand_core",
+ "rand_core 0.6.4",
  "subtle",
 ]
 
@@ -1147,7 +1147,7 @@ dependencies = [
  "eots",
  "hex",
  "k256",
- "rand",
+ "rand 0.9.1",
  "thiserror 1.0.69",
 ]
 
@@ -1238,7 +1238,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0f9ef7462f7c099f518d754361858f86d8a07af53ba9af0fe635bbccb151a63"
 dependencies = [
  "ff",
- "rand_core",
+ "rand_core 0.6.4",
  "subtle",
 ]
 
@@ -1796,9 +1796,18 @@ version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
 dependencies = [
- "libc",
- "rand_chacha",
- "rand_core",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.4",
+]
+
+[[package]]
+name = "rand"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9fbfd9d094a40bf3ae768db9361049ace4c0e04a4fd6b359518bd7b73a73dd97"
+dependencies = [
+ "rand_chacha 0.9.0",
+ "rand_core 0.9.3",
 ]
 
 [[package]]
@@ -1808,7 +1817,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
 dependencies = [
  "ppv-lite86",
- "rand_core",
+ "rand_core 0.6.4",
+]
+
+[[package]]
+name = "rand_chacha"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3022b5f1df60f26e1ffddd6c66e8aa15de382ae63b3a0c1bfc0e4d3e3f325cb"
+dependencies = [
+ "ppv-lite86",
+ "rand_core 0.9.3",
 ]
 
 [[package]]
@@ -1818,6 +1837,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
  "getrandom 0.2.16",
+]
+
+[[package]]
+name = "rand_core"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "99d9a13982dcf210057a8a78572b2217b667c3beacbf3a0d8b454f6f82837d38"
+dependencies = [
+ "getrandom 0.3.3",
 ]
 
 [[package]]
@@ -2187,7 +2215,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77549399552de45a898a580c1b41d445bf730df867cc44e6c0233bbc4b8329de"
 dependencies = [
  "digest",
- "rand_core",
+ "rand_core 0.6.4",
 ]
 
 [[package]]
