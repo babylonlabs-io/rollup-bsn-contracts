@@ -60,7 +60,7 @@ pub fn handle_public_randomness_commit(
 }
 
 // Copied from contracts/btc-staking/src/finality.rs
-pub(crate) fn verify_commitment_signature(
+fn verify_commitment_signature(
     fp_btc_pk_hex: &str,
     start_height: u64,
     num_pub_rand: u64,

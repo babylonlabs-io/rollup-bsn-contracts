@@ -16,7 +16,7 @@ pub(crate) const SIGNATORIES_BY_BLOCK_HASH: Map<(u64, &[u8]), HashSet<String>> =
 /// FinalitySigInfo is a struct that contains the finality signature and
 /// block hash for a given block height and fp
 #[cw_serde]
-pub(crate) struct FinalitySigInfo {
+pub struct FinalitySigInfo {
     /// the finality signature
     pub finality_sig: Vec<u8>,
     /// the block hash that the finality signature is for
