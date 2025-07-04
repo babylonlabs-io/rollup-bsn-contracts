@@ -6,7 +6,7 @@ use cosmwasm_std::{StdResult, Storage};
 use cw_storage_plus::{Bound, Map};
 
 /// Map of public randomness values by fp public key hex and block height
-pub(crate) const PUB_RAND_VALUES: Map<(&str, u64), Vec<u8>> = Map::new("pub_rand_values");
+pub const PUB_RAND_VALUES: Map<(&str, u64), Vec<u8>> = Map::new("pub_rand_values");
 
 /// Map of public randomness commitments by fp and block height
 const PUB_RAND_COMMITS: Map<(&str, u64), PubRandCommit> = Map::new("pub_rand_commits");
@@ -164,7 +164,7 @@ pub fn insert_pub_rand_commit(
 /// - If a different value exists, it returns ContractError::PubRandAlreadyExists.
 ///   This is an error as the contract should recognize only a single public randomness value
 ///   for a specific height per finality provider.
-pub fn insert_pub_rand_value(
+pub(crate) fn insert_pub_rand_value(
     storage: &mut dyn Storage,
     fp_btc_pk_hex: &str,
     height: u64,
