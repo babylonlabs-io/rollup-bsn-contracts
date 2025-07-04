@@ -49,6 +49,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Improvements
 
+* [#52](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/52) chore: remove unused fields in FP struct.
 * [#31](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/31) Rename `hash` to `hash_hex`.
 * [#42](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/42) test: Add unit tests for public randomness commitment validation.
 * [#47](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/47) Create state/evidence.rs file and define setters/getters.
