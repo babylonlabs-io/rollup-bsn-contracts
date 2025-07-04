@@ -9,7 +9,7 @@ use cw_storage_plus::{Bound, Map};
 pub(crate) const PUB_RAND_VALUES: Map<(&str, u64), Vec<u8>> = Map::new("pub_rand_values");
 
 /// Map of public randomness commitments by fp and block height
-pub(crate) const PUB_RAND_COMMITS: Map<(&str, u64), PubRandCommit> = Map::new("pub_rand_commits");
+const PUB_RAND_COMMITS: Map<(&str, u64), PubRandCommit> = Map::new("pub_rand_commits");
 
 /// `PubRandCommit` is a commitment to a series of public randomness.
 /// Currently, the commitment is a root of a Merkle tree that includes a series of public randomness
@@ -28,6 +28,15 @@ pub struct PubRandCommit {
 }
 
 impl PubRandCommit {
+    pub fn new(start_height: u64, num_pub_rand: u64, height: u64, commitment: Bytes) -> Self {
+        Self {
+            start_height,
+            num_pub_rand,
+            height,
+            commitment,
+        }
+    }
+
     /// `in_range` checks if the given height is within the range of the commitment
     pub fn in_range(&self, height: u64) -> bool {
         self.start_height <= height && height <= self.end_height()
@@ -191,12 +200,12 @@ mod tests {
         let commitment = get_random_block_hash();
 
         // Test with num_pub_rand = 0 (should fail)
-        let invalid_commit = PubRandCommit {
+        let invalid_commit = PubRandCommit::new(
             start_height,
-            num_pub_rand: 0, // Zero value should be rejected
-            height: env.block.height,
-            commitment: commitment.clone(),
-        };
+            0, // Zero value should be rejected
+            env.block.height,
+            commitment.clone(),
+        );
 
         let result = insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk_hex, invalid_commit);
 
@@ -210,12 +219,12 @@ mod tests {
         }
 
         // Test with num_pub_rand = 1 (should pass validation)
-        let valid_commit = PubRandCommit {
+        let valid_commit = PubRandCommit::new(
             start_height,
-            num_pub_rand: 1, // Valid value should pass this validation
-            height: env.block.height,
+            1, // Valid value should pass this validation
+            env.block.height,
             commitment,
-        };
+        );
 
         let result =
             insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk_hex, valid_commit.clone());
@@ -227,6 +236,8 @@ mod tests {
         let first_commit =
             get_first_pub_rand_commit(deps.as_ref().storage, &fp_btc_pk_hex).unwrap();
         assert_eq!(first_commit.unwrap(), valid_commit);
+        let last_commit = get_last_pub_rand_commit(deps.as_ref().storage, &fp_btc_pk_hex).unwrap();
+        assert_eq!(last_commit.unwrap(), valid_commit);
     }
 
     #[test]
@@ -241,12 +252,12 @@ mod tests {
         let initial_commitment = get_random_block_hash();
 
         // Store initial commitment directly
-        let initial_commit = &PubRandCommit {
-            start_height: initial_start_height,
-            num_pub_rand: initial_num_pub_rand,
-            height: env.block.height,
-            commitment: initial_commitment,
-        };
+        let initial_commit = &PubRandCommit::new(
+            initial_start_height,
+            initial_num_pub_rand,
+            env.block.height,
+            initial_commitment,
+        );
         insert_pub_rand_commit(
             deps.as_mut().storage,
             &fp_btc_pk_hex,
@@ -259,12 +270,12 @@ mod tests {
         let overlapping_num_pub_rand = get_random_u64();
         let overlapping_commitment = get_random_block_hash();
 
-        let overlapping_commit = PubRandCommit {
-            start_height: overlapping_start_height,
-            num_pub_rand: overlapping_num_pub_rand,
-            height: env.block.height,
-            commitment: overlapping_commitment,
-        };
+        let overlapping_commit = PubRandCommit::new(
+            overlapping_start_height,
+            overlapping_num_pub_rand,
+            env.block.height,
+            overlapping_commitment,
+        );
 
         let overlapping_result =
             insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk_hex, overlapping_commit);
@@ -283,12 +294,12 @@ mod tests {
         let boundary_num_pub_rand = get_random_u64();
         let boundary_commitment = get_random_block_hash();
 
-        let boundary_commit = PubRandCommit {
-            start_height: boundary_start_height,
-            num_pub_rand: boundary_num_pub_rand,
-            height: env.block.height,
-            commitment: boundary_commitment,
-        };
+        let boundary_commit = PubRandCommit::new(
+            boundary_start_height,
+            boundary_num_pub_rand,
+            env.block.height,
+            boundary_commitment,
+        );
 
         let boundary_result =
             insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk_hex, boundary_commit);
@@ -307,12 +318,12 @@ mod tests {
         let valid_num_pub_rand = get_random_u64();
         let valid_commitment = get_random_block_hash();
 
-        let valid_commit = PubRandCommit {
-            start_height: valid_start_height,
-            num_pub_rand: valid_num_pub_rand,
-            height: env.block.height,
-            commitment: valid_commitment,
-        };
+        let valid_commit = PubRandCommit::new(
+            valid_start_height,
+            valid_num_pub_rand,
+            env.block.height,
+            valid_commitment,
+        );
 
         let valid_result =
             insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk_hex, valid_commit);
