@@ -72,7 +72,7 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
-    fn test_get_block_voters_returns_fp_and_signature() {
+    fn test_query_block_voters_returns_fp_and_signature() {
         let mut deps = mock_dependencies();
         let height = 42u64;
         let block_hash: Vec<u8> = get_random_block_hash();
