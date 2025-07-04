@@ -18,7 +18,7 @@ jobs:
     - name: Install cosmwasm-check
       run: cargo install --locked --debug --version ^2.0 cosmwasm-check
     - name: Check the Wasm binaries' validity
-      run: bash -c "cosmwasm-check $WORKSPACE/artifacts/*.wasm"
+      run: bash -c "cosmwasm-check --available-capabilities cosmwasm_1_1,cosmwasm_1_2,cosmwasm_1_3,cosmwasm_1_4,cosmwasm_2_0,iterator,staking,stargate,babylon $WORKSPACE/artifacts/*.wasm"
     - name: Integration tests based on CosmWasm
       run: cargo test --test integration
     - uses: actions/upload-artifact@v4.1.0

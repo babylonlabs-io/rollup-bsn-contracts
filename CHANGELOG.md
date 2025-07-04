@@ -37,6 +37,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## Unreleased
 
+### State and API breaking
+
+* [#40](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/40) Timestamped public randomness commitments.
+  Breaks `PubRandCommit` struct that is being used for both storage and queries.
+
 ### State breaking
 
 * [#35](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/35) chore: use consistent naming for state maps

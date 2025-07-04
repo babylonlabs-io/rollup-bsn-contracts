@@ -1,10 +1,12 @@
+use babylon_bindings::BabylonQuery;
+use cosmwasm_std::Deps;
+
 use crate::error::ContractError;
 use crate::state::finality::FinalitySigInfo;
 use crate::state::finality::FINALITY_SIGNATURES;
 use crate::state::finality::SIGNATORIES_BY_BLOCK_HASH;
 use crate::state::public_randomness::PUB_RAND_VALUES;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Deps;
 
 #[cw_serde]
 pub struct BlockVoterInfo {
@@ -14,7 +16,7 @@ pub struct BlockVoterInfo {
 }
 
 pub fn query_block_voters(
-    deps: Deps,
+    deps: Deps<BabylonQuery>,
     height: u64,
     hash_hex: String,
 ) -> Result<Option<Vec<BlockVoterInfo>>, ContractError> {
@@ -66,14 +68,14 @@ pub fn query_block_voters(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::contract::tests::mock_deps_babylon;
     use crate::testutil::datagen::*;
-    use cosmwasm_std::testing::mock_dependencies;
     use rand::{rng, Rng};
     use std::collections::HashSet;
 
     #[test]
     fn test_query_block_voters_returns_fp_and_signature() {
-        let mut deps = mock_dependencies();
+        let mut deps = mock_deps_babylon();
         let height = 42u64;
         let block_hash: Vec<u8> = get_random_block_hash();
         let block_hash_hex = hex::encode(&block_hash);

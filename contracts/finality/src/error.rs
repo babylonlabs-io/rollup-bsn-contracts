@@ -41,6 +41,8 @@ pub enum ContractError {
     #[error("Public randomness not found for finality provider {0} at height {1}")]
     MissingPubRandCommit(String, u64),
     #[error("{0}")]
+    PubRandCommitNotBTCTimestamped(String),
+    #[error("{0}")]
     SecP256K1Error(String), // TODO: inherit errors from k256
     #[error("Failed to extract secret key: {0}")]
     SecretKeyExtractionError(String),
