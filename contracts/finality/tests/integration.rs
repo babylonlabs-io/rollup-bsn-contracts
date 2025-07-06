@@ -1,7 +1,9 @@
-use cosmwasm_std::{from_json, ContractResult, Response};
+use cosmwasm_std::{from_json, Coin, ContractResult, Response};
 use cosmwasm_vm::testing::{
-    execute, instantiate, mock_env, mock_info, mock_instance, query, MockApi,
+    execute, instantiate, mock_env, mock_info, mock_instance_with_options, query, MockApi,
+    MockInstanceOptions, MockQuerier, MockStorage,
 };
+use cosmwasm_vm::{capabilities_from_csv, Instance};
 
 use cw_controllers::AdminResponse;
 use finality::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -10,10 +12,27 @@ use finality::state::config::Config;
 static WASM: &[u8] = include_bytes!("../../../artifacts/finality.wasm");
 const CREATOR: &str = "creator";
 
+fn mock_instance_on_babylon(
+    wasm: &[u8],
+    funds: &[Coin],
+) -> Instance<MockApi, MockStorage, MockQuerier> {
+    mock_instance_with_options(
+        wasm,
+        MockInstanceOptions {
+            available_capabilities: capabilities_from_csv(
+                "iterator,cosmwasm_1_1,cosmwasm_1_2,cosmwasm_1_3,cosmwasm_1_4,cosmwasm_2_0,staking,stargate,babylon",
+            ),
+            gas_limit: 100_000_000_000_000,
+            contract_balance: Some(funds),
+            ..Default::default()
+        },
+    )
+}
+
 #[test]
 fn instantiate_works() {
     // Setup
-    let mut deps = mock_instance(WASM, &[]);
+    let mut deps = mock_instance_on_babylon(WASM, &[]);
     let mock_api: MockApi = MockApi::default();
     let msg = InstantiateMsg {
         admin: mock_api.addr_make(CREATOR),
@@ -44,7 +63,7 @@ fn instantiate_works() {
 #[test]
 fn disable_and_reenable_works() {
     // Setup
-    let mut instance = mock_instance(WASM, &[]);
+    let mut instance = mock_instance_on_babylon(WASM, &[]);
     let mock_api = MockApi::default();
     let msg = InstantiateMsg {
         admin: mock_api.addr_make(CREATOR),
@@ -103,7 +122,7 @@ fn disable_and_reenable_works() {
 #[test]
 fn instantiate_enabled() {
     // Setup
-    let mut instance = mock_instance(WASM, &[]);
+    let mut instance = mock_instance_on_babylon(WASM, &[]);
     let mock_api = MockApi::default();
     let msg = InstantiateMsg {
         admin: mock_api.addr_make(CREATOR),

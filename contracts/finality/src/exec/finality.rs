@@ -1,21 +1,27 @@
+use k256::ecdsa::signature::Verifier;
+use k256::schnorr::{Signature, VerifyingKey};
+use k256::sha2::{Digest, Sha256};
+
+use cosmwasm_std::{Deps, DepsMut, Env, Event, MessageInfo, Response};
+
+use babylon_bindings::BabylonQuery;
+use babylon_merkle::Proof;
+
+use crate::custom_queries::get_current_epoch;
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::state::config::CONFIG;
 use crate::state::evidence::{insert_evidence, Evidence};
 use crate::state::finality::{insert_signatory, FinalitySigInfo, FINALITY_SIGNATURES};
 use crate::state::public_randomness::{
-    get_pub_rand_commit_for_height, insert_pub_rand_commit, insert_pub_rand_value, PubRandCommit,
+    get_timestamped_pub_rand_commit_for_height, insert_pub_rand_commit, insert_pub_rand_value,
+    PubRandCommit,
 };
 use crate::utils::query_finality_provider;
-use babylon_merkle::Proof;
-use cosmwasm_std::{Deps, DepsMut, Env, Event, MessageInfo, Response};
-use k256::ecdsa::signature::Verifier;
-use k256::schnorr::{Signature, VerifyingKey};
-use k256::sha2::{Digest, Sha256};
 
 pub fn handle_public_randomness_commit(
-    deps: DepsMut,
-    env: &Env,
+    deps: DepsMut<BabylonQuery>,
+    _env: &Env,
     fp_pubkey_hex: &str,
     start_height: u64,
     num_pub_rand: u64,
@@ -38,13 +44,14 @@ pub fn handle_public_randomness_commit(
     // note that `insert_pub_rand_commit` has ensured that
     // - the new commitment does not overlap with the existing ones
     // - the new commitment does not have num_pub_rand = 0
+    let current_epoch = get_current_epoch(&deps.as_ref())?;
     insert_pub_rand_commit(
         deps.storage,
         fp_pubkey_hex,
         PubRandCommit {
             start_height,
             num_pub_rand,
-            height: env.block.height,
+            babylon_genesis_epoch: current_epoch,
             commitment: commitment.to_vec(),
         },
     )?;
@@ -91,7 +98,7 @@ pub(crate) fn verify_commitment_signature(
 
 #[allow(clippy::too_many_arguments)]
 pub fn handle_finality_signature(
-    deps: DepsMut,
+    deps: DepsMut<BabylonQuery>,
     info: MessageInfo,
     fp_btc_pk_hex: &str,
     l1_block_number: Option<u64>,
@@ -147,7 +154,9 @@ pub fn handle_finality_signature(
 
     // Next, we are verifying the finality signature message
     // Find the public randomness commitment for this height from this finality provider
-    let pr_commit = get_pub_rand_commit_for_height(deps.storage, fp_btc_pk_hex, height)?;
+    let pr_commit =
+        get_timestamped_pub_rand_commit_for_height(&deps.as_ref(), fp_btc_pk_hex, height)?;
+
     // Verify the finality signature message
     verify_finality_signature(
         fp_btc_pk_hex,
@@ -275,7 +284,10 @@ fn msg_to_sign(height: u64, block_app_hash: &[u8]) -> Vec<u8> {
     msg
 }
 
-fn ensure_fp_exists_and_not_slashed(deps: Deps, fp_pubkey_hex: &str) -> Result<(), ContractError> {
+fn ensure_fp_exists_and_not_slashed(
+    deps: Deps<BabylonQuery>,
+    fp_pubkey_hex: &str,
+) -> Result<(), ContractError> {
     let config = CONFIG.load(deps.storage)?;
     let fp = query_finality_provider(deps, config.consumer_id.clone(), fp_pubkey_hex.to_string());
     match fp {
@@ -346,12 +358,12 @@ fn slash_finality_provider(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use cosmwasm_std::{testing::message_info, Addr};
-    use std::collections::HashMap;
-    use test_utils::{
+    use babylon_test_utils::{
         get_add_finality_sig, get_add_finality_sig_2, get_pub_rand_value,
         get_public_randomness_commitment,
     };
+    use cosmwasm_std::{testing::message_info, Addr};
+    use std::collections::HashMap;
 
     #[test]
     fn verify_commitment_signature_works() {
@@ -377,11 +389,13 @@ pub(crate) mod tests {
         let add_finality_signature = get_add_finality_sig();
         let proof = add_finality_signature.proof.unwrap();
 
+        let current_epoch = 1;
+
         // Convert the PubRandCommit in the type defined in this contract
         let pr_commit = PubRandCommit {
             start_height: pr_commit.start_height,
             num_pub_rand: pr_commit.num_pub_rand,
-            height: pr_commit.height,
+            babylon_genesis_epoch: current_epoch,
             commitment: pr_commit.commitment,
         };
 

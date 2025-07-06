@@ -14,14 +14,20 @@
       "description": "`PubRandCommit` is a commitment to a series of public randomness. Currently, the commitment is a root of a Merkle tree that includes a series of public randomness values",
       "type": "object",
       "required": [
+        "babylon_genesis_epoch",
         "commitment",
-        "height",
         "num_pub_rand",
         "start_height"
       ],
       "properties": {
+        "babylon_genesis_epoch": {
+          "description": "The epoch number of Babylon when the commit was submitted",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
         "commitment": {
-          "description": "`commitment` is the value of the commitment. Currently, it's the root of the Merkle tree constructed by the public randomness",
+          "description": "Value of the commitment. Currently, it's the root of the Merkle tree constructed by the public randomness",
           "type": "array",
           "items": {
             "type": "integer",
@@ -29,20 +35,14 @@
             "minimum": 0.0
           }
         },
-        "height": {
-          "description": "`height` defines the height that the commit was submitted",
-          "type": "integer",
-          "format": "uint64",
-          "minimum": 0.0
-        },
         "num_pub_rand": {
-          "description": "`num_pub_rand` is the number of committed public randomness",
+          "description": "The amount of committed public randomness",
           "type": "integer",
           "format": "uint64",
           "minimum": 0.0
         },
         "start_height": {
-          "description": "`start_height` is the height of the first commitment",
+          "description": "The height of the first commitment",
           "type": "integer",
           "format": "uint64",
           "minimum": 0.0
