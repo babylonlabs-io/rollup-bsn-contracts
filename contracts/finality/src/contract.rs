@@ -123,6 +123,7 @@ pub(crate) mod tests {
     pub(crate) const INIT_ADMIN: &str = "initial_admin";
     const NEW_ADMIN: &str = "new_admin";
 
+    // Define a type alias for OwnedDeps with BabylonQuery
     pub type BabylonDeps = OwnedDeps<MockStorage, MockApi, MockQuerier, BabylonQuery>;
 
     pub fn mock_deps_babylon() -> BabylonDeps {
