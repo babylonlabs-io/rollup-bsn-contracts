@@ -23,7 +23,7 @@ pub struct PubRandCommit {
     /// The amount of committed public randomness
     pub num_pub_rand: u64,
     /// The epoch number of Babylon when the commit was submitted
-    pub babylon_genesis_epoch: u64,
+    pub babylon_epoch: u64,
     /// Value of the commitment.
     /// Currently, it's the root of the Merkle tree constructed by the public randomness
     pub commitment: Bytes,
@@ -34,7 +34,7 @@ impl PubRandCommit {
         Self {
             start_height,
             num_pub_rand,
-            babylon_genesis_epoch: epoch,
+            babylon_epoch: epoch,
             commitment,
         }
     }
@@ -100,11 +100,11 @@ pub fn get_timestamped_pub_rand_commit_for_height(
             "No finalized epoch yet".into(),
         ));
     }
-    if last_finalized_epoch < pr_commit.babylon_genesis_epoch {
+    if last_finalized_epoch < pr_commit.babylon_epoch {
         return Err(ContractError::PubRandCommitNotBTCTimestamped(format!(
             "The finality provider {0} last committed epoch: {1}, last finalized epoch: {2}",
             hex::encode(fp_btc_pk),
-            pr_commit.babylon_genesis_epoch,
+            pr_commit.babylon_epoch,
             last_finalized_epoch
         )));
     }

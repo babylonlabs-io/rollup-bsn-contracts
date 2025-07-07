@@ -8,6 +8,7 @@ import (
 
 	"github.com/CosmWasm/wasmd/x/wasm/keeper"
 	"github.com/babylonlabs-io/babylon/v3/app"
+	"github.com/babylonlabs-io/babylon/v3/crypto/eots"
 	"github.com/babylonlabs-io/babylon/v3/testutil/datagen"
 	bbn "github.com/babylonlabs-io/babylon/v3/types"
 	ftypes "github.com/babylonlabs-io/babylon/v3/x/finality/types"
@@ -127,6 +128,44 @@ func (s *FinalityContractTestSuite) Test3CommitPubRand() {
 	s.Equal(msg.StartHeight, queryRes.StartHeight)
 	s.Equal(msg.NumPubRand, queryRes.NumPubRand)
 	s.Equal(msg.Commitment, queryRes.Commitment)
+
+	// TODO: finalise epoch
+}
+
+func (s *FinalityContractTestSuite) Test4SubmitFinalitySignature() {
+	// get FP
+	fpBTCPK := bbn.NewBIP340PubKeyFromBTCPK(fpPK)
+	fp, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerFinalityProvider(s.ctx, s.contractCfg.ConsumerID, fpBTCPK)
+	s.NoError(err)
+
+	// Get blocks to vote
+	// Mock a block with start height 1
+	startHeight := uint64(1)
+	blockToVote := datagen.GenRandomBlockWithHeight(r, startHeight)
+	appHash := blockToVote.AppHash
+
+	idx := 0
+	msgToSign := append(sdk.Uint64ToBigEndian(startHeight), appHash...)
+
+	// Generate EOTS signature
+	sig, err := eots.Sign(fpSK, randListInfo.SRList[idx], msgToSign)
+	s.NoError(err)
+	eotsSig := bbn.NewSchnorrEOTSSigFromModNScalar(sig)
+
+	contractMsg := NewMsgSubmitFinalitySignature(
+		fpBTCPK,
+		startHeight,
+		&randListInfo.PRList[idx],
+		randListInfo.ProofList[idx],
+		blockToVote.AppHash,
+		eotsSig,
+	)
+	contractMsgJson, err := json.Marshal(contractMsg)
+	s.NoError(err)
+
+	// submit finality signature
+	err = s.ExecuteContract(s.contractAddr, fp.Address(), contractMsgJson)
+	s.NoError(err)
 }
 
 func (s *FinalityContractTestSuite) TearDownSuite() {

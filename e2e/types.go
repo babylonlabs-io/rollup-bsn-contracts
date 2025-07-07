@@ -2,6 +2,9 @@ package e2e
 
 import (
 	"fmt"
+
+	bbn "github.com/babylonlabs-io/babylon/v3/types"
+	"github.com/cometbft/cometbft/crypto/merkle"
 )
 
 func NewInitMsg(admin string, consumerID string, isEnabled bool) string {
@@ -55,6 +58,31 @@ type SubmitFinalitySignatureMsgParams struct {
 	Signature   []byte `json:"signature"`
 }
 
+func NewMsgSubmitFinalitySignature(
+	fpPK *bbn.BIP340PubKey,
+	height uint64,
+	pubRand *bbn.SchnorrPubRand,
+	proof *merkle.Proof,
+	blockHash []byte,
+	signature *bbn.SchnorrEOTSSig,
+) SubmitFinalitySignatureMsg {
+	return SubmitFinalitySignatureMsg{
+		SubmitFinalitySignature: SubmitFinalitySignatureMsgParams{
+			FpPubkeyHex: fpPK.MarshalHex(),
+			Height:      height,
+			PubRand:     pubRand.MustMarshal(),
+			Proof: Proof{
+				Total:    uint64(proof.Total),
+				Index:    uint64(proof.Index),
+				LeafHash: proof.LeafHash,
+				Aunts:    proof.Aunts,
+			},
+			BlockHash: blockHash,
+			Signature: signature.MustMarshal(),
+		},
+	}
+}
+
 // TODO: need to update based on contract implementation
 type SubmitFinalitySignatureResponse struct {
 	Result bool `json:"result"`
@@ -73,9 +101,10 @@ type PubRandCommit struct {
 }
 
 type PubRandCommitResponse struct {
-	StartHeight uint64 `json:"start_height"`
-	NumPubRand  uint64 `json:"num_pub_rand"`
-	Commitment  []byte `json:"commitment"`
+	StartHeight  uint64 `json:"start_height"`
+	NumPubRand   uint64 `json:"num_pub_rand"`
+	BabylonEpoch uint64 `json:"babylon_epoch"`
+	Commitment   []byte `json:"commitment"`
 }
 
 func NewQueryFirstPubRandCommit(btcPkHex string) QueryMsg {

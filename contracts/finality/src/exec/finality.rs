@@ -55,7 +55,7 @@ pub fn handle_public_randomness_commit(
         PubRandCommit {
             start_height,
             num_pub_rand,
-            babylon_genesis_epoch: current_epoch,
+            babylon_epoch: current_epoch,
             commitment: commitment.to_vec(),
         },
     )?;
@@ -355,7 +355,7 @@ pub(crate) mod tests {
         let pr_commit = PubRandCommit {
             start_height: pr_commit.start_height,
             num_pub_rand: pr_commit.num_pub_rand,
-            babylon_genesis_epoch: current_epoch,
+            babylon_epoch: current_epoch,
             commitment: pr_commit.commitment,
         };
 
