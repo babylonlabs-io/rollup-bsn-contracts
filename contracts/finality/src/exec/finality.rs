@@ -528,11 +528,6 @@ pub(crate) mod tests {
         use crate::state::config::{Config, CONFIG};
         use cosmwasm_std::testing::mock_env;
 
-        // Helper function to test validation logic by calling the function directly
-        // These tests focus on the early validation checks that happen before any queries
-
-        // Direct validation tests that verify the actual validation logic implementation
-
         #[test]
         fn test_empty_fp_btc_pk_fails() {
             let mut deps = mock_deps_babylon();
