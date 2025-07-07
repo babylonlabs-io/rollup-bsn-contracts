@@ -15,9 +15,8 @@
   - [5.4. Finality Contract message handlers](#54-finality-contract-message-handlers)
     - [5.4.1. CommitPublicRandomness (MUST)](#541-commitpublicrandomness-must)
     - [5.4.2. SubmitFinalitySignature (MUST)](#542-submitfinalitysignature-must)
-    - [5.4.3. Slashing (MUST)](#543-slashing-must)
-    - [5.4.4. SetEnabled (SHOULD)](#544-setenabled-should)
-    - [5.4.5. UpdateAdmin (SHOULD)](#545-updateadmin-should)
+    - [5.4.3. SetEnabled (SHOULD)](#543-setenabled-should)
+    - [5.4.4. UpdateAdmin (SHOULD)](#544-updateadmin-should)
   - [5.5. Contract State Storage](#55-contract-state-storage)
     - [5.5.1. Core Configuration](#551-core-configuration)
     - [5.5.2. Finality State Storage](#552-finality-state-storage)
@@ -345,6 +344,8 @@ pub enum ExecuteMsg {
         signature: Binary,
     },
 
+    // SHOULD: Administrative messages
+
     /// Set enabled status of the finality contract.
     ///
     /// This message can be called by the admin only.
@@ -379,9 +380,10 @@ CommitPublicRandomness {
 
 **Expected Behavior:** Finality contracts MUST implement this handler with the following verification logic:
 
-1. **Finality Provider Existence Check**: Verify that the finality provider exists by querying the Babylon Genesis chain through gRPC:
+1. **Finality Provider Existence Check**: Verify that the finality provider exists and is not slashed by querying the Babylon Genesis chain through gRPC:
    - Use `query_grpc` to call `/babylon.btcstkconsumer.v1.Query/FinalityProvider` with the `consumer_id` and `fp_pubkey_hex` parameters
-   - Verify the response contains a valid finality provider with non-zero voting power
+   - Verify the response contains a valid finality provider
+   - Ensure the finality provider has not been slashed (`slashed_babylon_height` and `slashed_btc_height` are both 0)
 
 2. **Signature Verification**: Verify the commitment signature using Schnorr signature verification:
    - Decode the finality provider's BTC public key from `fp_pubkey_hex` parameter
@@ -394,9 +396,9 @@ CommitPublicRandomness {
    - Ensure `start_height > last_commit.start_height + last_commit.num_pub_rand - 1` to prevent overlapping ranges
 
 4. **Storage Operations**: Save the public randomness commitment data:
-   - Create a new `PubRandCommit` struct with provided parameters
+   - Create a new `PubRandCommit` struct with provided parameters and current Babylon epoch
    - Save to the public randomness commitment state using key `(fp_pubkey_hex, start_height)`
-   - Record the current block height as the commitment block height
+   - Record the current Babylon epoch as the commitment epoch for BTC timestamping validation
 
 #### 5.4.2. SubmitFinalitySignature (MUST)
 
@@ -422,9 +424,9 @@ The finality signature is computed over a message constructed as follows:
 
 **Expected Behavior:** Finality contracts MUST implement this handler with the following verification logic:
 
-1. **Finality Provider Existence Check**: Verify that the finality provider exists and is not slashed:
-   - Use `query_grpc` to call `/babylon.btcstkconsumer.v1.Query/FinalityProvider` with `consumer_id` and `fp_pubkey_hex` parameters
-   - Verify the response contains a valid finality provider with non-zero voting power
+1. **Finality Provider Existence Check**: Verify that the finality provider exists and is not slashed by querying the Babylon Genesis chain through gRPC:
+   - Use `query_grpc` to call `/babylon.btcstkconsumer.v1.Query/FinalityProvider` with the `consumer_id` and `fp_pubkey_hex` parameters
+   - Verify the response contains a valid finality provider
    - Ensure the finality provider has not been slashed (`slashed_babylon_height` and `slashed_btc_height` are both 0)
 
 2. **Duplicate Vote Check**: Check if an identical vote already exists:
@@ -434,6 +436,7 @@ The finality signature is computed over a message constructed as follows:
 
 3. **Public Randomness Commitment Retrieval**: Find the public randomness commitment that covers the target height:
    - Query public randomness commitment state to find commitment where `start_height <= height <= start_height + num_pub_rand - 1`
+   - **BTC Timestamping Validation**: Ensure the commitment is timestamped by BTC by verifying that the commitment's epoch is less than or equal to the last finalized epoch
    - Use the commitment for subsequent verification steps
 
 4. **Finality Signature Verification**:
@@ -459,37 +462,8 @@ The finality signature is computed over a message constructed as follows:
      - Add signatory to the set of signatories for the block using key `(height, block_hash)`
      - Save public randomness value using key `(fp_pubkey_hex, height)` if this is the first vote for this height
 
-#### 5.4.3. Slashing (MUST)
 
-**Message Structure:**
-```rust
-Slashing {
-    sender: Addr,
-    evidence: Evidence,
-}
-```
-
-**Expected Behavior:** Finality contracts MUST implement this handler for manual slashing with the following verification logic:
-
-1. **Admin Authorization**: Verify that the caller is authorized:
-   - Query the current admin address
-   - Verify that `sender` parameter matches the admin address
-
-2. **Evidence Processing**: Process the provided equivocation evidence:
-   - Validate that the `evidence` parameter contains all required fields
-   - Verify the evidence cryptographically if needed
-
-3. **Storage Operations**: Store the slashing evidence:
-   - Save the `evidence` to the contract state using key `(evidence.block_height, evidence.fp_btc_pk_hex)`
-
-4. **Babylon Message**: Send `BabylonMsg::EquivocationEvidence` to the Babylon chain with:
-   - Finality provider BTC public key from evidence
-   - Block height of equivocation from evidence
-   - Public randomness value from evidence
-   - Canonical and fork block hashes from evidence
-   - Canonical and fork finality signatures from evidence
-
-#### 5.4.4. SetEnabled (SHOULD)
+#### 5.4.3. SetEnabled (SHOULD)
 
 **Message Structure:**
 ```rust
@@ -507,13 +481,13 @@ SetEnabled {
 2. **State Check**: Verify that the current enabled state differs from the requested state:
    - Query current value from the contract state
    - Compare with the `enabled` parameter
-   - Reject if values are identical (no change needed)
+   - Return error if values are identical (no change needed)
 
 3. **Storage Operations**: Update the enabled flag:
    - Save the `enabled` parameter value to the contract state
-   - Emit appropriate event indicating the state change
+   - Return success response
 
-#### 5.4.5. UpdateAdmin (SHOULD)
+#### 5.4.4. UpdateAdmin (SHOULD)
 
 **Message Structure:**
 ```rust
@@ -533,9 +507,9 @@ UpdateAdmin {
    - Optionally ensure the new admin differs from the current admin
 
 3. **Storage Operations**: Update the admin address:
-   - Update the admin address
+   - Update the admin address using the cw-controllers Admin functionality
    - The new admin address from `admin` parameter replaces the current admin
-   - Emit appropriate event indicating the admin change
+   - Return success response
 
 ### 5.5. Contract State Storage
 
@@ -566,9 +540,9 @@ This section documents the actual state storage structure used by the finality c
 #### 5.5.2. Finality State Storage
 
 **FINALITY_SIGNATURES**: Finality signatures by height and provider
-- Type: `Map<(u64, &str), FinalitySigInfo>`
+- Type: `Map<(u64, &[u8]), FinalitySigInfo>`
 - Storage key: `"finality_signatures"`
-- Key format: `(block_height, fp_pubkey_hex)`
+- Key format: `(block_height, fp_pubkey_bytes)`
 - Purpose: Stores finality signature information including signature and block hash
 - Structure:
   ```rust
@@ -582,7 +556,7 @@ This section documents the actual state storage structure used by the finality c
 - Type: `Map<(u64, &[u8]), HashSet<String>>`
 - Storage key: `"signatories_by_block_hash"`
 - Key format: `(block_height, block_hash_bytes)`
-- Purpose: Maps each (height, block_hash) combination to the set of finality provider public keys that voted for it
+- Purpose: Maps each (height, block_hash) combination to the set of finality provider public keys (hex-encoded) that voted for it
 
 #### 5.5.3. Equivocation Evidence State Storage
 
@@ -609,15 +583,15 @@ This section documents the actual state storage structure used by the finality c
 #### 5.5.4. Public Randomness Storage
 
 **PUB_RAND_VALUES**: Individual public randomness values
-- Type: `Map<(&str, u64), Vec<u8>>`
+- Type: `Map<(&[u8], u64), Vec<u8>>`
 - Storage key: `"pub_rand_values"`
-- Key format: `(fp_pubkey_hex, block_height)`
+- Key format: `(fp_pubkey_bytes, block_height)`
 - Purpose: Stores individual public randomness values revealed during finality signature submission
 
 **PUB_RAND_COMMITS**: Public randomness commitments
-- Type: `Map<(&str, u64), PubRandCommit>`
-- Storage key: `"fp_pub_rand_commit"`
-- Key format: `(fp_pubkey_hex, start_height)`
+- Type: `Map<(&[u8], u64), PubRandCommit>`
+- Storage key: `"pub_rand_commits"`
+- Key format: `(fp_pubkey_bytes, start_height)`
 - Structure:
   ```rust
   pub struct PubRandCommit {
@@ -626,10 +600,10 @@ This section documents the actual state storage structure used by the finality c
     /// The amount of committed public randomness
     pub num_pub_rand: u64,
     /// The epoch number of Babylon when the commit was submitted
-    pub epoch: u64,
+    pub babylon_epoch: u64,
     /// Value of the commitment.
     /// Currently, it's the root of the Merkle tree constructed by the public randomness
-    pub commitment: Bytes,
+    pub commitment: Vec<u8>,
   }
   ```
 
@@ -687,7 +661,7 @@ BlockVoters {
 }
 ```
 
-**Return Type:** `Option<Vec<BlockVoterInfo>>` - List of finality providers and their signatures for the specified block
+**Return Type:** `Option<Vec<BlockVoterInfo>>` - List of finality providers and their signatures for the specified block, or `None` if no votes found.
 
 **Expected Behavior:** Finality contracts MUST implement this query to return
 the finality providers that voted for a specific block along with their complete signature information:
@@ -699,20 +673,20 @@ the finality providers that voted for a specific block along with their complete
    - Access the stored set of finality provider public keys from `SIGNATORIES_BY_BLOCK_HASH`
 
 3. For each finality provider in the set:
-   - Query the `FINALITY_SIGNATURES` storage using key (height, fp_pubkey_hex)
+   - Query the `FINALITY_SIGNATURES` storage using key (height, fp_pubkey_bytes)
    - IF signature not found: RETURN error with `QueryBlockVoterError`
-   - Query the `PUB_RAND_VALUES` storage using key (fp_pubkey_hex, height)
+   - Query the `PUB_RAND_VALUES` storage using key (fp_pubkey_bytes, height)
    - IF public randomness not found: RETURN error with `QueryBlockVoterError`
    - Create BlockVoterInfo with fp_btc_pk_hex, pub_rand, and FinalitySigInfo
 
 4. Return the list of BlockVoterInfo
    - IF no votes found: RETURN `None`
-   - IF votes exist: RETURN `Some(Vec<BlockVoterInfo>)`
+   - IF votes exist: RETURN `Some(Vec<BlockVoterInfo>)` with all voter information
 
 WHERE BlockVoterInfo contains:
 - `fp_btc_pk_hex`: `String` - The finality provider's BTC public key in hex format
 - `pub_rand`: `Vec<u8>` - The public randomness value for the block
-- `finality_signature`: `FinalitySigInfo` - Complete signature information including public randomness, signature, and block hash
+- `finality_signature`: `FinalitySigInfo` - Complete signature information including signature and block hash
 
 #### 5.6.2. FirstPubRandCommit (MUST)
 
@@ -741,10 +715,9 @@ the first public randomness commitment for a given finality provider:
    
 WHERE PubRandCommit contains:
 - `start_height`: `u64`
-- `fp_btc_pk_hex`: `String`
-- `num_pub_rand`: `u64`  
-- `commitment`: `Binary`
-- `signature`: `Binary`
+- `num_pub_rand`: `u64`
+- `babylon_epoch`: `u64`
+- `commitment`: `Vec<u8>`
 
 #### 5.6.3. LastPubRandCommit (MUST)
 
@@ -772,11 +745,10 @@ the last public randomness commitment for a given finality provider:
    - IF commitments exist: RETURN `Some(last_commitment)`
    
 WHERE PubRandCommit contains:
-- `fp_btc_pk_hex`: `String`
 - `start_height`: `u64`
-- `num_pub_rand`: `u64`  
-- `commitment`: `Binary`
-- `signature`: `Binary`
+- `num_pub_rand`: `u64`
+- `babylon_epoch`: `u64`
+- `commitment`: `Vec<u8>`
 
 #### 5.6.4. Admin (SHOULD)
 
