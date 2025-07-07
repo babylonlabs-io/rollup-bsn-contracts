@@ -8,6 +8,7 @@ import (
 
 	"github.com/CosmWasm/wasmd/x/wasm/keeper"
 	"github.com/babylonlabs-io/babylon/v3/app"
+	"github.com/babylonlabs-io/babylon/v3/testutil/datagen"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -53,6 +54,21 @@ func (s *FinalityContractTestSuite) SetupSuite() {
 }
 
 func (s *FinalityContractTestSuite) Test1RegisterRollupBSN() {
+	consumer := datagen.GenRandomRollupRegister(r, s.contractAddr.String())
+	consumer.ConsumerId = s.contractCfg.ConsumerID
+	err := s.babylonApp.BTCStkConsumerKeeper.RegisterConsumer(s.ctx, consumer)
+	s.NoError(err)
+
+	consumerInDB, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerRegister(s.ctx, s.contractCfg.ConsumerID)
+	s.NoError(err)
+	s.Equal(consumer.ConsumerId, consumerInDB.ConsumerId)
+	s.Equal(consumer.ConsumerDescription, consumerInDB.ConsumerDescription)
+	s.Equal(consumer.GetRollupConsumerMetadata().FinalityContractAddress, s.contractAddr.String())
+}
+
+func (s *FinalityContractTestSuite) Test1RegisterCreateBSNFP() {
+	_, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerRegister(s.ctx, s.contractCfg.ConsumerID)
+	s.NoError(err)
 
 }
 
