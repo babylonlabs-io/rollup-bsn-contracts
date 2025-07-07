@@ -11,6 +11,8 @@ import (
 	"github.com/babylonlabs-io/babylon/v3/crypto/eots"
 	"github.com/babylonlabs-io/babylon/v3/testutil/datagen"
 	bbn "github.com/babylonlabs-io/babylon/v3/types"
+	ckpttypes "github.com/babylonlabs-io/babylon/v3/x/checkpointing/types"
+	etypes "github.com/babylonlabs-io/babylon/v3/x/epoching/types"
 	ftypes "github.com/babylonlabs-io/babylon/v3/x/finality/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
@@ -89,7 +91,18 @@ func (s *FinalityContractTestSuite) Test2CreateBSNFP() {
 	s.Equal(fp.BtcPk, fpInDB.BtcPk)
 }
 
-func (s *FinalityContractTestSuite) Test3CommitPubRand() {
+func (s *FinalityContractTestSuite) Test3CommitAndTimestampPubRand() {
+	// increment to epoch 1
+	err := s.babylonApp.EpochingKeeper.InitEpoch(s.ctx, []*etypes.Epoch{
+		&etypes.Epoch{
+			EpochNumber:      1,
+			FirstBlockHeight: 1,
+		},
+	})
+	s.NoError(err)
+	epoch := s.babylonApp.EpochingKeeper.GetEpoch(s.ctx)
+	s.Equal(uint64(1), epoch.EpochNumber)
+
 	// get FP
 	fpBTCPK := bbn.NewBIP340PubKeyFromBTCPK(fpPK)
 	fp, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerFinalityProvider(s.ctx, s.contractCfg.ConsumerID, fpBTCPK)
@@ -128,8 +141,20 @@ func (s *FinalityContractTestSuite) Test3CommitPubRand() {
 	s.Equal(msg.StartHeight, queryRes.StartHeight)
 	s.Equal(msg.NumPubRand, queryRes.NumPubRand)
 	s.Equal(msg.Commitment, queryRes.Commitment)
+	s.Equal(uint64(1), queryRes.BabylonEpoch)
 
-	// TODO: finalise epoch
+	// finalise epoch
+	err = s.babylonApp.CheckpointingKeeper.CheckpointsState(s.ctx).CreateRawCkptWithMeta(&ckpttypes.RawCheckpointWithMeta{
+		Ckpt: &ckpttypes.RawCheckpoint{
+			EpochNum: queryRes.BabylonEpoch,
+		},
+		Status: ckpttypes.Finalized,
+	})
+	s.NoError(err)
+	s.babylonApp.CheckpointingKeeper.SetLastFinalizedEpoch(s.ctx, queryRes.BabylonEpoch)
+
+	lastFinalizedEpoch := s.babylonApp.CheckpointingKeeper.GetLastFinalizedEpoch(s.ctx)
+	s.Equal(queryRes.BabylonEpoch, lastFinalizedEpoch)
 }
 
 func (s *FinalityContractTestSuite) Test4SubmitFinalitySignature() {
