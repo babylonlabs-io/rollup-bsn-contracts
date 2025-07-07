@@ -33,8 +33,9 @@ pub fn query_block_voters(
     if let Some(set) = fp_pubkey_hex_set {
         let mut result = Vec::with_capacity(set.len());
         for fp_btc_pk_hex in set.iter() {
+            let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
             let sig = FINALITY_SIGNATURES
-                .may_load(deps.storage, (height, &hex::decode(fp_btc_pk_hex)?))?
+                .may_load(deps.storage, (height, &fp_btc_pk))?
                 .ok_or_else(|| {
                     ContractError::QueryBlockVoterError(
                         height,
@@ -44,7 +45,7 @@ pub fn query_block_voters(
                 })?;
 
             let pub_rand = PUB_RAND_VALUES
-                .may_load(deps.storage, (fp_btc_pk_hex.as_str(), height))?
+                .may_load(deps.storage, (&fp_btc_pk, height))?
                 .ok_or_else(|| {
                     ContractError::QueryBlockVoterError(
                         height,
@@ -54,7 +55,7 @@ pub fn query_block_voters(
                 })?;
 
             result.push(BlockVoterInfo {
-                fp_btc_pk_hex: fp_btc_pk_hex.clone(),
+                fp_btc_pk_hex: hex::encode(fp_btc_pk),
                 pub_rand,
                 finality_signature: sig,
             });
@@ -93,7 +94,7 @@ mod tests {
                 .save(deps.as_mut().storage, (height, &fp_btc_pk), &sig)
                 .unwrap();
             PUB_RAND_VALUES
-                .save(deps.as_mut().storage, (&fp_btc_pk_hex, height), &pub_rand)
+                .save(deps.as_mut().storage, (&fp_btc_pk, height), &pub_rand)
                 .unwrap();
             expected.push((fp_btc_pk_hex, pub_rand, sig));
         }

@@ -24,18 +24,20 @@ use crate::utils::query_finality_provider;
 pub fn handle_public_randomness_commit(
     deps: DepsMut<BabylonQuery>,
     _env: &Env,
-    fp_pubkey_hex: &str,
+    fp_btc_pk_hex: &str,
     start_height: u64,
     num_pub_rand: u64,
     commitment: &[u8],
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
     // Ensure the finality provider is registered and not slashed
-    ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_pubkey_hex)?;
+    ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
+
+    let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
 
     // Verify signature over the list
     verify_commitment_signature(
-        fp_pubkey_hex,
+        &fp_btc_pk,
         start_height,
         num_pub_rand,
         commitment,
@@ -49,7 +51,7 @@ pub fn handle_public_randomness_commit(
     let current_epoch = get_current_epoch(&deps.as_ref())?;
     insert_pub_rand_commit(
         deps.storage,
-        fp_pubkey_hex,
+        &fp_btc_pk,
         PubRandCommit {
             start_height,
             num_pub_rand,
@@ -59,7 +61,7 @@ pub fn handle_public_randomness_commit(
     )?;
 
     let event = Event::new("public_randomness_commit")
-        .add_attribute("fp_pubkey_hex", fp_pubkey_hex)
+        .add_attribute("fp_pubkey_hex", hex::encode(fp_btc_pk))
         .add_attribute("pr_commit.start_height", start_height.to_string())
         .add_attribute("pr_commit.num_pub_rand", num_pub_rand.to_string());
 
@@ -68,15 +70,14 @@ pub fn handle_public_randomness_commit(
 
 // Copied from contracts/btc-staking/src/finality.rs
 fn verify_commitment_signature(
-    fp_btc_pk_hex: &str,
+    fp_btc_pk: &[u8],
     start_height: u64,
     num_pub_rand: u64,
     commitment: &[u8],
     signature: &[u8],
 ) -> Result<(), ContractError> {
     // get BTC public key for verification
-    let btc_pk_raw = hex::decode(fp_btc_pk_hex)?;
-    let btc_pk = VerifyingKey::from_bytes(&btc_pk_raw)
+    let btc_pk = VerifyingKey::from_bytes(fp_btc_pk)
         .map_err(|e| ContractError::SecP256K1Error(e.to_string()))?;
 
     // get signature
@@ -131,18 +132,11 @@ pub fn handle_finality_signature(
 
     // Next, we are verifying the finality signature message
     // Find the public randomness commitment for this height from this finality provider
-    let pr_commit =
-        get_timestamped_pub_rand_commit_for_height(&deps.as_ref(), fp_btc_pk_hex, height)?;
+    let pr_commit = get_timestamped_pub_rand_commit_for_height(&deps.as_ref(), &fp_btc_pk, height)?;
 
     // Verify the finality signature message
     verify_finality_signature(
-        fp_btc_pk_hex,
-        height,
-        pub_rand,
-        proof,
-        &pr_commit,
-        block_hash,
-        signature,
+        &fp_btc_pk, height, pub_rand, proof, &pr_commit, block_hash, signature,
     )?;
 
     // Save the finality signature and signatory in an atomic operation
@@ -193,7 +187,7 @@ pub fn handle_finality_signature(
         // signature at this height
 
         // store public randomness
-        insert_pub_rand_value(deps.storage, fp_btc_pk_hex, height, pub_rand)?;
+        insert_pub_rand_value(deps.storage, &fp_btc_pk, height, pub_rand)?;
     }
 
     Ok(res)
@@ -203,7 +197,7 @@ pub fn handle_finality_signature(
 /// - Public randomness inclusion proof.
 /// - Finality signature
 fn verify_finality_signature(
-    fp_btc_pk_hex: &str,
+    fp_btc_pk: &[u8],
     block_height: u64,
     pub_rand: &[u8],
     proof: &Proof,
@@ -230,7 +224,7 @@ fn verify_finality_signature(
     proof.verify(&pr_commit.commitment, pub_rand)?;
 
     // Public randomness is good, verify finality signature
-    let pubkey = eots::PublicKey::from_hex(fp_btc_pk_hex)?;
+    let pubkey = eots::PublicKey::from_bytes(fp_btc_pk)?;
     let msg = msg_to_sign(block_height, app_hash);
     let msg_hash = Sha256::digest(msg);
 
@@ -334,10 +328,11 @@ pub(crate) mod tests {
     fn verify_commitment_signature_works() {
         // Define test values
         let (fp_btc_pk_hex, pr_commit, sig) = get_public_randomness_commitment();
+        let fp_btc_pk = hex::decode(&fp_btc_pk_hex).unwrap();
 
         // Verify commitment signature
         let res = verify_commitment_signature(
-            &fp_btc_pk_hex,
+            &fp_btc_pk,
             pr_commit.start_height,
             pr_commit.num_pub_rand,
             &pr_commit.commitment,
@@ -367,7 +362,7 @@ pub(crate) mod tests {
         // Verify finality signature
         assert!(proof.index >= 0, "Proof index should be non-negative");
         let res = verify_finality_signature(
-            &pk_hex,
+            &hex::decode(&pk_hex).unwrap(),
             pr_commit.start_height + proof.index.unsigned_abs(),
             &pub_rand_one,
             // we need to add a typecast below because the provided proof is of type
