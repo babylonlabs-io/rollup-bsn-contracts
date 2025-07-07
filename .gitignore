@@ -8,4 +8,3 @@ target/
 *.iml
 .cargo-ok
 *.log
-artifacts/
