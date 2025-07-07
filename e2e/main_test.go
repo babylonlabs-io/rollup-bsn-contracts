@@ -9,6 +9,8 @@ import (
 	"github.com/CosmWasm/wasmd/x/wasm/keeper"
 	"github.com/babylonlabs-io/babylon/v3/app"
 	"github.com/babylonlabs-io/babylon/v3/testutil/datagen"
+	bbn "github.com/babylonlabs-io/babylon/v3/types"
+	ftypes "github.com/babylonlabs-io/babylon/v3/x/finality/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -19,8 +21,9 @@ const (
 )
 
 var (
-	r          = rand.New(rand.NewSource(time.Now().UnixNano()))
-	fpSK, _, _ = datagen.GenRandomBTCKeyPair(r)
+	r             = rand.New(rand.NewSource(time.Now().UnixNano()))
+	fpSK, fpPK, _ = datagen.GenRandomBTCKeyPair(r)
+	randListInfo  *datagen.RandListInfo
 )
 
 func TestFinalityContractTestSuite(t *testing.T) {
@@ -85,6 +88,47 @@ func (s *FinalityContractTestSuite) Test2CreateBSNFP() {
 	s.Equal(fp.BtcPk, fpInDB.BtcPk)
 }
 
+func (s *FinalityContractTestSuite) Test3CommitPubRand() {
+	// get FP
+	fpBTCPK := bbn.NewBIP340PubKeyFromBTCPK(fpPK)
+	fp, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerFinalityProvider(s.ctx, s.contractCfg.ConsumerID, fpBTCPK)
+	s.NoError(err)
+
+	// generate secret/public randomness list
+	numPubRand := uint64(100)
+	commitStartHeight := uint64(1)
+	var msg *ftypes.MsgCommitPubRandList
+	randListInfo, msg, err = datagen.GenRandomMsgCommitPubRandList(r, fpSK, "", commitStartHeight, numPubRand)
+	s.NoError(err)
+
+	// construct pub rand commit message
+	contractMsg := NewMsgCommitPublicRandomness(
+		msg.FpBtcPk.MarshalHex(),
+		msg.StartHeight,
+		msg.NumPubRand,
+		msg.Commitment,
+		*msg.Sig,
+	)
+	contractMsgJson, err := json.Marshal(contractMsg)
+	s.NoError(err)
+
+	// commit pub rand
+	err = s.ExecuteContract(s.contractAddr, fp.Address(), contractMsgJson)
+	s.NoError(err)
+
+	// ensure pub rand commit is in the contract
+	query := NewQueryFirstPubRandCommit(fp.BtcPk.MarshalHex())
+	queryJson, err := json.Marshal(query)
+	s.NoError(err)
+	queryResBz := s.QueryContract(s.contractAddr, string(queryJson))
+	var queryRes PubRandCommitResponse
+	err = json.Unmarshal(queryResBz, &queryRes)
+	s.NoError(err)
+	s.Equal(msg.StartHeight, queryRes.StartHeight)
+	s.Equal(msg.NumPubRand, queryRes.NumPubRand)
+	s.Equal(msg.Commitment, queryRes.Commitment)
+}
+
 func (s *FinalityContractTestSuite) TearDownSuite() {
 
 }
@@ -133,14 +177,13 @@ func (s *FinalityContractTestSuite) QueryContract(
 
 func (s *FinalityContractTestSuite) ExecuteContract(
 	contract sdk.AccAddress,
-	minter sdk.AccAddress,
-	msg string,
-) {
+	caller sdk.AccAddress,
+	msg []byte,
+) error {
 	permKeeper := keeper.NewPermissionedKeeper(
 		s.babylonApp.WasmKeeper,
 		keeper.DefaultAuthorizationPolicy{},
 	)
-	msgBz := []byte(msg)
-	resp, err := permKeeper.Execute(s.ctx, contract, minter, msgBz, sdk.Coins{})
-	s.NoError(err, resp)
+	_, err := permKeeper.Execute(s.ctx, contract, caller, msg, sdk.Coins{})
+	return err
 }
