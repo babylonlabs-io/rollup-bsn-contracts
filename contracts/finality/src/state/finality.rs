@@ -111,6 +111,8 @@ mod tests {
         assert_eq!(signatories.len(), 1);
 
         // Test case 1 (should fail): duplicate signatory for the same block
+        // TODO: replace insert_signatory with insert_signatory_and_finality_sig after
+        // resolving #44
         let result = insert_signatory(deps.as_mut().storage, height, &block_hash, &fp_btc_pk_hex);
         assert_eq!(
             result,
@@ -144,5 +146,6 @@ mod tests {
             .unwrap();
         assert!(signatories.contains(&fp_btc_pk_hex));
         assert_eq!(signatories.len(), 1);
+        // TODO: assert number of finality signatures after resolving #44
     }
 }

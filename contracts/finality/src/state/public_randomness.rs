@@ -1,17 +1,14 @@
-use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Order::{Ascending, Descending};
-use cosmwasm_std::{Deps, StdResult, Storage};
-
-use cw_storage_plus::{Bound, Map};
-
-use babylon_bindings::BabylonQuery;
-
 use crate::custom_queries::get_last_finalized_epoch;
 use crate::error::ContractError;
 use crate::state::Bytes;
+use babylon_bindings::BabylonQuery;
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::Order::{Ascending, Descending};
+use cosmwasm_std::{Deps, StdResult, Storage};
+use cw_storage_plus::{Bound, Map};
 
 /// Map of public randomness values by fp public key hex and block height
-pub const PUB_RAND_VALUES: Map<(&str, u64), Vec<u8>> = Map::new("pub_rand_values");
+pub(crate) const PUB_RAND_VALUES: Map<(&str, u64), Vec<u8>> = Map::new("pub_rand_values");
 
 /// Map of public randomness commitments by fp and block height
 const PUB_RAND_COMMITS: Map<(&str, u64), PubRandCommit> = Map::new("pub_rand_commits");
