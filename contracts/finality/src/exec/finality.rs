@@ -25,53 +25,17 @@ pub fn handle_public_randomness_commit(
     commitment: &[u8],
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
-    // ValidateBasic checks equivalent to Go implementation
-    
-    // Check if FP BTC PubKey is empty
-    if fp_btc_pk_hex.is_empty() {
-        return Err(ContractError::EmptyFpBtcPubKey);
-    }
-
-    // Check if commitment is exactly 32 bytes
-    if commitment.len() != EXPECTED_COMMITMENT_LENGTH_BYTES {
-        return Err(ContractError::InvalidCommitmentLength {
-            expected: EXPECTED_COMMITMENT_LENGTH_BYTES,
-            actual: commitment.len(),
-        });
-    }
-
-    // Check for overflow when doing (StartHeight + NumPubRand)
-    // To avoid public randomness reset
-    let end_height = start_height.saturating_add(num_pub_rand);
-    if start_height >= end_height {
-        return Err(ContractError::OverflowInBlockHeight {
-            start_height,
-            end_height,
-        });
-    }
-
-    // Check if signature is empty
-    if signature.is_empty() {
-        return Err(ContractError::EmptySignature);
-    }
-
-    // Check if start height is too far into the future
-    let current_height = env.block.height;
-    if start_height >= current_height + MAX_PUB_RAND_COMMIT_OFFSET {
-        return Err(ContractError::InvalidPubRandHeight(
-            start_height,
-            current_height + MAX_PUB_RAND_COMMIT_OFFSET - 1,
-        ));
-    }
-
-    // Get config and validate minimum public randomness requirement
+    // Validate all parameters before processing
     let config = get_config(deps.as_ref())?;
-    if num_pub_rand < config.min_pub_rand {
-        return Err(ContractError::TooFewPubRand {
-            given: num_pub_rand,
-            required: config.min_pub_rand,
-        });
-    }
+    validate_pub_rand_commit(
+        env,
+        fp_btc_pk_hex,
+        start_height,
+        num_pub_rand,
+        commitment,
+        signature,
+        config.min_pub_rand,
+    )?;
 
     // Ensure the finality provider is registered and not slashed
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
@@ -111,7 +75,64 @@ pub fn handle_public_randomness_commit(
     Ok(Response::new().add_event(event))
 }
 
-// Copied from contracts/btc-staking/src/finality.rs
+/// Validates all parameters for public randomness commitment
+fn validate_pub_rand_commit(
+    env: &Env,
+    fp_btc_pk_hex: &str,
+    start_height: u64,
+    num_pub_rand: u64,
+    commitment: &[u8],
+    signature: &[u8],
+    min_pub_rand: u64,
+) -> Result<(), ContractError> {
+    // Check if FP BTC PubKey is empty
+    if fp_btc_pk_hex.is_empty() {
+        return Err(ContractError::EmptyFpBtcPubKey);
+    }
+
+    // Check if commitment is exactly 32 bytes
+    if commitment.len() != EXPECTED_COMMITMENT_LENGTH_BYTES {
+        return Err(ContractError::InvalidCommitmentLength {
+            expected: EXPECTED_COMMITMENT_LENGTH_BYTES,
+            actual: commitment.len(),
+        });
+    }
+
+    // Check for overflow when doing (StartHeight + NumPubRand)
+    // To avoid public randomness reset
+    let end_height = start_height.saturating_add(num_pub_rand);
+    if start_height >= end_height {
+        return Err(ContractError::OverflowInBlockHeight {
+            start_height,
+            end_height,
+        });
+    }
+
+    // Check if signature is empty
+    if signature.is_empty() {
+        return Err(ContractError::EmptySignature);
+    }
+
+    // Check if start height is too far into the future
+    let current_height = env.block.height;
+    if start_height >= current_height + MAX_PUB_RAND_COMMIT_OFFSET {
+        return Err(ContractError::InvalidPubRandHeight(
+            start_height,
+            current_height + MAX_PUB_RAND_COMMIT_OFFSET - 1,
+        ));
+    }
+
+    // Validate minimum public randomness requirement
+    if num_pub_rand < min_pub_rand {
+        return Err(ContractError::TooFewPubRand {
+            given: num_pub_rand,
+            required: min_pub_rand,
+        });
+    }
+
+    Ok(())
+}
+
 fn verify_commitment_signature(
     fp_btc_pk: &[u8],
     start_height: u64,
