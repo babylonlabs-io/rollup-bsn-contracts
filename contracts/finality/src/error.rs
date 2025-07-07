@@ -6,6 +6,10 @@ use thiserror::Error;
 // Note: copied from contracts/btc-staking/src/error.rs
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
+    #[error("Failed to load finality signature: {0} at height {1}")]
+    FailedToLoadFinalitySignature(String, u64),
+    #[error("Failed to load signatories by block hash: {0} at height {1}")]
+    FailedToLoadSignatories(String, u64),
     #[error("Empty signature from the delegator")]
     EmptySignature,
     #[error("EOTS error: {0}")]

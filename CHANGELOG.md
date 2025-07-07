@@ -49,6 +49,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Improvements
 
+* [#56](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/56) e2e: migrate e2e from babylon to contract repo
 * [#57](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/57) Fix block voters response type annotation
 * [#51](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/51) finality: refactor handle_finality_signature and revise unit tests
 * [#52](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/52) chore: remove unused fields in FP struct.

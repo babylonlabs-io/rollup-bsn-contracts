@@ -484,13 +484,13 @@
           "description": "`PubRandCommit` is a commitment to a series of public randomness. Currently, the commitment is a root of a Merkle tree that includes a series of public randomness values",
           "type": "object",
           "required": [
-            "babylon_genesis_epoch",
+            "babylon_epoch",
             "commitment",
             "num_pub_rand",
             "start_height"
           ],
           "properties": {
-            "babylon_genesis_epoch": {
+            "babylon_epoch": {
               "description": "The epoch number of Babylon when the commit was submitted",
               "type": "integer",
               "format": "uint64",
@@ -543,13 +543,13 @@
           "description": "`PubRandCommit` is a commitment to a series of public randomness. Currently, the commitment is a root of a Merkle tree that includes a series of public randomness values",
           "type": "object",
           "required": [
-            "babylon_genesis_epoch",
+            "babylon_epoch",
             "commitment",
             "num_pub_rand",
             "start_height"
           ],
           "properties": {
-            "babylon_genesis_epoch": {
+            "babylon_epoch": {
               "description": "The epoch number of Babylon when the commit was submitted",
               "type": "integer",
               "format": "uint64",

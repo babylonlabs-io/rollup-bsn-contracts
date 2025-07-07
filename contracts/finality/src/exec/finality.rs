@@ -1,25 +1,20 @@
-use k256::ecdsa::signature::Verifier;
-use k256::schnorr::{Signature, VerifyingKey};
-use k256::sha2::{Digest, Sha256};
-
-use cosmwasm_std::{Deps, DepsMut, Env, Event, MessageInfo, Response};
-
-use babylon_bindings::BabylonQuery;
-use babylon_merkle::Proof;
-
 use crate::custom_queries::get_current_epoch;
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::state::config::CONFIG;
 use crate::state::evidence::{insert_evidence, Evidence};
-use crate::state::finality::{
-    insert_finality_sig_and_signatory, FinalitySigInfo, FINALITY_SIGNATURES,
-};
+use crate::state::finality::{get_finality_signature, insert_finality_sig_and_signatory};
 use crate::state::public_randomness::{
     get_timestamped_pub_rand_commit_for_height, insert_pub_rand_commit, insert_pub_rand_value,
     PubRandCommit,
 };
 use crate::utils::query_finality_provider;
+use babylon_bindings::BabylonQuery;
+use babylon_merkle::Proof;
+use cosmwasm_std::{Deps, DepsMut, Env, Event, MessageInfo, Response};
+use k256::ecdsa::signature::Verifier;
+use k256::schnorr::{Signature, VerifyingKey};
+use k256::sha2::{Digest, Sha256};
 
 pub fn handle_public_randomness_commit(
     deps: DepsMut<BabylonQuery>,
@@ -55,7 +50,7 @@ pub fn handle_public_randomness_commit(
         PubRandCommit {
             start_height,
             num_pub_rand,
-            babylon_genesis_epoch: current_epoch,
+            babylon_epoch: current_epoch,
             commitment: commitment.to_vec(),
         },
     )?;
@@ -118,8 +113,7 @@ pub fn handle_finality_signature(
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
 
     // Load any type of existing finality signature by the finality provider at the same height
-    let existing_finality_sig: Option<FinalitySigInfo> =
-        FINALITY_SIGNATURES.may_load(deps.storage, (height, &fp_btc_pk))?;
+    let existing_finality_sig = get_finality_signature(deps.storage, height, &fp_btc_pk)?;
 
     // check if the finality signature submission is the same as the existing one
     if let Some(existing_sig) = &existing_finality_sig {
@@ -355,7 +349,7 @@ pub(crate) mod tests {
         let pr_commit = PubRandCommit {
             start_height: pr_commit.start_height,
             num_pub_rand: pr_commit.num_pub_rand,
-            babylon_genesis_epoch: current_epoch,
+            babylon_epoch: current_epoch,
             commitment: pr_commit.commitment,
         };
 

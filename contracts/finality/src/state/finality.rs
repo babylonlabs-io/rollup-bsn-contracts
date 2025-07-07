@@ -5,13 +5,32 @@ use cw_storage_plus::Map;
 use std::collections::HashSet;
 
 /// Map of (block height, finality provider public key) tuples to the finality signature for that block.
-pub(crate) const FINALITY_SIGNATURES: Map<(u64, &[u8]), FinalitySigInfo> =
-    Map::new("finality_signatures");
+const FINALITY_SIGNATURES: Map<(u64, &[u8]), FinalitySigInfo> = Map::new("finality_signatures");
+
+pub fn get_finality_signature(
+    storage: &dyn Storage,
+    height: u64,
+    fp_btc_pk: &[u8],
+) -> Result<Option<FinalitySigInfo>, ContractError> {
+    FINALITY_SIGNATURES
+        .may_load(storage, (height, fp_btc_pk))
+        .map_err(|_| ContractError::FailedToLoadFinalitySignature(hex::encode(fp_btc_pk), height))
+}
 
 /// Map of (block height, block hash) tuples to the list of signatories
 /// (each identified by the BTC public key in hex) for that block.
-pub(crate) const SIGNATORIES_BY_BLOCK_HASH: Map<(u64, &[u8]), HashSet<String>> =
+const SIGNATORIES_BY_BLOCK_HASH: Map<(u64, &[u8]), HashSet<String>> =
     Map::new("signatories_by_block_hash");
+
+pub fn get_signatories_by_block_hash(
+    storage: &dyn Storage,
+    height: u64,
+    block_hash: &[u8],
+) -> Result<Option<HashSet<String>>, ContractError> {
+    SIGNATORIES_BY_BLOCK_HASH
+        .may_load(storage, (height, block_hash))
+        .map_err(|_| ContractError::FailedToLoadSignatories(hex::encode(block_hash), height))
+}
 
 /// FinalitySigInfo is a struct that contains the finality signature and
 /// block hash for a given block height and fp
