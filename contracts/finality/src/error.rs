@@ -36,6 +36,8 @@ pub enum ContractError {
     InvalidFinalitySigAmount(u64, u64),
     #[error("The start height ({0}) has overlap with the height of the highest public randomness committed ({1})")]
     InvalidPubRandHeight(u64, u64),
+    #[error("Invalid public randomness commitment: commitment must be exactly 32 bytes")]
+    InvalidPubRandCommitment,
     #[error("Invalid finality signature: {0}")]
     InvalidSignature(String),
     #[error("Invalid num_pub_rand value: {0}. Must be at least 1 to prevent integer underflow")]

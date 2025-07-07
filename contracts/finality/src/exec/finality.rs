@@ -75,6 +75,11 @@ fn verify_commitment_signature(
     let btc_pk = VerifyingKey::from_bytes(fp_btc_pk)
         .map_err(|e| ContractError::SecP256K1Error(e.to_string()))?;
 
+    // Ensure commitment is exactly 32 bytes
+    if commitment.len() != 32 {
+        return Err(ContractError::InvalidPubRandCommitment);
+    }
+
     // get signature
     if signature.is_empty() {
         return Err(ContractError::EmptySignature);
@@ -333,6 +338,24 @@ pub(crate) mod tests {
             &sig,
         );
         assert!(res.is_ok());
+    }
+
+    #[test]
+    fn verify_commitment_invalid_length_rejected() {
+        // Define test values
+        let (fp_btc_pk_hex, pr_commit, sig) = get_public_randomness_commitment();
+        let fp_btc_pk = hex::decode(&fp_btc_pk_hex).unwrap();
+
+        // Verify commitment signature
+        let res = verify_commitment_signature(
+            &fp_btc_pk,
+            pr_commit.start_height,
+            pr_commit.num_pub_rand,
+            &pr_commit.commitment[..30],
+            &sig,
+        );
+        assert!(res.is_err());
+        assert_eq!(res.err().unwrap(), ContractError::InvalidPubRandCommitment);
     }
 
     #[test]
