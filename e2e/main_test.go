@@ -19,7 +19,8 @@ const (
 )
 
 var (
-	r = rand.New(rand.NewSource(time.Now().UnixNano()))
+	r          = rand.New(rand.NewSource(time.Now().UnixNano()))
+	fpSK, _, _ = datagen.GenRandomBTCKeyPair(r)
 )
 
 func TestFinalityContractTestSuite(t *testing.T) {
@@ -54,22 +55,34 @@ func (s *FinalityContractTestSuite) SetupSuite() {
 }
 
 func (s *FinalityContractTestSuite) Test1RegisterRollupBSN() {
-	consumer := datagen.GenRandomRollupRegister(r, s.contractAddr.String())
-	consumer.ConsumerId = s.contractCfg.ConsumerID
-	err := s.babylonApp.BTCStkConsumerKeeper.RegisterConsumer(s.ctx, consumer)
+	// register BSN
+	bsn := datagen.GenRandomRollupRegister(r, s.contractAddr.String())
+	bsn.ConsumerId = s.contractCfg.ConsumerID
+	err := s.babylonApp.BTCStkConsumerKeeper.RegisterConsumer(s.ctx, bsn)
 	s.NoError(err)
 
-	consumerInDB, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerRegister(s.ctx, s.contractCfg.ConsumerID)
+	// ensure BSN is registered
+	bsnInDB, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerRegister(s.ctx, s.contractCfg.ConsumerID)
 	s.NoError(err)
-	s.Equal(consumer.ConsumerId, consumerInDB.ConsumerId)
-	s.Equal(consumer.ConsumerDescription, consumerInDB.ConsumerDescription)
-	s.Equal(consumer.GetRollupConsumerMetadata().FinalityContractAddress, s.contractAddr.String())
+	s.Equal(bsn.ConsumerId, bsnInDB.ConsumerId)
+	s.Equal(bsn.ConsumerDescription, bsnInDB.ConsumerDescription)
+	s.Equal(bsn.GetRollupConsumerMetadata().FinalityContractAddress, s.contractAddr.String())
 }
 
-func (s *FinalityContractTestSuite) Test1RegisterCreateBSNFP() {
-	_, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerRegister(s.ctx, s.contractCfg.ConsumerID)
+func (s *FinalityContractTestSuite) Test2CreateBSNFP() {
+	// get registered BSN
+	bsn, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerRegister(s.ctx, s.contractCfg.ConsumerID)
 	s.NoError(err)
 
+	// register FP
+	fp, err := datagen.GenRandomFinalityProviderWithBTCSK(r, fpSK, "", bsn.ConsumerId)
+	s.NoError(err)
+	s.babylonApp.BTCStkConsumerKeeper.SetConsumerFinalityProvider(s.ctx, fp)
+
+	// ensure FP is registered
+	fpInDB, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerFinalityProvider(s.ctx, bsn.ConsumerId, fp.BtcPk)
+	s.NoError(err)
+	s.Equal(fp.BtcPk, fpInDB.BtcPk)
 }
 
 func (s *FinalityContractTestSuite) TearDownSuite() {
