@@ -42,10 +42,10 @@ pub fn query(
             deps, height, hash_hex,
         )?)?),
         QueryMsg::FirstPubRandCommit { btc_pk_hex } => Ok(to_json_binary(
-            &get_first_pub_rand_commit(deps.storage, &btc_pk_hex)?,
+            &get_first_pub_rand_commit(deps.storage, &hex::decode(&btc_pk_hex)?)?,
         )?),
         QueryMsg::LastPubRandCommit { btc_pk_hex } => Ok(to_json_binary(
-            &get_last_pub_rand_commit(deps.storage, &btc_pk_hex)?,
+            &get_last_pub_rand_commit(deps.storage, &hex::decode(&btc_pk_hex)?)?,
         )?),
         QueryMsg::IsEnabled {} => Ok(to_json_binary(&IS_ENABLED.load(deps.storage)?)?),
     }

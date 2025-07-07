@@ -33,8 +33,9 @@ pub fn query_block_voters(
     if let Some(set) = fp_pubkey_hex_set {
         let mut result = Vec::with_capacity(set.len());
         for fp_btc_pk_hex in set.iter() {
+            let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
             let sig = FINALITY_SIGNATURES
-                .may_load(deps.storage, (height, fp_btc_pk_hex.as_str()))?
+                .may_load(deps.storage, (height, &fp_btc_pk))?
                 .ok_or_else(|| {
                     ContractError::QueryBlockVoterError(
                         height,
@@ -44,7 +45,7 @@ pub fn query_block_voters(
                 })?;
 
             let pub_rand = PUB_RAND_VALUES
-                .may_load(deps.storage, (fp_btc_pk_hex.as_str(), height))?
+                .may_load(deps.storage, (&fp_btc_pk, height))?
                 .ok_or_else(|| {
                     ContractError::QueryBlockVoterError(
                         height,
@@ -54,7 +55,7 @@ pub fn query_block_voters(
                 })?;
 
             result.push(BlockVoterInfo {
-                fp_btc_pk_hex: fp_btc_pk_hex.clone(),
+                fp_btc_pk_hex: hex::encode(fp_btc_pk),
                 pub_rand,
                 finality_signature: sig,
             });
@@ -84,23 +85,16 @@ mod tests {
         let mut set = HashSet::new();
         let mut expected: Vec<(String, Vec<u8>, FinalitySigInfo)> = Vec::new();
         for _ in 0..num_fps {
-            let fp_btc_pk_hex = get_random_fp_pk_hex();
+            let fp_btc_pk = get_random_fp_pk();
+            let fp_btc_pk_hex = hex::encode(fp_btc_pk.clone());
             let sig = get_random_finality_sig(&block_hash);
             let pub_rand = get_random_pub_rand();
             set.insert(fp_btc_pk_hex.clone());
             FINALITY_SIGNATURES
-                .save(
-                    deps.as_mut().storage,
-                    (height, fp_btc_pk_hex.as_str()),
-                    &sig,
-                )
+                .save(deps.as_mut().storage, (height, &fp_btc_pk), &sig)
                 .unwrap();
             PUB_RAND_VALUES
-                .save(
-                    deps.as_mut().storage,
-                    (fp_btc_pk_hex.as_str(), height),
-                    &pub_rand,
-                )
+                .save(deps.as_mut().storage, (&fp_btc_pk, height), &pub_rand)
                 .unwrap();
             expected.push((fp_btc_pk_hex, pub_rand, sig));
         }

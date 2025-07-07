@@ -12,7 +12,9 @@ use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::state::config::CONFIG;
 use crate::state::evidence::{insert_evidence, Evidence};
-use crate::state::finality::{insert_signatory, FinalitySigInfo, FINALITY_SIGNATURES};
+use crate::state::finality::{
+    insert_finality_sig_and_signatory, FinalitySigInfo, FINALITY_SIGNATURES,
+};
 use crate::state::public_randomness::{
     get_timestamped_pub_rand_commit_for_height, insert_pub_rand_commit, insert_pub_rand_value,
     PubRandCommit,
@@ -22,18 +24,20 @@ use crate::utils::query_finality_provider;
 pub fn handle_public_randomness_commit(
     deps: DepsMut<BabylonQuery>,
     _env: &Env,
-    fp_pubkey_hex: &str,
+    fp_btc_pk_hex: &str,
     start_height: u64,
     num_pub_rand: u64,
     commitment: &[u8],
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
     // Ensure the finality provider is registered and not slashed
-    ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_pubkey_hex)?;
+    ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
+
+    let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
 
     // Verify signature over the list
     verify_commitment_signature(
-        fp_pubkey_hex,
+        &fp_btc_pk,
         start_height,
         num_pub_rand,
         commitment,
@@ -47,7 +51,7 @@ pub fn handle_public_randomness_commit(
     let current_epoch = get_current_epoch(&deps.as_ref())?;
     insert_pub_rand_commit(
         deps.storage,
-        fp_pubkey_hex,
+        &fp_btc_pk,
         PubRandCommit {
             start_height,
             num_pub_rand,
@@ -57,7 +61,7 @@ pub fn handle_public_randomness_commit(
     )?;
 
     let event = Event::new("public_randomness_commit")
-        .add_attribute("fp_pubkey_hex", fp_pubkey_hex)
+        .add_attribute("fp_pubkey_hex", hex::encode(fp_btc_pk))
         .add_attribute("pr_commit.start_height", start_height.to_string())
         .add_attribute("pr_commit.num_pub_rand", num_pub_rand.to_string());
 
@@ -65,16 +69,15 @@ pub fn handle_public_randomness_commit(
 }
 
 // Copied from contracts/btc-staking/src/finality.rs
-pub(crate) fn verify_commitment_signature(
-    fp_btc_pk_hex: &str,
+fn verify_commitment_signature(
+    fp_btc_pk: &[u8],
     start_height: u64,
     num_pub_rand: u64,
     commitment: &[u8],
     signature: &[u8],
 ) -> Result<(), ContractError> {
     // get BTC public key for verification
-    let btc_pk_raw = hex::decode(fp_btc_pk_hex)?;
-    let btc_pk = VerifyingKey::from_bytes(&btc_pk_raw)
+    let btc_pk = VerifyingKey::from_bytes(fp_btc_pk)
         .map_err(|e| ContractError::SecP256K1Error(e.to_string()))?;
 
     // get signature
@@ -112,67 +115,51 @@ pub fn handle_finality_signature(
     // Ensure the finality provider exists and is not slashed
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
 
-    // NOTE: It's possible that the finality provider equivocates for height h, and the signature is
-    // processed at height h' > h. In this case:
-    // - We should reject any new signature from this finality provider, since it's known to be adversarial.
-    // - We should set its voting power since height h'+1 to be zero, for to the same reason.
-    // - We should NOT set its voting power between [h, h'] to be zero, since
-    //   - Babylon BTC staking ensures safety upon 2f+1 votes, *even if* f of them are adversarial.
-    //     This is because as long as a block gets 2f+1 votes, any other block with 2f+1 votes has a
-    //     f+1 quorum intersection with this block, contradicting the assumption and leading to
-    //     the safety proof.
-    //     This ensures slashable safety together with EOTS, thus does not undermine Babylon's security guarantee.
-    //   - Due to this reason, when tallying a block, Babylon finalises this block upon 2f+1 votes. If we
-    //     modify voting power table in the history, some finality decisions might be contradicting to the
-    //     signature set and voting power table.
-    //   - To fix the above issue, Babylon has to allow finalised and not-finalised blocks. However,
-    //     this means Babylon will lose safety under an adaptive adversary corrupting even 1
-    //     finality provider. It can simply corrupt a new finality provider and equivocate a
-    //     historical block over and over again, making a previous block not finalisable forever.
-
-    // Ensure the finality provider has voting power at this height
-    // TODO (lester): use gRPC to query the Babylon Chain
-
-    // Ensure the signature is not empty
-    if signature.is_empty() {
-        return Err(ContractError::EmptySignature);
-    }
+    let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
 
     // Load any type of existing finality signature by the finality provider at the same height
     let existing_finality_sig: Option<FinalitySigInfo> =
-        FINALITY_SIGNATURES.may_load(deps.storage, (height, fp_btc_pk_hex))?;
+        FINALITY_SIGNATURES.may_load(deps.storage, (height, &fp_btc_pk))?;
 
-    // For optimization purposes, check if the finality signature submission is the same as the existing one
-    match existing_finality_sig {
-        Some(existing_finality_sig) if existing_finality_sig.finality_sig == signature => {
+    // check if the finality signature submission is the same as the existing one
+    if let Some(existing_sig) = &existing_finality_sig {
+        if existing_sig.finality_sig == signature {
             deps.api.debug(&format!("Received duplicated finality vote. Height: {height}, Finality Provider: {fp_btc_pk_hex}"));
             // Exactly the same vote already exists, return success to the provider
             return Ok(Response::new());
         }
-        _ => {}
     }
 
     // Next, we are verifying the finality signature message
     // Find the public randomness commitment for this height from this finality provider
-    let pr_commit =
-        get_timestamped_pub_rand_commit_for_height(&deps.as_ref(), fp_btc_pk_hex, height)?;
+    let pr_commit = get_timestamped_pub_rand_commit_for_height(&deps.as_ref(), &fp_btc_pk, height)?;
 
     // Verify the finality signature message
     verify_finality_signature(
-        fp_btc_pk_hex,
-        height,
-        pub_rand,
-        proof,
-        &pr_commit,
-        block_hash,
-        signature,
+        &fp_btc_pk, height, pub_rand, proof, &pr_commit, block_hash, signature,
     )?;
 
-    // Finality signature message is good, build the response
+    // Save the finality signature and signatory in an atomic operation
+    // to record the fact that this finality provider has signed the (height, block_hash) pair
+    // NOTE: The signature will be inserted even if this is an equivocation
+    insert_finality_sig_and_signatory(deps.storage, &fp_btc_pk, height, block_hash, signature)?;
+
+    // Build the response
     let mut res: Response<BabylonMsg> = Response::new();
 
-    // If this finality provider has signed a different block at the same height before,
-    // create equivocation evidence and send it directly to Babylon Genesis for slashing
+    // Add event to the response
+    let mut event = Event::new("submit_finality_signature")
+        .add_attribute("fp_pubkey_hex", fp_btc_pk_hex)
+        .add_attribute("block_height", height.to_string())
+        .add_attribute("block_hash", hex::encode(block_hash));
+    if let Some(l1_block_number) = l1_block_number {
+        event = event.add_attribute("l1_block_number", l1_block_number.to_string());
+    }
+    if let Some(l1_block_hash_hex) = l1_block_hash_hex {
+        event = event.add_attribute("l1_block_hash_hex", l1_block_hash_hex);
+    }
+    res = res.add_event(event);
+
     if let Some(existing_finality_sig) = existing_finality_sig {
         // The finality provider has voted for a different block at the same height!
         // Create equivocation evidence and send it to Babylon Genesis for slashing
@@ -189,47 +176,19 @@ pub fn handle_finality_signature(
         };
 
         // Save evidence for future reference
-        insert_evidence(deps.storage, height, fp_btc_pk_hex, &evidence)?;
+        insert_evidence(deps.storage, &evidence)?;
 
         // slash this finality provider, including setting its voting power to
         // zero, extracting its BTC SK, and emit an event
         let (msg, ev) = slash_finality_provider(&info, fp_btc_pk_hex, &evidence)?;
         res = res.add_message(msg).add_event(ev);
-        // TODO: should we return here?
-        // We might want to store the new finality signature, but the FINALITY_SIGNATURES storage
-        // can hold up to only one finality signature per height and fp.
+    } else {
+        // This is the first time seeing this finality provider submit finality
+        // signature at this height
+
+        // store public randomness
+        insert_pub_rand_value(deps.storage, &fp_btc_pk, height, pub_rand)?;
     }
-
-    // TODO: in the case of an existing finality signature,
-    // we are overriding the existing finality signature.
-    // This signature is good, save the vote to the store
-    let finality_sig = FinalitySigInfo {
-        finality_sig: signature.to_vec(),
-        block_hash: block_hash.to_vec(),
-    };
-    FINALITY_SIGNATURES.save(deps.storage, (height, fp_btc_pk_hex), &finality_sig)?;
-
-    // Store public randomness
-    // We expect that this will error if a public randomness has already been
-    // stored for this finality provider at this height.
-    insert_pub_rand_value(deps.storage, fp_btc_pk_hex, height, pub_rand)?;
-
-    // Add the fp_btc_pk_hex to the set using the helper
-    insert_signatory(deps.storage, height, block_hash, fp_btc_pk_hex)?;
-
-    let mut event = Event::new("submit_finality_signature")
-        .add_attribute("fp_pubkey_hex", fp_btc_pk_hex)
-        .add_attribute("block_height", height.to_string())
-        .add_attribute("block_hash", hex::encode(block_hash));
-
-    if let Some(l1_block_number) = l1_block_number {
-        event = event.add_attribute("l1_block_number", l1_block_number.to_string());
-    }
-    if let Some(l1_block_hash_hex) = l1_block_hash_hex {
-        event = event.add_attribute("l1_block_hash_hex", l1_block_hash_hex);
-    }
-
-    res = res.add_event(event);
 
     Ok(res)
 }
@@ -237,8 +196,8 @@ pub fn handle_finality_signature(
 /// Verifies the finality signature message w.r.t. the public randomness commitment:
 /// - Public randomness inclusion proof.
 /// - Finality signature
-pub(crate) fn verify_finality_signature(
-    fp_btc_pk_hex: &str,
+fn verify_finality_signature(
+    fp_btc_pk: &[u8],
     block_height: u64,
     pub_rand: &[u8],
     proof: &Proof,
@@ -265,7 +224,7 @@ pub(crate) fn verify_finality_signature(
     proof.verify(&pr_commit.commitment, pub_rand)?;
 
     // Public randomness is good, verify finality signature
-    let pubkey = eots::PublicKey::from_hex(fp_btc_pk_hex)?;
+    let pubkey = eots::PublicKey::from_bytes(fp_btc_pk)?;
     let msg = msg_to_sign(block_height, app_hash);
     let msg_hash = Sha256::digest(msg);
 
@@ -369,10 +328,11 @@ pub(crate) mod tests {
     fn verify_commitment_signature_works() {
         // Define test values
         let (fp_btc_pk_hex, pr_commit, sig) = get_public_randomness_commitment();
+        let fp_btc_pk = hex::decode(&fp_btc_pk_hex).unwrap();
 
         // Verify commitment signature
         let res = verify_commitment_signature(
-            &fp_btc_pk_hex,
+            &fp_btc_pk,
             pr_commit.start_height,
             pr_commit.num_pub_rand,
             &pr_commit.commitment,
@@ -402,7 +362,7 @@ pub(crate) mod tests {
         // Verify finality signature
         assert!(proof.index >= 0, "Proof index should be non-negative");
         let res = verify_finality_signature(
-            &pk_hex,
+            &hex::decode(&pk_hex).unwrap(),
             pr_commit.start_height + proof.index.unsigned_abs(),
             &pub_rand_one,
             // we need to add a typecast below because the provided proof is of type

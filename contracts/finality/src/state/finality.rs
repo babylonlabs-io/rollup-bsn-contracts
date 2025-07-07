@@ -4,8 +4,8 @@ use cosmwasm_std::Storage;
 use cw_storage_plus::Map;
 use std::collections::HashSet;
 
-/// Map of (block height, block hash) tuples to the finality signature for that block.
-pub(crate) const FINALITY_SIGNATURES: Map<(u64, &str), FinalitySigInfo> =
+/// Map of (block height, finality provider public key) tuples to the finality signature for that block.
+pub(crate) const FINALITY_SIGNATURES: Map<(u64, &[u8]), FinalitySigInfo> =
     Map::new("finality_signatures");
 
 /// Map of (block height, block hash) tuples to the list of signatories
@@ -25,12 +25,10 @@ pub struct FinalitySigInfo {
 
 /// Inserts a signatory into the SIGNATORIES_BY_BLOCK_HASH map for the given height and block hash.
 /// The function does not do any checks:
-/// - If the signatory is already there, the set will remain the same.
+/// - If the signatory is already there, return an error.
 /// - If the signatory is a new one, the caller is responsible for ensuring that they are
 ///   inserting the right one. An insertion without a corresponding entry for a finality provider
-///   in the FINALITY_SIGNATURES or PUB_RAND_VALUES storage might point to a storage corruption.
-///   TODO: Should we have checks to avoid the above storage corruption situation?
-pub fn insert_signatory(
+fn insert_signatory(
     storage: &mut dyn Storage,
     height: u64,
     block_hash: &[u8],
@@ -39,8 +37,38 @@ pub fn insert_signatory(
     let mut set = SIGNATORIES_BY_BLOCK_HASH
         .may_load(storage, (height, block_hash))?
         .unwrap_or_else(HashSet::new);
-    set.insert(signatory.to_string());
+    if !set.insert(signatory.to_string()) {
+        return Err(ContractError::DuplicateSignatory(signatory.to_string()));
+    }
     SIGNATORIES_BY_BLOCK_HASH.save(storage, (height, block_hash), &set)?;
+    Ok(())
+}
+
+/// Inserts finality sig and signatory into storage.
+/// Returns an error if any of the operations fail.
+pub fn insert_finality_sig_and_signatory(
+    storage: &mut dyn Storage,
+    fp_btc_pk: &[u8],
+    height: u64,
+    block_hash: &[u8],
+    signature: &[u8],
+) -> Result<(), ContractError> {
+    // Save the finality signature
+    // TODO: in the case of an existing finality signature,
+    // we are overriding the existing finality signature.
+    // https://github.com/babylonlabs-io/rollup-bsn-contracts/issues/44
+    FINALITY_SIGNATURES.save(
+        storage,
+        (height, fp_btc_pk),
+        &FinalitySigInfo {
+            finality_sig: signature.to_vec(),
+            block_hash: block_hash.to_vec(),
+        },
+    )?;
+
+    // Add the fp_btc_pk to the signatories for the (height, block_hash) pair
+    insert_signatory(storage, height, block_hash, &hex::encode(fp_btc_pk))?;
+
     Ok(())
 }
 
@@ -49,30 +77,81 @@ mod tests {
     use super::*;
     use crate::testutil::datagen::*;
     use cosmwasm_std::testing::mock_dependencies;
-    use rand::{rng, Rng};
-    use std::collections::HashSet;
 
     #[test]
-    fn test_insert_signatory_adds_to_set() {
+    fn test_insert_finality_sig_and_signatory() {
         let mut deps = mock_dependencies();
         let height = get_random_u64();
         let block_hash = get_random_block_hash();
-        let num_signatories = rng().random_range(1..=20);
-        let mut signatories_set = HashSet::new();
-        while signatories_set.len() < num_signatories {
-            signatories_set.insert(get_random_fp_pk_hex());
-        }
-        let signatories: Vec<_> = signatories_set.into_iter().collect();
-        for signatory in &signatories {
-            insert_signatory(deps.as_mut().storage, height, &block_hash, signatory).unwrap();
-        }
-        // Check that all signatories are present
-        let set = SIGNATORIES_BY_BLOCK_HASH
+        let signature = get_random_block_hash();
+        let fp_btc_pk = get_random_fp_pk();
+        let fp_btc_pk_hex = hex::encode(fp_btc_pk.clone());
+
+        // Insert the data
+        insert_finality_sig_and_signatory(
+            deps.as_mut().storage,
+            &fp_btc_pk,
+            height,
+            &block_hash,
+            &signature,
+        )
+        .unwrap();
+
+        // Verify finality signature was stored correctly
+        let finality_sig_info = FINALITY_SIGNATURES
+            .load(deps.as_ref().storage, (height, &fp_btc_pk))
+            .unwrap();
+        assert_eq!(finality_sig_info.finality_sig, signature);
+        assert_eq!(finality_sig_info.block_hash, block_hash);
+
+        // Verify signatory was added to the set
+        let signatories = SIGNATORIES_BY_BLOCK_HASH
             .load(deps.as_ref().storage, (height, &block_hash))
             .unwrap();
-        for signatory in &signatories {
-            assert!(set.contains(signatory));
-        }
-        assert_eq!(set.len(), num_signatories);
+        assert!(signatories.contains(&fp_btc_pk_hex));
+        assert_eq!(signatories.len(), 1);
+
+        // Test case 1 (should fail): duplicate signatory for the same block
+        // TODO: replace insert_signatory with insert_signatory_and_finality_sig after
+        // resolving #44
+        let result = insert_signatory(
+            deps.as_mut().storage,
+            height,
+            &block_hash,
+            &fp_btc_pk_hex.clone(),
+        );
+        assert_eq!(
+            result,
+            Err(ContractError::DuplicateSignatory(fp_btc_pk_hex.clone()))
+        );
+
+        // Test case 2 (should succeed): signing a different block hash at the same height
+        let different_block_hash = get_random_block_hash();
+        let different_signature = get_random_block_hash();
+        let result = insert_finality_sig_and_signatory(
+            deps.as_mut().storage,
+            &fp_btc_pk,
+            height,
+            &different_block_hash,
+            &different_signature,
+        );
+
+        // This should succeed
+        assert!(result.is_ok());
+
+        // Verify the new finality signature was stored correctly
+        let finality_sig_info = FINALITY_SIGNATURES
+            .load(deps.as_ref().storage, (height, &fp_btc_pk))
+            .unwrap();
+        assert_eq!(finality_sig_info.finality_sig, different_signature);
+        assert_eq!(finality_sig_info.block_hash, different_block_hash);
+
+        // Verify signatory was added to the set for the new block hash
+        let signatories = SIGNATORIES_BY_BLOCK_HASH
+            .load(deps.as_ref().storage, (height, &different_block_hash))
+            .unwrap();
+        assert!(signatories.contains(&fp_btc_pk_hex));
+        assert_eq!(signatories.len(), 1);
+        // TODO: assert number of finality signatures after resolving #44
     }
 }

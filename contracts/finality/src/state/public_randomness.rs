@@ -1,20 +1,17 @@
-use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Order::{Ascending, Descending};
-use cosmwasm_std::{Deps, StdResult, Storage};
-
-use cw_storage_plus::{Bound, Map};
-
-use babylon_bindings::BabylonQuery;
-
 use crate::custom_queries::get_last_finalized_epoch;
 use crate::error::ContractError;
 use crate::state::Bytes;
+use babylon_bindings::BabylonQuery;
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::Order::{Ascending, Descending};
+use cosmwasm_std::{Deps, StdResult, Storage};
+use cw_storage_plus::{Bound, Map};
 
-/// Map of public randomness values by fp public key hex and block height
-pub(crate) const PUB_RAND_VALUES: Map<(&str, u64), Vec<u8>> = Map::new("pub_rand_values");
+/// Map of public randomness values by fp public key and block height
+pub(crate) const PUB_RAND_VALUES: Map<(&[u8], u64), Vec<u8>> = Map::new("pub_rand_values");
 
-/// Map of public randomness commitments by fp and block height
-const PUB_RAND_COMMITS: Map<(&str, u64), PubRandCommit> = Map::new("pub_rand_commits");
+/// Map of public randomness commitments by fp public key and block height
+const PUB_RAND_COMMITS: Map<(&[u8], u64), PubRandCommit> = Map::new("pub_rand_commits");
 
 /// `PubRandCommit` is a commitment to a series of public randomness.
 /// Currently, the commitment is a root of a Merkle tree that includes a series of public randomness
@@ -53,14 +50,14 @@ impl PubRandCommit {
     }
 }
 
-pub fn get_pub_rand_commit_for_height(
+fn get_pub_rand_commit_for_height(
     storage: &dyn Storage,
-    fp_btc_pk_hex: &str,
+    fp_btc_pk: &[u8],
     height: u64,
 ) -> Result<PubRandCommit, ContractError> {
     let end_at = Some(Bound::inclusive(height));
     let res = PUB_RAND_COMMITS
-        .prefix(fp_btc_pk_hex)
+        .prefix(fp_btc_pk)
         .range_raw(storage, None, end_at, Descending)
         .filter(|item| {
             match item {
@@ -76,7 +73,7 @@ pub fn get_pub_rand_commit_for_height(
         .collect::<StdResult<Vec<_>>>()?;
     if res.is_empty() {
         Err(ContractError::MissingPubRandCommit(
-            fp_btc_pk_hex.to_string(),
+            hex::encode(fp_btc_pk),
             height,
         ))
     } else {
@@ -90,10 +87,10 @@ pub fn get_pub_rand_commit_for_height(
 // commitment is less than or equal to the last finalized epoch.
 pub fn get_timestamped_pub_rand_commit_for_height(
     deps: &Deps<BabylonQuery>,
-    fp_btc_pk_hex: &str,
+    fp_btc_pk: &[u8],
     height: u64,
 ) -> Result<PubRandCommit, ContractError> {
-    let pr_commit = get_pub_rand_commit_for_height(deps.storage, fp_btc_pk_hex, height)?;
+    let pr_commit = get_pub_rand_commit_for_height(deps.storage, fp_btc_pk, height)?;
 
     // Ensure the finality provider's corresponding randomness commitment is already finalised by
     // BTC timestamping
@@ -106,7 +103,9 @@ pub fn get_timestamped_pub_rand_commit_for_height(
     if last_finalized_epoch < pr_commit.babylon_genesis_epoch {
         return Err(ContractError::PubRandCommitNotBTCTimestamped(format!(
             "The finality provider {0} last committed epoch: {1}, last finalized epoch: {2}",
-            fp_btc_pk_hex, pr_commit.babylon_genesis_epoch, last_finalized_epoch
+            hex::encode(fp_btc_pk),
+            pr_commit.babylon_genesis_epoch,
+            last_finalized_epoch
         )));
     }
 
@@ -118,7 +117,7 @@ const DEFAULT_LIMIT: u32 = 10;
 
 fn get_pub_rand_commit(
     storage: &dyn Storage,
-    fp_btc_pk_hex: &str,
+    fp_btc_pk: &[u8],
     start_after: Option<u64>,
     limit: Option<u32>,
     reverse: Option<bool>,
@@ -131,7 +130,7 @@ fn get_pub_rand_commit(
         (start_after, None, Ascending)
     };
     let res = PUB_RAND_COMMITS
-        .prefix(fp_btc_pk_hex)
+        .prefix(fp_btc_pk)
         .range_raw(storage, start, end, order)
         .take(limit)
         .map(|item| {
@@ -146,17 +145,17 @@ fn get_pub_rand_commit(
 
 pub fn get_first_pub_rand_commit(
     storage: &dyn Storage,
-    fp_btc_pk_hex: &str,
+    fp_btc_pk: &[u8],
 ) -> Result<Option<PubRandCommit>, ContractError> {
-    let res = get_pub_rand_commit(storage, fp_btc_pk_hex, None, Some(1), Some(false))?;
+    let res = get_pub_rand_commit(storage, fp_btc_pk, None, Some(1), Some(false))?;
     Ok(res.into_iter().next())
 }
 
 pub fn get_last_pub_rand_commit(
     storage: &dyn Storage,
-    fp_btc_pk_hex: &str,
+    fp_btc_pk: &[u8],
 ) -> Result<Option<PubRandCommit>, ContractError> {
-    let res = get_pub_rand_commit(storage, fp_btc_pk_hex, None, Some(1), Some(true))?;
+    let res = get_pub_rand_commit(storage, fp_btc_pk, None, Some(1), Some(true))?;
     Ok(res.into_iter().next())
 }
 
@@ -164,7 +163,7 @@ pub fn get_last_pub_rand_commit(
 /// It ensures that the new commitment does not overlap with the existing ones.
 pub fn insert_pub_rand_commit(
     storage: &mut dyn Storage,
-    fp_pubkey_hex: &str,
+    fp_btc_pk: &[u8],
     pr_commit: PubRandCommit,
 ) -> Result<(), ContractError> {
     // Validate num_pub_rand is at least 1 to prevent integer underflow
@@ -173,7 +172,7 @@ pub fn insert_pub_rand_commit(
     }
 
     // Get last public randomness commitment
-    let last_pr_commit = get_last_pub_rand_commit(storage, fp_pubkey_hex)?;
+    let last_pr_commit = get_last_pub_rand_commit(storage, fp_btc_pk)?;
 
     // Ensure height and start_height do not overlap, i.e., height < start_height
     if let Some(last_pr_commit) = last_pr_commit {
@@ -187,7 +186,7 @@ pub fn insert_pub_rand_commit(
     }
 
     // All good, store the given public randomness commitment
-    PUB_RAND_COMMITS.save(storage, (fp_pubkey_hex, pr_commit.start_height), &pr_commit)?;
+    PUB_RAND_COMMITS.save(storage, (fp_btc_pk, pr_commit.start_height), &pr_commit)?;
     Ok(())
 }
 
@@ -198,23 +197,23 @@ pub fn insert_pub_rand_commit(
 /// - If a different value exists, it returns ContractError::PubRandAlreadyExists.
 ///   This is an error as the contract should recognize only a single public randomness value
 ///   for a specific height per finality provider.
-pub fn insert_pub_rand_value(
+pub(crate) fn insert_pub_rand_value(
     storage: &mut dyn Storage,
-    fp_btc_pk_hex: &str,
+    fp_btc_pk: &[u8],
     height: u64,
     pub_rand: &[u8],
 ) -> Result<(), ContractError> {
-    if let Some(existing) = PUB_RAND_VALUES.may_load(storage, (fp_btc_pk_hex, height))? {
+    if let Some(existing) = PUB_RAND_VALUES.may_load(storage, (fp_btc_pk, height))? {
         if existing == pub_rand {
             return Ok(());
         } else {
             return Err(ContractError::PubRandAlreadyExists(
-                fp_btc_pk_hex.to_string(),
+                hex::encode(fp_btc_pk),
                 height,
             ));
         }
     }
-    PUB_RAND_VALUES.save(storage, (fp_btc_pk_hex, height), &pub_rand.to_vec())?;
+    PUB_RAND_VALUES.save(storage, (fp_btc_pk, height), &pub_rand.to_vec())?;
     Ok(())
 }
 
@@ -229,7 +228,7 @@ mod tests {
     fn insert_pub_rand_commit_validates_num_pub_rand() {
         let mut deps = mock_dependencies();
         let env = mock_env();
-        let fp_btc_pk_hex = get_random_fp_pk_hex();
+        let fp_btc_pk = get_random_fp_pk();
         let start_height = get_random_u64();
         let commitment = get_random_block_hash();
 
@@ -241,7 +240,7 @@ mod tests {
             commitment.clone(),
         );
 
-        let result = insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk_hex, invalid_commit);
+        let result = insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk, invalid_commit);
 
         // Should return InvalidNumPubRand error
         assert!(result.is_err());
@@ -261,16 +260,15 @@ mod tests {
         );
 
         let result =
-            insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk_hex, valid_commit.clone());
+            insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk, valid_commit.clone());
 
         // Should pass the num_pub_rand validation
         assert!(result.is_ok());
 
         // Verify we can retrieve it with the helper functions
-        let first_commit =
-            get_first_pub_rand_commit(deps.as_ref().storage, &fp_btc_pk_hex).unwrap();
+        let first_commit = get_first_pub_rand_commit(deps.as_ref().storage, &fp_btc_pk).unwrap();
         assert_eq!(first_commit.unwrap(), valid_commit);
-        let last_commit = get_last_pub_rand_commit(deps.as_ref().storage, &fp_btc_pk_hex).unwrap();
+        let last_commit = get_last_pub_rand_commit(deps.as_ref().storage, &fp_btc_pk).unwrap();
         assert_eq!(last_commit.unwrap(), valid_commit);
     }
 
@@ -280,7 +278,7 @@ mod tests {
         let env = mock_env();
 
         // === SETUP: First commitment ===
-        let fp_btc_pk_hex = get_random_fp_pk_hex();
+        let fp_btc_pk = get_random_fp_pk();
         let initial_start_height = get_random_u64();
         let initial_num_pub_rand = get_random_u64();
         let initial_commitment = get_random_block_hash();
@@ -292,12 +290,7 @@ mod tests {
             env.block.height,
             initial_commitment,
         );
-        insert_pub_rand_commit(
-            deps.as_mut().storage,
-            &fp_btc_pk_hex,
-            initial_commit.clone(),
-        )
-        .unwrap();
+        insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk, initial_commit.clone()).unwrap();
 
         // === TEST CASE 1: Overlapping start height (should fail) ===
         let overlapping_start_height = initial_start_height - 1;
@@ -312,7 +305,7 @@ mod tests {
         );
 
         let overlapping_result =
-            insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk_hex, overlapping_commit);
+            insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk, overlapping_commit);
 
         // Should fail due to overlap
         assert_eq!(
@@ -336,7 +329,7 @@ mod tests {
         );
 
         let boundary_result =
-            insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk_hex, boundary_commit);
+            insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk, boundary_commit);
 
         // Should fail due to boundary overlap
         assert_eq!(
@@ -359,8 +352,7 @@ mod tests {
             valid_commitment,
         );
 
-        let valid_result =
-            insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk_hex, valid_commit);
+        let valid_result = insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk, valid_commit);
 
         // Should pass height overlap validation
         assert!(valid_result.is_ok());
@@ -369,7 +361,7 @@ mod tests {
     #[test]
     fn test_insert_pub_rand_value() {
         let mut deps = mock_dependencies();
-        let fp_btc_pk_hex = get_random_fp_pk_hex();
+        let fp_btc_pk = get_random_fp_pk();
         let num_sets = rng().random_range(1..=5);
         let mut all_heights = std::collections::HashSet::new();
         let mut pub_rands = Vec::new();
@@ -383,7 +375,7 @@ mod tests {
                 assert!(!all_heights.contains(&height), "Height overlap detected");
                 all_heights.insert(height);
                 let pub_rand = get_random_pub_rand();
-                insert_pub_rand_value(deps.as_mut().storage, &fp_btc_pk_hex, height, &pub_rand)
+                insert_pub_rand_value(deps.as_mut().storage, &fp_btc_pk.clone(), height, &pub_rand)
                     .unwrap();
                 pub_rands.push((height, pub_rand.clone()));
             }
@@ -391,18 +383,15 @@ mod tests {
         }
         // Check that all pub_rand values are present
         for (height, pub_rand) in &pub_rands {
+            let fp_btc_pk = fp_btc_pk.clone();
             let stored = PUB_RAND_VALUES
-                .load(deps.as_ref().storage, (&fp_btc_pk_hex, *height))
+                .load(deps.as_ref().storage, (&fp_btc_pk, *height))
                 .unwrap();
             assert_eq!(stored, *pub_rand);
             // Try to insert the same value again and expect Ok(())
-            assert!(insert_pub_rand_value(
-                deps.as_mut().storage,
-                &fp_btc_pk_hex,
-                *height,
-                pub_rand
-            )
-            .is_ok());
+            assert!(
+                insert_pub_rand_value(deps.as_mut().storage, &fp_btc_pk, *height, pub_rand).is_ok()
+            );
             // Try to insert a different value and expect an error
             let mut different_pub_rand = get_random_pub_rand();
             // Ensure it's different
@@ -411,14 +400,14 @@ mod tests {
             }
             let err = insert_pub_rand_value(
                 deps.as_mut().storage,
-                &fp_btc_pk_hex,
+                &fp_btc_pk,
                 *height,
                 &different_pub_rand,
             )
             .unwrap_err();
             match err {
                 ContractError::PubRandAlreadyExists(ref pk, h) => {
-                    assert_eq!(pk, &fp_btc_pk_hex);
+                    assert_eq!(pk, &hex::encode(fp_btc_pk));
                     assert_eq!(h, *height);
                 }
                 _ => panic!("Expected PubRandAlreadyExists error, got {:?}", err),
