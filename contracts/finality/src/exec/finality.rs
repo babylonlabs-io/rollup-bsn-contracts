@@ -1,7 +1,9 @@
 use crate::custom_queries::get_current_epoch;
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
-use crate::state::config::{get_config, MAX_PUB_RAND_COMMIT_OFFSET, EXPECTED_COMMITMENT_LENGTH_BYTES};
+use crate::state::config::{
+    get_config, EXPECTED_COMMITMENT_LENGTH_BYTES, MAX_PUB_RAND_COMMIT_OFFSET,
+};
 use crate::state::evidence::{insert_evidence, Evidence};
 use crate::state::finality::{get_finality_signature, insert_finality_sig_and_signatory};
 use crate::state::public_randomness::{
@@ -522,19 +524,26 @@ pub(crate) mod tests {
 
     mod validation_tests {
         use super::*;
-        use cosmwasm_std::testing::{mock_env};
         use crate::contract::tests::mock_deps_babylon;
         use crate::state::config::{Config, CONFIG};
-        
+        use cosmwasm_std::testing::mock_env;
+
         // Helper function to test validation logic by calling the function directly
         // These tests focus on the early validation checks that happen before any queries
 
         // Direct validation tests that verify the actual validation logic implementation
-        
+
         #[test]
         fn test_empty_fp_btc_pk_fails() {
             let mut deps = mock_deps_babylon();
-            
+
+            // Configure the contract with min_pub_rand
+            let config = Config {
+                consumer_id: "test".to_string(),
+                min_pub_rand: 100,
+            };
+            CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
             let result = handle_public_randomness_commit(
                 deps.as_mut(),
                 &mock_env(),
@@ -544,14 +553,21 @@ pub(crate) mod tests {
                 &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
                 &[1u8; 64],
             );
-            
+
             assert_eq!(result.unwrap_err(), ContractError::EmptyFpBtcPubKey);
         }
 
         #[test]
         fn test_invalid_commitment_length_fails() {
             let mut deps = mock_deps_babylon();
-            
+
+            // Configure the contract with min_pub_rand
+            let config = Config {
+                consumer_id: "test".to_string(),
+                min_pub_rand: 100,
+            };
+            CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
             // Test commitment too short
             let result = handle_public_randomness_commit(
                 deps.as_mut(),
@@ -562,7 +578,7 @@ pub(crate) mod tests {
                 &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES - 1], // Too short
                 &[1u8; 64],
             );
-            
+
             assert_eq!(
                 result.unwrap_err(),
                 ContractError::InvalidCommitmentLength {
@@ -575,13 +591,13 @@ pub(crate) mod tests {
             let result = handle_public_randomness_commit(
                 deps.as_mut(),
                 &mock_env(),
-                "valid_fp_key", 
+                "valid_fp_key",
                 100,
                 100,
                 &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES + 1], // Too long
                 &[1u8; 64],
             );
-            
+
             assert_eq!(
                 result.unwrap_err(),
                 ContractError::InvalidCommitmentLength {
@@ -594,7 +610,14 @@ pub(crate) mod tests {
         #[test]
         fn test_empty_signature_fails() {
             let mut deps = mock_deps_babylon();
-            
+
+            // Configure the contract with min_pub_rand
+            let config = Config {
+                consumer_id: "test".to_string(),
+                min_pub_rand: 100,
+            };
+            CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
             let result = handle_public_randomness_commit(
                 deps.as_mut(),
                 &mock_env(),
@@ -604,14 +627,21 @@ pub(crate) mod tests {
                 &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
                 &[], // Empty signature should fail
             );
-            
+
             assert_eq!(result.unwrap_err(), ContractError::EmptySignature);
         }
 
         #[test]
         fn test_overflow_protection_fails() {
             let mut deps = mock_deps_babylon();
-            
+
+            // Configure the contract with min_pub_rand
+            let config = Config {
+                consumer_id: "test".to_string(),
+                min_pub_rand: 100,
+            };
+            CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
             let result = handle_public_randomness_commit(
                 deps.as_mut(),
                 &mock_env(),
@@ -621,7 +651,7 @@ pub(crate) mod tests {
                 &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
                 &[1u8; 64],
             );
-            
+
             assert_eq!(
                 result.unwrap_err(),
                 ContractError::OverflowInBlockHeight {
@@ -635,10 +665,17 @@ pub(crate) mod tests {
         fn test_future_height_limit_fails() {
             let mut deps = mock_deps_babylon();
             let env = mock_env();
-            
+
+            // Configure the contract with min_pub_rand
+            let config = Config {
+                consumer_id: "test".to_string(),
+                min_pub_rand: 100,
+            };
+            CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
             // Start height too far in the future should fail
             let invalid_start_height = env.block.height + MAX_PUB_RAND_COMMIT_OFFSET + 1;
-            
+
             let result = handle_public_randomness_commit(
                 deps.as_mut(),
                 &env,
@@ -648,7 +685,7 @@ pub(crate) mod tests {
                 &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
                 &[1u8; 64],
             );
-            
+
             // The error should match exactly what the validation logic returns
             assert_eq!(
                 result.unwrap_err(),
@@ -662,14 +699,14 @@ pub(crate) mod tests {
         #[test]
         fn test_minimum_pub_rand_validation_fails() {
             let mut deps = mock_deps_babylon();
-            
+
             // Configure the contract with min_pub_rand = 100
             let config = Config {
                 consumer_id: "test".to_string(),
                 min_pub_rand: 100,
             };
             CONFIG.save(deps.as_mut().storage, &config).unwrap();
-            
+
             let result = handle_public_randomness_commit(
                 deps.as_mut(),
                 &mock_env(),
@@ -679,7 +716,7 @@ pub(crate) mod tests {
                 &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
                 &[1u8; 64],
             );
-            
+
             assert_eq!(
                 result.unwrap_err(),
                 ContractError::TooFewPubRand {
@@ -688,13 +725,18 @@ pub(crate) mod tests {
                 }
             );
         }
-        
+
         #[test]
         fn test_validation_constants_match_go() {
             // Verify our constants match the expected values
-            assert_eq!(MAX_PUB_RAND_COMMIT_OFFSET, 160_000, "MAX_PUB_RAND_COMMIT_OFFSET should match expected value");
-            assert_eq!(EXPECTED_COMMITMENT_LENGTH_BYTES, 32, "EXPECTED_COMMITMENT_LENGTH_BYTES should match expected value");
+            assert_eq!(
+                MAX_PUB_RAND_COMMIT_OFFSET, 160_000,
+                "MAX_PUB_RAND_COMMIT_OFFSET should match expected value"
+            );
+            assert_eq!(
+                EXPECTED_COMMITMENT_LENGTH_BYTES, 32,
+                "EXPECTED_COMMITMENT_LENGTH_BYTES should match expected value"
+            );
         }
-
     }
 }

@@ -7,9 +7,7 @@ use crate::queries::query_block_voters;
 use crate::state::config::{get_config, Config, ADMIN, CONFIG, IS_ENABLED};
 use crate::state::public_randomness::{get_first_pub_rand_commit, get_last_pub_rand_commit};
 use babylon_bindings::BabylonQuery;
-use cosmwasm_std::{
-    to_json_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
-};
+use cosmwasm_std::{to_json_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response};
 use cw_controllers::AdminError;
 
 pub fn instantiate(
