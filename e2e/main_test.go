@@ -163,7 +163,6 @@ func (s *FinalityContractTestSuite) Test4SubmitFinalitySignature() {
 	fp, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerFinalityProvider(s.ctx, s.contractCfg.ConsumerID, fpBTCPK)
 	s.NoError(err)
 
-	// Get blocks to vote
 	// Mock a block with start height 1
 	startHeight := uint64(1)
 	blockToVote := datagen.GenRandomBlockWithHeight(r, startHeight)
@@ -191,6 +190,52 @@ func (s *FinalityContractTestSuite) Test4SubmitFinalitySignature() {
 	// submit finality signature
 	err = s.ExecuteContract(s.contractAddr, fp.Address(), contractMsgJson)
 	s.NoError(err)
+}
+
+func (s *FinalityContractTestSuite) Test5Slash() {
+	// get FP
+	fpBTCPK := bbn.NewBIP340PubKeyFromBTCPK(fpPK)
+	fp, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerFinalityProvider(s.ctx, s.contractCfg.ConsumerID, fpBTCPK)
+	s.NoError(err)
+
+	// Mock another block with start height 1
+	startHeight := uint64(1)
+	blockToVote := datagen.GenRandomBlockWithHeight(r, startHeight)
+	appHash := blockToVote.AppHash
+
+	idx := 0
+	msgToSign := append(sdk.Uint64ToBigEndian(startHeight), appHash...)
+
+	// Generate EOTS signature
+	sig, err := eots.Sign(fpSK, randListInfo.SRList[idx], msgToSign)
+	s.NoError(err)
+	eotsSig := bbn.NewSchnorrEOTSSigFromModNScalar(sig)
+
+	contractMsg := NewMsgSubmitFinalitySignature(
+		fpBTCPK,
+		startHeight,
+		&randListInfo.PRList[idx],
+		randListInfo.ProofList[idx],
+		blockToVote.AppHash,
+		eotsSig,
+	)
+	contractMsgJson, err := json.Marshal(contractMsg)
+	s.NoError(err)
+
+	// submit equivocating finality signature
+	err = s.ExecuteContract(s.contractAddr, fp.Address(), contractMsgJson)
+	s.NoError(err)
+
+	// there should be an evidence on Babylon
+	evidence := s.babylonApp.FinalityKeeper.GetFirstSlashableEvidence(s.ctx, fpBTCPK)
+	s.NotNil(evidence)
+	s.Equal(evidence.FpBtcPk.MustMarshal(), fpBTCPK.MustMarshal())
+
+	// the extracted SK should be the same as the FP's SK
+	// Note: it's possible that the extracted SK is the negative of the FP's SK
+	extractedSK, err := evidence.ExtractBTCSK()
+	s.NoError(err)
+	s.True(extractedSK.Key.Equals(&fpSK.Key) || extractedSK.Key.Equals(fpSK.Key.Negate()))
 }
 
 func (s *FinalityContractTestSuite) TearDownSuite() {
