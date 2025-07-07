@@ -8,7 +8,7 @@ use crate::state::config::{get_config, Config, ADMIN, CONFIG, IS_ENABLED};
 use crate::state::public_randomness::{get_first_pub_rand_commit, get_last_pub_rand_commit};
 use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{
-    to_json_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, StdResult,
+    to_json_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
 };
 use cw_controllers::AdminError;
 
@@ -17,13 +17,19 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> StdResult<Response<BabylonMsg>> {
+) -> Result<Response<BabylonMsg>, ContractError> {
     let api = deps.api;
     ADMIN.set(deps.branch(), Some(api.addr_validate(&msg.admin)?))?;
     IS_ENABLED.save(deps.storage, &msg.is_enabled)?;
 
+    // Validate min_pub_rand is at least 1 to be consistent with existing validation
+    if msg.min_pub_rand == 0 {
+        return Err(ContractError::InvalidMinPubRand(msg.min_pub_rand));
+    }
+
     let config = Config {
         consumer_id: msg.consumer_id,
+        min_pub_rand: msg.min_pub_rand,
     };
     CONFIG.save(deps.storage, &config)?;
 
@@ -146,6 +152,7 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
             consumer_id,
             is_enabled: true,
+            min_pub_rand: 1,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -174,6 +181,7 @@ pub(crate) mod tests {
             admin: init_admin.to_string(), // Admin provided
             consumer_id: "op-stack-l2-11155420".to_string(),
             is_enabled: true,
+            min_pub_rand: 1,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -212,5 +220,28 @@ pub(crate) mod tests {
 
         // Use assert_admin to verify that the admin was updated correctly
         ADMIN.assert_admin(deps.as_ref(), &new_admin).unwrap();
+    }
+
+    #[test]
+    fn instantiate_fails_with_invalid_min_pub_rand() {
+        let mut deps = mock_deps_babylon();
+        let init_admin = deps.api.addr_make(INIT_ADMIN);
+        let consumer_id = "op".to_string();
+
+        // Create an InstantiateMsg with invalid min_pub_rand = 0
+        let msg = InstantiateMsg {
+            admin: init_admin.to_string(),
+            consumer_id,
+            is_enabled: true,
+            min_pub_rand: 0, // This should fail
+        };
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+
+        // Call the instantiate function - should fail
+        let err = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+
+        // Should return InvalidMinPubRand error
+        assert_eq!(err, ContractError::InvalidMinPubRand(0));
     }
 }

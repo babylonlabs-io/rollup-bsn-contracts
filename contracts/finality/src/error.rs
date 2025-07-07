@@ -40,6 +40,8 @@ pub enum ContractError {
     InvalidSignature(String),
     #[error("Invalid num_pub_rand value: {0}. Must be at least 1 to prevent integer underflow")]
     InvalidNumPubRand(u64),
+    #[error("Invalid min_pub_rand value: {0}. Must be at least 1")]
+    InvalidMinPubRand(u64),
     #[error("{0}")]
     MerkleError(#[from] MerkleError),
     #[error("Public randomness not found for finality provider {0} at height {1}")]
@@ -72,4 +74,12 @@ pub enum ContractError {
     EvidenceAlreadyExists(String, u64),
     #[error("Duplicate signatory {0}")]
     DuplicateSignatory(String),
+    #[error("Too few public randomness values: given {given}, required minimum {required}")]
+    TooFewPubRand { given: u64, required: u64 },
+    #[error("Block height overflow: start height {start_height} is equal or higher than (start height + num pub rand) {end_height}")]
+    OverflowInBlockHeight { start_height: u64, end_height: u64 },
+    #[error("Invalid commitment length: expected {expected} bytes, got {actual}")]
+    InvalidCommitmentLength { expected: usize, actual: usize },
+    #[error("Empty finality provider BTC public key")]
+    EmptyFpBtcPubKey,
 }

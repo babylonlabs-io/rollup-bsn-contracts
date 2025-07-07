@@ -1,7 +1,7 @@
 use crate::custom_queries::get_current_epoch;
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
-use crate::state::config::CONFIG;
+use crate::state::config::{get_config, MAX_PUB_RAND_COMMIT_OFFSET, EXPECTED_COMMITMENT_LENGTH_BYTES};
 use crate::state::evidence::{insert_evidence, Evidence};
 use crate::state::finality::{get_finality_signature, insert_finality_sig_and_signatory};
 use crate::state::public_randomness::{
@@ -18,13 +18,61 @@ use k256::sha2::{Digest, Sha256};
 
 pub fn handle_public_randomness_commit(
     deps: DepsMut<BabylonQuery>,
-    _env: &Env,
+    env: &Env,
     fp_btc_pk_hex: &str,
     start_height: u64,
     num_pub_rand: u64,
     commitment: &[u8],
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
+    // ValidateBasic checks equivalent to Go implementation
+    
+    // Check if FP BTC PubKey is empty
+    if fp_btc_pk_hex.is_empty() {
+        return Err(ContractError::EmptyFpBtcPubKey);
+    }
+
+    // Check if commitment is exactly 32 bytes
+    if commitment.len() != EXPECTED_COMMITMENT_LENGTH_BYTES {
+        return Err(ContractError::InvalidCommitmentLength {
+            expected: EXPECTED_COMMITMENT_LENGTH_BYTES,
+            actual: commitment.len(),
+        });
+    }
+
+    // Check for overflow when doing (StartHeight + NumPubRand)
+    // To avoid public randomness reset
+    let end_height = start_height.saturating_add(num_pub_rand);
+    if start_height >= end_height {
+        return Err(ContractError::OverflowInBlockHeight {
+            start_height,
+            end_height,
+        });
+    }
+
+    // Check if signature is empty
+    if signature.is_empty() {
+        return Err(ContractError::EmptySignature);
+    }
+
+    // Check if start height is too far into the future
+    let current_height = env.block.height;
+    if start_height >= current_height + MAX_PUB_RAND_COMMIT_OFFSET {
+        return Err(ContractError::InvalidPubRandHeight(
+            start_height,
+            current_height + MAX_PUB_RAND_COMMIT_OFFSET - 1,
+        ));
+    }
+
+    // Get config and validate minimum public randomness requirement
+    let config = get_config(deps.as_ref())?;
+    if num_pub_rand < config.min_pub_rand {
+        return Err(ContractError::TooFewPubRand {
+            given: num_pub_rand,
+            required: config.min_pub_rand,
+        });
+    }
+
     // Ensure the finality provider is registered and not slashed
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
 
@@ -241,7 +289,7 @@ fn ensure_fp_exists_and_not_slashed(
     deps: Deps<BabylonQuery>,
     fp_pubkey_hex: &str,
 ) -> Result<(), ContractError> {
-    let config = CONFIG.load(deps.storage)?;
+    let config = get_config(deps)?;
     let fp = query_finality_provider(deps, config.consumer_id.clone(), fp_pubkey_hex.to_string());
     match fp {
         Ok(value) if value.is_slashed() => Err(ContractError::SlashedFinalityProvider(
@@ -449,5 +497,183 @@ pub(crate) mod tests {
             attrs.get("canonical_app_hash").unwrap(),
             &hex::encode(&evidence.canonical_app_hash)
         );
+    }
+
+    mod validation_tests {
+        use super::*;
+        use cosmwasm_std::testing::{mock_env};
+        use crate::contract::tests::mock_deps_babylon;
+        use crate::state::config::{Config, CONFIG};
+        
+        // Helper function to test validation logic by calling the function directly
+        // These tests focus on the early validation checks that happen before any queries
+
+        // Direct validation tests that verify the actual validation logic implementation
+        
+        #[test]
+        fn test_empty_fp_btc_pk_fails() {
+            let mut deps = mock_deps_babylon();
+            
+            let result = handle_public_randomness_commit(
+                deps.as_mut(),
+                &mock_env(),
+                "", // Empty FP BTC pubkey should fail
+                100,
+                100,
+                &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
+                &[1u8; 64],
+            );
+            
+            assert_eq!(result.unwrap_err(), ContractError::EmptyFpBtcPubKey);
+        }
+
+        #[test]
+        fn test_invalid_commitment_length_fails() {
+            let mut deps = mock_deps_babylon();
+            
+            // Test commitment too short
+            let result = handle_public_randomness_commit(
+                deps.as_mut(),
+                &mock_env(),
+                "valid_fp_key",
+                100,
+                100,
+                &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES - 1], // Too short
+                &[1u8; 64],
+            );
+            
+            assert_eq!(
+                result.unwrap_err(),
+                ContractError::InvalidCommitmentLength {
+                    expected: EXPECTED_COMMITMENT_LENGTH_BYTES,
+                    actual: EXPECTED_COMMITMENT_LENGTH_BYTES - 1
+                }
+            );
+
+            // Test commitment too long
+            let result = handle_public_randomness_commit(
+                deps.as_mut(),
+                &mock_env(),
+                "valid_fp_key", 
+                100,
+                100,
+                &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES + 1], // Too long
+                &[1u8; 64],
+            );
+            
+            assert_eq!(
+                result.unwrap_err(),
+                ContractError::InvalidCommitmentLength {
+                    expected: EXPECTED_COMMITMENT_LENGTH_BYTES,
+                    actual: EXPECTED_COMMITMENT_LENGTH_BYTES + 1
+                }
+            );
+        }
+
+        #[test]
+        fn test_empty_signature_fails() {
+            let mut deps = mock_deps_babylon();
+            
+            let result = handle_public_randomness_commit(
+                deps.as_mut(),
+                &mock_env(),
+                "valid_fp_key",
+                100,
+                100,
+                &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
+                &[], // Empty signature should fail
+            );
+            
+            assert_eq!(result.unwrap_err(), ContractError::EmptySignature);
+        }
+
+        #[test]
+        fn test_overflow_protection_fails() {
+            let mut deps = mock_deps_babylon();
+            
+            let result = handle_public_randomness_commit(
+                deps.as_mut(),
+                &mock_env(),
+                "valid_fp_key",
+                u64::MAX, // This will cause overflow when added to num_pub_rand
+                1,
+                &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
+                &[1u8; 64],
+            );
+            
+            assert_eq!(
+                result.unwrap_err(),
+                ContractError::OverflowInBlockHeight {
+                    start_height: u64::MAX,
+                    end_height: u64::MAX // saturating_add results in MAX
+                }
+            );
+        }
+
+        #[test]
+        fn test_future_height_limit_fails() {
+            let mut deps = mock_deps_babylon();
+            let env = mock_env();
+            
+            // Start height too far in the future should fail
+            let invalid_start_height = env.block.height + MAX_PUB_RAND_COMMIT_OFFSET + 1;
+            
+            let result = handle_public_randomness_commit(
+                deps.as_mut(),
+                &env,
+                "valid_fp_key",
+                invalid_start_height,
+                100,
+                &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
+                &[1u8; 64],
+            );
+            
+            // The error should match exactly what the validation logic returns
+            assert_eq!(
+                result.unwrap_err(),
+                ContractError::InvalidPubRandHeight(
+                    invalid_start_height,
+                    env.block.height + MAX_PUB_RAND_COMMIT_OFFSET - 1
+                )
+            );
+        }
+
+        #[test]
+        fn test_minimum_pub_rand_validation_fails() {
+            let mut deps = mock_deps_babylon();
+            
+            // Configure the contract with min_pub_rand = 100
+            let config = Config {
+                consumer_id: "test".to_string(),
+                min_pub_rand: 100,
+            };
+            CONFIG.save(deps.as_mut().storage, &config).unwrap();
+            
+            let result = handle_public_randomness_commit(
+                deps.as_mut(),
+                &mock_env(),
+                "valid_fp_key",
+                100,
+                50, // Less than minimum of 100 should fail
+                &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
+                &[1u8; 64],
+            );
+            
+            assert_eq!(
+                result.unwrap_err(),
+                ContractError::TooFewPubRand {
+                    given: 50,
+                    required: 100
+                }
+            );
+        }
+        
+        #[test]
+        fn test_validation_constants_match_go() {
+            // Verify our constants match the expected values
+            assert_eq!(MAX_PUB_RAND_COMMIT_OFFSET, 160_000, "MAX_PUB_RAND_COMMIT_OFFSET should match expected value");
+            assert_eq!(EXPECTED_COMMITMENT_LENGTH_BYTES, 32, "EXPECTED_COMMITMENT_LENGTH_BYTES should match expected value");
+        }
+
     }
 }

@@ -38,6 +38,7 @@ fn instantiate_works() {
         admin: mock_api.addr_make(CREATOR),
         consumer_id: "op-stack-l2-11155420".to_string(),
         is_enabled: false,
+        min_pub_rand: 100,
     };
     let info = mock_info(CREATOR, &[]);
     let res: ContractResult<Response> = instantiate(&mut deps, mock_env(), info, msg.clone());
@@ -48,6 +49,7 @@ fn instantiate_works() {
     let res: Config =
         from_json(query(&mut deps, mock_env(), QueryMsg::Config {}).unwrap()).unwrap();
     assert_eq!(msg.consumer_id, res.consumer_id);
+    assert_eq!(msg.min_pub_rand, res.min_pub_rand);
 
     // Check the admin is properly stored in the state and returned
     let res: AdminResponse =
@@ -69,6 +71,7 @@ fn disable_and_reenable_works() {
         admin: mock_api.addr_make(CREATOR),
         consumer_id: "op-stack-l2-11155420".to_string(),
         is_enabled: false,
+        min_pub_rand: 100,
     };
     let info = mock_info(CREATOR, &[]);
     let mut res: ContractResult<Response> =
@@ -128,6 +131,7 @@ fn instantiate_enabled() {
         admin: mock_api.addr_make(CREATOR),
         consumer_id: "op-stack-l2-11155420".to_string(),
         is_enabled: true,
+        min_pub_rand: 100,
     };
     let info = mock_info(CREATOR, &[]);
     let res: ContractResult<Response> = instantiate(&mut instance, mock_env(), info, msg.clone());
