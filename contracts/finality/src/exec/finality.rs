@@ -114,9 +114,11 @@ pub fn handle_finality_signature(
     // Ensure the finality provider exists and is not slashed
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
 
+    let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
+
     // Load any type of existing finality signature by the finality provider at the same height
     let existing_finality_sig: Option<FinalitySigInfo> =
-        FINALITY_SIGNATURES.may_load(deps.storage, (height, fp_btc_pk_hex))?;
+        FINALITY_SIGNATURES.may_load(deps.storage, (height, &fp_btc_pk))?;
 
     // check if the finality signature submission is the same as the existing one
     if let Some(existing_sig) = &existing_finality_sig {
@@ -146,7 +148,7 @@ pub fn handle_finality_signature(
     // Save the finality signature and signatory in an atomic operation
     // to record the fact that this finality provider has signed the (height, block_hash) pair
     // NOTE: The signature will be inserted even if this is an equivocation
-    insert_finality_sig_and_signatory(deps.storage, fp_btc_pk_hex, height, block_hash, signature)?;
+    insert_finality_sig_and_signatory(deps.storage, &fp_btc_pk, height, block_hash, signature)?;
 
     // Build the response
     let mut res: Response<BabylonMsg> = Response::new();

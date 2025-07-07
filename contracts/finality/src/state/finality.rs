@@ -4,8 +4,8 @@ use cosmwasm_std::Storage;
 use cw_storage_plus::Map;
 use std::collections::HashSet;
 
-/// Map of (block height, finality provider public key in hex) tuples to the finality signature for that block.
-pub(crate) const FINALITY_SIGNATURES: Map<(u64, &str), FinalitySigInfo> =
+/// Map of (block height, finality provider public key) tuples to the finality signature for that block.
+pub(crate) const FINALITY_SIGNATURES: Map<(u64, &[u8]), FinalitySigInfo> =
     Map::new("finality_signatures");
 
 /// Map of (block height, block hash) tuples to the list of signatories
@@ -48,7 +48,7 @@ fn insert_signatory(
 /// Returns an error if any of the operations fail.
 pub fn insert_finality_sig_and_signatory(
     storage: &mut dyn Storage,
-    fp_btc_pk_hex: &str,
+    fp_btc_pk: &[u8],
     height: u64,
     block_hash: &[u8],
     signature: &[u8],
@@ -59,15 +59,15 @@ pub fn insert_finality_sig_and_signatory(
     // https://github.com/babylonlabs-io/rollup-bsn-contracts/issues/44
     FINALITY_SIGNATURES.save(
         storage,
-        (height, fp_btc_pk_hex),
+        (height, fp_btc_pk),
         &FinalitySigInfo {
             finality_sig: signature.to_vec(),
             block_hash: block_hash.to_vec(),
         },
     )?;
 
-    // Add the fp_btc_pk_hex to the signatories for the (height, block_hash) pair
-    insert_signatory(storage, height, block_hash, fp_btc_pk_hex)?;
+    // Add the fp_btc_pk to the signatories for the (height, block_hash) pair
+    insert_signatory(storage, height, block_hash, &hex::encode(fp_btc_pk))?;
 
     Ok(())
 }
@@ -84,12 +84,13 @@ mod tests {
         let height = get_random_u64();
         let block_hash = get_random_block_hash();
         let signature = get_random_block_hash();
-        let fp_btc_pk_hex = get_random_fp_pk_hex();
+        let fp_btc_pk = get_random_fp_pk();
+        let fp_btc_pk_hex = hex::encode(fp_btc_pk.clone());
 
         // Insert the data
         insert_finality_sig_and_signatory(
             deps.as_mut().storage,
-            &fp_btc_pk_hex,
+            &fp_btc_pk,
             height,
             &block_hash,
             &signature,
@@ -98,7 +99,7 @@ mod tests {
 
         // Verify finality signature was stored correctly
         let finality_sig_info = FINALITY_SIGNATURES
-            .load(deps.as_ref().storage, (height, &fp_btc_pk_hex))
+            .load(deps.as_ref().storage, (height, &fp_btc_pk))
             .unwrap();
         assert_eq!(finality_sig_info.finality_sig, signature);
         assert_eq!(finality_sig_info.block_hash, block_hash);
@@ -113,7 +114,12 @@ mod tests {
         // Test case 1 (should fail): duplicate signatory for the same block
         // TODO: replace insert_signatory with insert_signatory_and_finality_sig after
         // resolving #44
-        let result = insert_signatory(deps.as_mut().storage, height, &block_hash, &fp_btc_pk_hex);
+        let result = insert_signatory(
+            deps.as_mut().storage,
+            height,
+            &block_hash,
+            &fp_btc_pk_hex.clone(),
+        );
         assert_eq!(
             result,
             Err(ContractError::DuplicateSignatory(fp_btc_pk_hex.clone()))
@@ -124,7 +130,7 @@ mod tests {
         let different_signature = get_random_block_hash();
         let result = insert_finality_sig_and_signatory(
             deps.as_mut().storage,
-            &fp_btc_pk_hex,
+            &fp_btc_pk,
             height,
             &different_block_hash,
             &different_signature,
@@ -135,7 +141,7 @@ mod tests {
 
         // Verify the new finality signature was stored correctly
         let finality_sig_info = FINALITY_SIGNATURES
-            .load(deps.as_ref().storage, (height, &fp_btc_pk_hex))
+            .load(deps.as_ref().storage, (height, &fp_btc_pk))
             .unwrap();
         assert_eq!(finality_sig_info.finality_sig, different_signature);
         assert_eq!(finality_sig_info.block_hash, different_block_hash);
