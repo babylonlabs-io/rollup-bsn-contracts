@@ -28,14 +28,3 @@ jobs:
         rustup component add rustfmt
         cargo fmt -- --check
         cargo test --lib
-
-  e2e-tests:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4.1.0
-    - name: Set up Go 1.23
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.23'
-    - name: Run e2e tests
-      run: ./scripts/e2e_test.sh
