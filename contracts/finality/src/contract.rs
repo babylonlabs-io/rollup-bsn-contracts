@@ -16,14 +16,14 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response<BabylonMsg>, ContractError> {
-    let api = deps.api;
-    ADMIN.set(deps.branch(), Some(api.addr_validate(&msg.admin)?))?;
-    IS_ENABLED.save(deps.storage, &msg.is_enabled)?;
-
     // Validate min_pub_rand is at least 1 to be consistent with existing validation
     if msg.min_pub_rand == 0 {
         return Err(ContractError::InvalidMinPubRand(msg.min_pub_rand));
     }
+
+    let api = deps.api;
+    ADMIN.set(deps.branch(), Some(api.addr_validate(&msg.admin)?))?;
+    IS_ENABLED.save(deps.storage, &msg.is_enabled)?;
 
     let config = Config {
         consumer_id: msg.consumer_id,
