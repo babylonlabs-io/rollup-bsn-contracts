@@ -4,8 +4,8 @@ use cosmwasm_std::{Binary, CosmosMsg};
 
 #[cfg(not(target_arch = "wasm32"))]
 use {
-    crate::state::config::Config, crate::state::public_randomness::PubRandCommit,
-    cw_controllers::AdminResponse, std::collections::HashSet,
+    crate::queries::BlockVoterInfo, crate::state::config::Config,
+    crate::state::public_randomness::PubRandCommit, cw_controllers::AdminResponse,
 };
 
 #[cw_serde]
@@ -19,7 +19,7 @@ pub struct InstantiateMsg {
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     // MUST: Core finality queries
-    #[returns(Option<HashSet<String>>)]
+    #[returns(Vec<BlockVoterInfo>)]
     BlockVoters { height: u64, hash_hex: String },
     /// `FirstPubRandCommit` returns the first public random commitment (if any) for a given FP.
     ///
