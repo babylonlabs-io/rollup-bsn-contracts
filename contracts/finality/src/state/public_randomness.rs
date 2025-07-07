@@ -1,9 +1,14 @@
-use crate::error::ContractError;
-use crate::state::Bytes;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Order::{Ascending, Descending};
-use cosmwasm_std::{StdResult, Storage};
+use cosmwasm_std::{Deps, StdResult, Storage};
+
 use cw_storage_plus::{Bound, Map};
+
+use babylon_bindings::BabylonQuery;
+
+use crate::custom_queries::get_last_finalized_epoch;
+use crate::error::ContractError;
+use crate::state::Bytes;
 
 /// Map of public randomness values by fp public key hex and block height
 pub const PUB_RAND_VALUES: Map<(&str, u64), Vec<u8>> = Map::new("pub_rand_values");
@@ -16,23 +21,23 @@ const PUB_RAND_COMMITS: Map<(&str, u64), PubRandCommit> = Map::new("pub_rand_com
 /// values
 #[cw_serde]
 pub struct PubRandCommit {
-    /// `start_height` is the height of the first commitment
+    /// The height of the first commitment
     pub start_height: u64,
-    /// `num_pub_rand` is the number of committed public randomness
+    /// The amount of committed public randomness
     pub num_pub_rand: u64,
-    /// `height` defines the height that the commit was submitted
-    pub height: u64,
-    /// `commitment` is the value of the commitment.
+    /// The epoch number of Babylon when the commit was submitted
+    pub babylon_genesis_epoch: u64,
+    /// Value of the commitment.
     /// Currently, it's the root of the Merkle tree constructed by the public randomness
     pub commitment: Bytes,
 }
 
 impl PubRandCommit {
-    pub fn new(start_height: u64, num_pub_rand: u64, height: u64, commitment: Bytes) -> Self {
+    pub fn new(start_height: u64, num_pub_rand: u64, epoch: u64, commitment: Bytes) -> Self {
         Self {
             start_height,
             num_pub_rand,
-            height,
+            babylon_genesis_epoch: epoch,
             commitment,
         }
     }
@@ -77,6 +82,35 @@ pub fn get_pub_rand_commit_for_height(
     } else {
         Ok(res[0].clone())
     }
+}
+
+// Finds the public randomness commitment that includes the given height for the given finality
+// provider.
+// It also checks that the commitment is timestamped by BTC, meaning that the epoch of the
+// commitment is less than or equal to the last finalized epoch.
+pub fn get_timestamped_pub_rand_commit_for_height(
+    deps: &Deps<BabylonQuery>,
+    fp_btc_pk_hex: &str,
+    height: u64,
+) -> Result<PubRandCommit, ContractError> {
+    let pr_commit = get_pub_rand_commit_for_height(deps.storage, fp_btc_pk_hex, height)?;
+
+    // Ensure the finality provider's corresponding randomness commitment is already finalised by
+    // BTC timestamping
+    let last_finalized_epoch = get_last_finalized_epoch(deps)?;
+    if last_finalized_epoch == 0 {
+        return Err(ContractError::PubRandCommitNotBTCTimestamped(
+            "No finalized epoch yet".into(),
+        ));
+    }
+    if last_finalized_epoch < pr_commit.babylon_genesis_epoch {
+        return Err(ContractError::PubRandCommitNotBTCTimestamped(format!(
+            "The finality provider {0} last committed epoch: {1}, last finalized epoch: {2}",
+            fp_btc_pk_hex, pr_commit.babylon_genesis_epoch, last_finalized_epoch
+        )));
+    }
+
+    Ok(pr_commit)
 }
 
 const MAX_LIMIT: u32 = 30;

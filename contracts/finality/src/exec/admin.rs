@@ -1,6 +1,7 @@
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::state::config::{ADMIN, IS_ENABLED};
+use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{DepsMut, MessageInfo, Response};
 
 // Enable or disable the finality gadget.
@@ -9,7 +10,7 @@ use cosmwasm_std::{DepsMut, MessageInfo, Response};
 // derivation pipeline to pass through. Note this should be implemented in the verifier and is not
 // enforced by the contract itself.
 pub fn set_enabled(
-    deps: DepsMut,
+    deps: DepsMut<BabylonQuery>,
     info: MessageInfo,
     enabled: bool,
 ) -> Result<Response<BabylonMsg>, ContractError> {
@@ -29,7 +30,7 @@ pub fn set_enabled(
 }
 
 // Helper function to check caller is contract admin
-fn check_admin(deps: &DepsMut, info: MessageInfo) -> Result<(), ContractError> {
+fn check_admin(deps: &DepsMut<BabylonQuery>, info: MessageInfo) -> Result<(), ContractError> {
     // Check caller is admin
     if !ADMIN.is_admin(deps.as_ref(), &info.sender)? {
         return Err(ContractError::Unauthorized {});
