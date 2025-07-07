@@ -725,8 +725,6 @@ github.com/aws/aws-sdk-go v1.44.122/go.mod h1:y4AeaBuwd2Lk+GepC1E9v0qOiTws0MIWAX
 github.com/aws/aws-sdk-go v1.44.312 h1:llrElfzeqG/YOLFFKjg1xNpZCFJ2xraIi3PqSuP+95k=
 github.com/aws/aws-sdk-go v1.44.312/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/aws/aws-sdk-go-v2 v0.18.0/go.mod h1:JWVYvqSMppoMJC0x5wdwiImzgXTI9FuZwxzkQq9wy+g=
-github.com/babylonlabs-io/babylon v1.0.1 h1:Qa9XQTbPr7kvbqreoImWwDVmqR3ufSVXEeG3Wz/E9K8=
-github.com/babylonlabs-io/babylon v1.0.1/go.mod h1:s83Bk+lRnQ8gG1y24YWIqdMBo6ApwBml+RFOOiC06EY=
 github.com/babylonlabs-io/babylon/v3 v3.0.0-20250704154332-d3d81178dc38 h1:fghv6N07YTJpiVVa5Gq6Ej2uoC1mnJW5Wd9MmK6kIGA=
 github.com/babylonlabs-io/babylon/v3 v3.0.0-20250704154332-d3d81178dc38/go.mod h1:aUC9FPKarPMW0uepNpDmv71RnqWTUQRVkC5Bb/on6uY=
 github.com/babylonlabs-io/tokenfactory v0.50.6-wasmvm2 h1:7wtBLjwncBsYgc+LlW4eir/bGcycrhpbz7PkUVADzBc=
@@ -887,8 +885,6 @@ github.com/cosmos/ibc-apps/modules/rate-limiting/v10 v10.1.0 h1:Wpa3gDW2tNxxdcUz
 github.com/cosmos/ibc-apps/modules/rate-limiting/v10 v10.1.0/go.mod h1:0NWhkh5Ok8t/qHWOn8LUZsG5rTxhwQWyrsI3xu1/PO0=
 github.com/cosmos/ibc-go/modules/capability v1.0.1 h1:ibwhrpJ3SftEEZRxCRkH0fQZ9svjthrX2+oXdZvzgGI=
 github.com/cosmos/ibc-go/modules/capability v1.0.1/go.mod h1:rquyOV262nGJplkumH+/LeYs04P3eV8oB7ZM4Ygqk4E=
-github.com/cosmos/ibc-go/modules/light-clients/08-wasm v0.0.0-20240429153234-e1e6da7e4ead h1:QB50+AmrEVqFr2hzvIxMkICziWQ/uuebze0vNYKMnBg=
-github.com/cosmos/ibc-go/modules/light-clients/08-wasm v0.0.0-20240429153234-e1e6da7e4ead/go.mod h1:AJeroAXnPKeFpD1AfEfjYBHGEWt5gBfzUjgs4SYn2ZY=
 github.com/cosmos/ibc-go/modules/light-clients/08-wasm/v10 v10.1.1 h1:mbdtYhi77oF7hKCPAnK6MJX8BqeiaUPnsdWm+1CYugo=
 github.com/cosmos/ibc-go/modules/light-clients/08-wasm/v10 v10.1.1/go.mod h1:KkndDnWkEY1c1VnX0cpES7dDJzm7PKlBMdKLDZB3Ww8=
 github.com/cosmos/ibc-go/v10 v10.2.0 h1:wlk/zqz2O0WRyE6UConoR1ci2HSW02P9ywamZCh5/N4=
@@ -1325,8 +1321,6 @@ github.com/jessevdk/go-flags v0.0.0-20141203071132-1679536dcc89/go.mod h1:4FA24M
 github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
 github.com/jhump/protoreflect v1.17.0 h1:qOEr613fac2lOuTgWN4tPAtLL7fUSbuJL5X5XumQh94=
 github.com/jhump/protoreflect v1.17.0/go.mod h1:h9+vUUL38jiBzck8ck+6G/aeMX8Z4QUY/NiJPwPNi+8=
-github.com/jinzhu/copier v0.3.5 h1:GlvfUwHk62RokgqVNvYsku0TATCF7bAHVwEXoBh3iJg=
-github.com/jinzhu/copier v0.3.5/go.mod h1:DfbEm0FYsaqBcKcFuvmOZb218JkPGtvSHsKg8S8hyyg=
 github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af/go.mod h1:Nht3zPeWKUH0NzdCt2Blrr5ys8VGpn0CEB0cQHVjt7k=
 github.com/jmespath/go-jmespath v0.4.0 h1:BEgLn5cpjn8UN1mAw4NjwDrS35OdebyEtFe+9YPoQUg=
 github.com/jmespath/go-jmespath v0.4.0/go.mod h1:T8mJZnbsbmF+m6zOOFylbeCJqk5+pHWvzYPziyZiYoo=
