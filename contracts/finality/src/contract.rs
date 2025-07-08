@@ -84,7 +84,7 @@ pub fn execute(
             signature,
         } => handle_finality_signature(
             deps,
-            info,
+            &env,
             &fp_pubkey_hex,
             l1_block_number,
             l1_block_hash_hex,
