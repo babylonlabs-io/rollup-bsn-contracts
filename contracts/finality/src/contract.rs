@@ -234,7 +234,7 @@ pub(crate) mod tests {
                     // Verify config was saved correctly
                     let config_query = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
                     let config: Config = from_json(config_query).unwrap();
-                    prop_assert_eq!(config.consumer_id, consumer_id);
+                    prop_assert_eq!(config.bsn_id, bsn_id);
                     prop_assert_eq!(config.min_pub_rand, min_pub_rand);
                     
                     // Verify is_enabled was saved correctly

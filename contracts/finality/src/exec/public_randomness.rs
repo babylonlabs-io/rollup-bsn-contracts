@@ -145,8 +145,7 @@ fn ensure_fp_exists_and_not_slashed(
     fp_btc_pk_hex: &str,
 ) -> Result<(), ContractError> {
     // Ensure the finality provider is registered and not slashed
-    let config = get_config(deps)?;
-    let fp_info = query_finality_provider(deps, config.consumer_id, fp_btc_pk_hex.to_string())?;
+    let fp_info = query_finality_provider(deps, fp_btc_pk_hex.to_string())?;
     if fp_info.slashed_babylon_height > 0 {
         return Err(ContractError::SlashedFinalityProvider(
             fp_btc_pk_hex.to_string(),
@@ -188,7 +187,7 @@ pub(crate) mod tests {
 
         // Configure the contract with min_pub_rand
         let config = Config {
-            consumer_id: "test".to_string(),
+            bsn_id: "test".to_string(),
             min_pub_rand: 100,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
@@ -212,7 +211,7 @@ pub(crate) mod tests {
 
         // Configure the contract with min_pub_rand
         let config = Config {
-            consumer_id: "test".to_string(),
+            bsn_id: "test".to_string(),
             min_pub_rand: 100,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
@@ -262,7 +261,7 @@ pub(crate) mod tests {
 
         // Configure the contract with min_pub_rand
         let config = Config {
-            consumer_id: "test".to_string(),
+            bsn_id: "test".to_string(),
             min_pub_rand: 100,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
@@ -286,7 +285,7 @@ pub(crate) mod tests {
 
         // Configure the contract with min_pub_rand
         let config = Config {
-            consumer_id: "test".to_string(),
+            bsn_id: "test".to_string(),
             min_pub_rand: 100,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
@@ -316,7 +315,7 @@ pub(crate) mod tests {
 
         // Configure the contract with min_pub_rand = 100
         let config = Config {
-            consumer_id: "test".to_string(),
+            bsn_id: "test".to_string(),
             min_pub_rand: 100,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
