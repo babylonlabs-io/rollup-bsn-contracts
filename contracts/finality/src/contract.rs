@@ -16,7 +16,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response<BabylonMsg>, ContractError> {
-    // Validate min_pub_rand is at least 1 to be consistent with existing validation
+    // Validate min_pub_rand to be at least 1
     if msg.min_pub_rand == 0 {
         return Err(ContractError::InvalidMinPubRand(msg.min_pub_rand));
     }
