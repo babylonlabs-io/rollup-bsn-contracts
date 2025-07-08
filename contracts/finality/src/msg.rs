@@ -37,8 +37,6 @@ pub enum QueryMsg {
     Admin {},
     #[returns(Config)]
     Config {},
-    #[returns(bool)]
-    IsEnabled {},
 }
 
 // Note: Adapted from packages/apis/src/btc_staking_api.rs / packages/apis/src/finality_api.rs

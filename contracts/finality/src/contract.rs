@@ -4,7 +4,7 @@ use crate::exec::finality::{handle_finality_signature, handle_public_randomness_
 use crate::msg::BabylonMsg;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::queries::query_block_voters;
-use crate::state::config::{get_config, Config, ADMIN, CONFIG, IS_ENABLED};
+use crate::state::config::{get_config, Config, ADMIN, CONFIG};
 use crate::state::public_randomness::{get_first_pub_rand_commit, get_last_pub_rand_commit};
 use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{
@@ -20,9 +20,11 @@ pub fn instantiate(
 ) -> StdResult<Response<BabylonMsg>> {
     let api = deps.api;
     ADMIN.set(deps.branch(), Some(api.addr_validate(&msg.admin)?))?;
-    IS_ENABLED.save(deps.storage, &msg.is_enabled)?;
 
-    let config = Config { bsn_id: msg.bsn_id };
+    let config = Config {
+        bsn_id: msg.bsn_id,
+        is_enabled: msg.is_enabled,
+    };
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new().add_attribute("action", "instantiate"))
@@ -45,7 +47,6 @@ pub fn query(
         QueryMsg::LastPubRandCommit { btc_pk_hex } => Ok(to_json_binary(
             &get_last_pub_rand_commit(deps.storage, &hex::decode(&btc_pk_hex)?)?,
         )?),
-        QueryMsg::IsEnabled {} => Ok(to_json_binary(&IS_ENABLED.load(deps.storage)?)?),
     }
 }
 

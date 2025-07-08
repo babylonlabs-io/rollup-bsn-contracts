@@ -45,9 +45,10 @@ fn instantiate_works() {
     assert_eq!(0, msgs.len());
 
     // Check the config is properly stored in the state and returned
-    let res: Config =
+    let config: Config =
         from_json(query(&mut deps, mock_env(), QueryMsg::Config {}).unwrap()).unwrap();
-    assert_eq!(msg.bsn_id, res.bsn_id);
+    assert_eq!(msg.bsn_id, config.bsn_id);
+    assert_eq!(msg.is_enabled, config.is_enabled);
 
     // Check the admin is properly stored in the state and returned
     let res: AdminResponse =
@@ -55,9 +56,7 @@ fn instantiate_works() {
     assert_eq!(mock_api.addr_make(CREATOR), res.admin.unwrap());
 
     // Check the contract is disabled on instantiation
-    let enabled: bool =
-        from_json(query(&mut deps, mock_env(), QueryMsg::IsEnabled {}).unwrap()).unwrap();
-    assert!(!enabled);
+    assert!(!config.is_enabled);
 }
 
 #[test]
@@ -76,9 +75,12 @@ fn disable_and_reenable_works() {
     assert!(res.is_ok());
 
     // Check the contract is disabled on instantiation
-    let mut enabled: bool =
-        from_json(query(&mut instance, mock_env(), QueryMsg::IsEnabled {}).unwrap()).unwrap();
-    assert!(!enabled, "Contract should be disabled on instantiation");
+    let mut config: Config =
+        from_json(query(&mut instance, mock_env(), QueryMsg::Config {}).unwrap()).unwrap();
+    assert!(
+        !config.is_enabled,
+        "Contract should be disabled on instantiation"
+    );
 
     // Enable the contract
     let info = mock_info(&mock_api.addr_make(CREATOR), &[]);
@@ -89,8 +91,8 @@ fn disable_and_reenable_works() {
         ExecuteMsg::SetEnabled { enabled: true },
     );
     assert!(res.is_ok());
-    enabled = from_json(query(&mut instance, mock_env(), QueryMsg::IsEnabled {}).unwrap()).unwrap();
-    assert!(enabled, "Enabling works");
+    config = from_json(query(&mut instance, mock_env(), QueryMsg::Config {}).unwrap()).unwrap();
+    assert!(config.is_enabled, "Enabling works");
 
     // Disable the contract
     let info = mock_info(&mock_api.addr_make(CREATOR), &[]);
@@ -101,8 +103,8 @@ fn disable_and_reenable_works() {
         ExecuteMsg::SetEnabled { enabled: false },
     );
     assert!(res.is_ok());
-    enabled = from_json(query(&mut instance, mock_env(), QueryMsg::IsEnabled {}).unwrap()).unwrap();
-    assert!(!enabled, "Disabling works");
+    config = from_json(query(&mut instance, mock_env(), QueryMsg::Config {}).unwrap()).unwrap();
+    assert!(!config.is_enabled, "Disabling works");
 
     // Re-enable the contract
     // This simulates a scenario where the contract is disabled for e.g. to fix a bug, and then
@@ -115,8 +117,8 @@ fn disable_and_reenable_works() {
         ExecuteMsg::SetEnabled { enabled: true },
     );
     assert!(res.is_ok());
-    enabled = from_json(query(&mut instance, mock_env(), QueryMsg::IsEnabled {}).unwrap()).unwrap();
-    assert!(enabled, "Re-enabling works");
+    config = from_json(query(&mut instance, mock_env(), QueryMsg::Config {}).unwrap()).unwrap();
+    assert!(config.is_enabled, "Re-enabling works");
 }
 
 #[test]
@@ -133,8 +135,11 @@ fn instantiate_enabled() {
     let res: ContractResult<Response> = instantiate(&mut instance, mock_env(), info, msg.clone());
     assert!(res.is_ok());
 
-    // Check the contract is disabled on instantiation
-    let enabled: bool =
-        from_json(query(&mut instance, mock_env(), QueryMsg::IsEnabled {}).unwrap()).unwrap();
-    assert!(enabled, "Contract should be enabled on instantiation");
+    // Check the contract is enabled on instantiation
+    let config: Config =
+        from_json(query(&mut instance, mock_env(), QueryMsg::Config {}).unwrap()).unwrap();
+    assert!(
+        config.is_enabled,
+        "Contract should be enabled on instantiation"
+    );
 }

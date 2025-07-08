@@ -1,6 +1,6 @@
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
-use crate::state::config::{ADMIN, IS_ENABLED};
+use crate::state::config::{get_config, ADMIN, CONFIG};
 use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{DepsMut, MessageInfo, Response};
 
@@ -16,16 +16,23 @@ pub fn set_enabled(
 ) -> Result<Response<BabylonMsg>, ContractError> {
     // Check caller is admin
     check_admin(&deps, info)?;
+
+    // Get current config
+    let mut config = get_config(deps.as_ref())?;
+
     // Check if the finality gadget is already in the desired state
-    if IS_ENABLED.load(deps.storage)? == enabled {
+    if config.is_enabled == enabled {
         if enabled {
             return Err(ContractError::AlreadyEnabled {});
         } else {
             return Err(ContractError::AlreadyDisabled {});
         }
     }
-    // Disable finality gadget
-    IS_ENABLED.save(deps.storage, &enabled)?;
+
+    // Update the enabled status in config
+    config.is_enabled = enabled;
+    CONFIG.save(deps.storage, &config)?;
+
     Result::Ok(Response::default())
 }
 
