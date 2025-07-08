@@ -29,7 +29,6 @@
     - [4.7.3. LastPubRandCommit (MUST)](#473-lastpubrandcommit-must)
     - [4.7.4. Admin (SHOULD)](#474-admin-should)
     - [4.7.5. Config (SHOULD)](#475-config-should)
-    - [4.7.6. IsEnabled (SHOULD)](#476-isenabled-should)
 - [5. Implementation status](#5-implementation-status)
   - [5.1. Babylon implementation status](#51-babylon-implementation-status)
   - [5.2. Finality contract implementation status](#52-finality-contract-implementation-status)
@@ -654,13 +653,10 @@ contract implementation.
   ```rust
   pub struct Config {
       pub bsn_id: String,
+      pub is_enabled: bool,
   }
   ```
-
-**IS_ENABLED**: Finality gadget enabled status
-- Type: `Item<bool>`
-- Storage key: `"is_enabled"`
-- Purpose: Controls whether the finality gadget is active
+- Purpose: Contains the BSN identifier and whether the finality gadget is active
 
 #### 4.6.2. Finality State Storage
 
@@ -752,8 +748,6 @@ pub enum QueryMsg {
     Admin {},
     #[returns(Config)]
     Config {},
-    #[returns(bool)]
-    IsEnabled {},
 }
 ```
 
@@ -905,25 +899,11 @@ query to return the contract configuration:
    
 WHERE Config contains:
 - `bsn_id`: `String` - The BSN identifier for this finality contract
+- `is_enabled`: `bool` - Whether the finality contract is enabled
 
-#### 4.7.6. IsEnabled (SHOULD)
+**Note**: When the finality contract is disabled (`is_enabled: false`), the rollup's finality gadget daemon/verifier should bypass the EOTS verification logic and always report blocks as finalized. This behavior should be implemented in the rollup's finality gadget daemon program and is not enforced by the contract itself.
 
-**Query Structure:**
-```rust
-IsEnabled {}    // No parameters required
-```
 
-**Return Type:** `bool` - Whether the finality contract is enabled
-
-**Expected Behaviour:** Finality contracts SHOULD implement this administrative
-query to return whether the finality gadget is enabled:
-
-1. Query enabled status storage to retrieve current state
-   - Access the stored boolean enabled flag
-
-2. Return enabled status
-   - Return `true` if finality contract is enabled
-   - Return `false` if finality contract is disabled
 
 ## 5. Implementation status
 
