@@ -1,7 +1,10 @@
-use babylon_merkle::error::MerkleError;
-use cosmwasm_std::StdError;
 use hex::FromHexError;
 use thiserror::Error;
+
+use cosmwasm_std::StdError;
+use cw_controllers::AdminError;
+
+use babylon_merkle::error::MerkleError;
 
 // Note: copied from contracts/btc-staking/src/error.rs
 #[derive(Error, Debug, PartialEq)]
@@ -54,6 +57,8 @@ pub enum ContractError {
     SlashedFinalityProvider(String, u64, u64),
     #[error("{0}")]
     StdError(#[from] StdError),
+    #[error("Admin error: {0}")]
+    Admin(#[from] AdminError),
     #[error("Failed to query block voters for block {0} with hash {1}. {2}")]
     QueryBlockVoterError(u64, String, String),
     #[error("Finality provider not found for BSN {0} with pubkey {1}")]
@@ -70,4 +75,6 @@ pub enum ContractError {
     PubRandAlreadyExists(String, u64),
     #[error("Duplicate signatory {0}")]
     DuplicateSignatory(String),
+    #[error("Invalid consumer ID: {0}")]
+    InvalidConsumerId(String),
 }
