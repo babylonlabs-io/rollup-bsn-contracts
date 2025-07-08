@@ -3,7 +3,7 @@ use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{Binary, Deps, StdResult};
 
 /// FinalityProviderResponse defines a finality provider with voting power information.
-/// NOTE: this is a subset of the response from Babylon, we only need the slashed heights
+/// NOTE: this is a subset of the response from Babylon
 pub struct FinalityProviderResponse {
     /// slashed_babylon_height indicates the Babylon height when
     /// the finality provider is slashed.
