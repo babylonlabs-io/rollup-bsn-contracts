@@ -36,7 +36,7 @@ fn instantiate_works() {
     let mock_api: MockApi = MockApi::default();
     let msg = InstantiateMsg {
         admin: mock_api.addr_make(CREATOR),
-        consumer_id: "op-stack-l2-11155420".to_string(),
+        bsn_id: "op-stack-l2-11155420".to_string(),
         is_enabled: false,
     };
     let info = mock_info(CREATOR, &[]);
@@ -47,7 +47,7 @@ fn instantiate_works() {
     // Check the config is properly stored in the state and returned
     let res: Config =
         from_json(query(&mut deps, mock_env(), QueryMsg::Config {}).unwrap()).unwrap();
-    assert_eq!(msg.consumer_id, res.consumer_id);
+    assert_eq!(msg.bsn_id, res.bsn_id);
 
     // Check the admin is properly stored in the state and returned
     let res: AdminResponse =
@@ -67,7 +67,7 @@ fn disable_and_reenable_works() {
     let mock_api = MockApi::default();
     let msg = InstantiateMsg {
         admin: mock_api.addr_make(CREATOR),
-        consumer_id: "op-stack-l2-11155420".to_string(),
+        bsn_id: "op-stack-l2-11155420".to_string(),
         is_enabled: false,
     };
     let info = mock_info(CREATOR, &[]);
@@ -126,7 +126,7 @@ fn instantiate_enabled() {
     let mock_api = MockApi::default();
     let msg = InstantiateMsg {
         admin: mock_api.addr_make(CREATOR),
-        consumer_id: "op-stack-l2-11155420".to_string(),
+        bsn_id: "op-stack-l2-11155420".to_string(),
         is_enabled: true,
     };
     let info = mock_info(CREATOR, &[]);

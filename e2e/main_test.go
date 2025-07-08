@@ -64,12 +64,12 @@ func (s *FinalityContractTestSuite) SetupSuite() {
 func (s *FinalityContractTestSuite) Test1RegisterRollupBSN() {
 	// register BSN
 	bsn := datagen.GenRandomRollupRegister(r, s.contractAddr.String())
-	bsn.ConsumerId = s.contractCfg.ConsumerID
+	bsn.ConsumerId = s.contractCfg.BsnID
 	err := s.babylonApp.BTCStkConsumerKeeper.RegisterConsumer(s.ctx, bsn)
 	s.NoError(err)
 
 	// ensure BSN is registered
-	bsnInDB, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerRegister(s.ctx, s.contractCfg.ConsumerID)
+	bsnInDB, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerRegister(s.ctx, s.contractCfg.BsnID)
 	s.NoError(err)
 	s.Equal(bsn.ConsumerId, bsnInDB.ConsumerId)
 	s.Equal(bsn.ConsumerDescription, bsnInDB.ConsumerDescription)
@@ -77,12 +77,8 @@ func (s *FinalityContractTestSuite) Test1RegisterRollupBSN() {
 }
 
 func (s *FinalityContractTestSuite) Test2CreateBSNFP() {
-	// get registered BSN
-	bsn, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerRegister(s.ctx, s.contractCfg.ConsumerID)
-	s.NoError(err)
-
 	// register FP
-	fp, err := datagen.GenRandomFinalityProviderWithBTCSK(r, fpSK, "", bsn.ConsumerId)
+	fp, err := datagen.GenRandomFinalityProviderWithBTCSK(r, fpSK, "", s.contractCfg.BsnID)
 	s.NoError(err)
 	msgFP := bstypes.MsgCreateFinalityProvider{
 		Addr:        fp.Addr,
@@ -94,7 +90,7 @@ func (s *FinalityContractTestSuite) Test2CreateBSNFP() {
 			fp.CommissionInfo.MaxRate,
 			fp.CommissionInfo.MaxChangeRate,
 		),
-		BsnId: bsn.ConsumerId,
+		BsnId: s.contractCfg.BsnID,
 	}
 	err = s.babylonApp.BTCStakingKeeper.AddFinalityProvider(s.ctx, &msgFP)
 	s.NoError(err)
@@ -263,8 +259,8 @@ func (s *FinalityContractTestSuite) deployContracts(
 	bridgeCodeID, _ := StoreTestCodeCode(s.T(), s.ctx, s.babylonApp, deployer, bridgeCodePath)
 
 	// init message
-	consumerID := "test-consumer"
-	initMsg := NewInitMsg(s.owner.String(), consumerID, true)
+	bsnID := "test-consumer"
+	initMsg := NewInitMsg(s.owner.String(), bsnID, true)
 	initMsgBz := []byte(initMsg)
 	// instantiate contract
 	contractKeeper := keeper.NewDefaultPermissionKeeper(s.babylonApp.WasmKeeper)
@@ -276,7 +272,7 @@ func (s *FinalityContractTestSuite) deployContracts(
 	var config Config
 	err = json.Unmarshal(resBz, &config)
 	s.NoError(err)
-	s.Equal(consumerID, config.ConsumerID)
+	s.Equal(bsnID, config.BsnID)
 
 	s.contractCfg = &config
 

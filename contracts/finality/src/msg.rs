@@ -11,7 +11,7 @@ use {
 #[cw_serde]
 pub struct InstantiateMsg {
     pub admin: String,
-    pub consumer_id: String,
+    pub bsn_id: String,
     pub is_enabled: bool,
 }
 
@@ -72,8 +72,8 @@ pub enum ExecuteMsg {
     /// Submit Finality Signature.
     ///
     /// This is a message that can be called by a finality provider to submit their finality
-    /// signature to the Consumer chain.
-    /// The signature is verified by the Consumer chain using the finality provider's public key.
+    /// signature to the BSN.
+    /// The signature is verified by the BSN using the finality provider's public key.
     /// If the finality provider has already signed a different block at the same height,
     /// they will be slashed by sending an equivocation evidence to Babylon Genesis.
     ///
@@ -121,7 +121,8 @@ pub struct FinalitySignatureResponse {
 /// Messages that the finality contract can send to Babylon node's Cosmos SDK layer
 #[cw_serde]
 pub enum BabylonMsg {
-    /// MsgEquivocationEvidence is the message sent to Babylon to notify it of consumer chain slashing.
+    /// MsgEquivocationEvidence is the message sent to Babylon for slashing an equivocating
+    /// BSN finality provider.
     MsgEquivocationEvidence {
         /// `signer` is the address submitting the evidence
         signer: String,

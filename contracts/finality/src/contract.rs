@@ -22,9 +22,7 @@ pub fn instantiate(
     ADMIN.set(deps.branch(), Some(api.addr_validate(&msg.admin)?))?;
     IS_ENABLED.save(deps.storage, &msg.is_enabled)?;
 
-    let config = Config {
-        consumer_id: msg.consumer_id,
-    };
+    let config = Config { bsn_id: msg.bsn_id };
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new().add_attribute("action", "instantiate"))
@@ -139,12 +137,12 @@ pub(crate) mod tests {
     fn instantiate_works() {
         let mut deps = mock_deps_babylon();
         let init_admin = deps.api.addr_make(INIT_ADMIN);
-        let consumer_id = "op".to_string();
+        let bsn_id = "op".to_string();
 
         // Create an InstantiateMsg with admin set to init_admin
         let msg = InstantiateMsg {
             admin: init_admin.to_string(),
-            consumer_id,
+            bsn_id,
             is_enabled: true,
         };
 
@@ -172,7 +170,7 @@ pub(crate) mod tests {
         // Create an InstantiateMsg with admin set to Some(INIT_ADMIN.into())
         let instantiate_msg = InstantiateMsg {
             admin: init_admin.to_string(), // Admin provided
-            consumer_id: "op-stack-l2-11155420".to_string(),
+            bsn_id: "op-stack-l2-11155420".to_string(),
             is_enabled: true,
         };
 
