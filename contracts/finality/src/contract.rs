@@ -1,6 +1,7 @@
 use crate::error::ContractError;
 use crate::exec::admin::set_enabled;
-use crate::exec::finality::{handle_finality_signature, handle_public_randomness_commit};
+use crate::exec::finality::handle_finality_signature;
+use crate::exec::public_randomness::handle_public_randomness_commit;
 use crate::msg::BabylonMsg;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::queries::query_block_voters;
