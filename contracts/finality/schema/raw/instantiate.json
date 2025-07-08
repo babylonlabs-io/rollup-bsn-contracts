@@ -4,14 +4,14 @@
   "type": "object",
   "required": [
     "admin",
-    "consumer_id",
+    "bsn_id",
     "is_enabled"
   ],
   "properties": {
     "admin": {
       "type": "string"
     },
-    "consumer_id": {
+    "bsn_id": {
       "type": "string"
     },
     "is_enabled": {

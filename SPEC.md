@@ -36,11 +36,11 @@
 
 ## 1. Abstract
 
-This document specifies the design and requirements of the finality contract used in
-integrating rollups with Babylon's Bitcoin staking protocol. The finality
-contract enables BSNs to inherit Bitcoin-backed economic security by recording
-finality signatures from BSN finality providers, enforcing slashing for
-equivocation, and exposing finality signatures to the integrated BSN. The
+This document specifies the design and requirements of the finality contract
+used in integrating rollups with Babylon's Bitcoin staking protocol. The
+finality contract enables BSNs to inherit Bitcoin-backed economic security by
+recording finality signatures from BSN finality providers, enforcing slashing
+for equivocation, and exposing finality signatures to the integrated BSN. The
 document details the contract's interfaces, message handlers, and queries, and
 provides guidance for implementers seeking to leverage Babylon's Bitcoin
 security for rollup finality.
@@ -125,7 +125,7 @@ BabylonMsg::MsgEquivocationEvidence {
 }
 ```
 
-**Expected behavior of Babylon Genesis chain:** Upon receiving the message, the
+**Expected behaviour of Babylon Genesis chain:** Upon receiving the message, the
 Babylon chain MUST validate the evidence cryptographically, extract the finality
 provider's secret key using EOTS, remove them from the active set, set their
 voting power to zero, and record the evidence.
@@ -144,8 +144,8 @@ chain](https://github.com/babylonlabs-io/babylon/blob/b9774782f38e9758c4f5aafab1
 func WhitelistedGrpcQuery() wasmkeeper.AcceptedQueries {
     return wasmkeeper.AcceptedQueries{
         // btcstkconsumer
-        "/babylon.btcstkconsumer.v1.Query/FinalityProvider": func() proto.Message {
-            return &bsctypes.QueryFinalityProviderResponse{}
+        "/babylon.btcstaking.v1.Query/FinalityProvider": func() proto.Message {
+            return &btcstakingtypes.QueryFinalityProviderResponse{}
         },
         // btcstaking
         "/babylon.btcstaking.v1.Query/FinalityProviderCurrentPower": func() proto.Message {
@@ -159,18 +159,19 @@ func WhitelistedGrpcQuery() wasmkeeper.AcceptedQueries {
 }
 ```
 
-Query `/babylon.btcstkconsumer.v1.Query/FinalityProvider` returns the finality
-provider information for the given consumer and the finality provider BTC PK.
-
 #### 4.2.1. QueryFinalityProvider (MUST)
+
+Query `/babylon.btcstaking.v1.Query/FinalityProvider` returns the finality
+provider information for the finality provider BTC PK. This query is used for
+verifying that the finality provider exists, is not slashed, and is associated
+with the correct BSN.
 
 ```protobuf
 // QueryFinalityProviderRequest requests information about a finality provider
 message QueryFinalityProviderRequest {
-  // consumer id is the consumer id this finality provider is registered to
-  string consumer_id = 1;
-  // fp_btc_pk_hex is the hex str of Bitcoin secp256k1 PK of the finality provider
-  string fp_btc_pk_hex = 2;
+  // fp_btc_pk_hex is the hex str of Bitcoin secp256k1 PK of the finality
+  // provider
+  string fp_btc_pk_hex = 1;
 }
 
 // QueryFinalityProviderResponse contains information about a finality provider
@@ -179,19 +180,26 @@ message QueryFinalityProviderResponse {
   FinalityProviderResponse finality_provider = 1;
 }
 
-// FinalityProviderResponse defines a finality provider with voting power information.
+// FinalityProviderResponse defines a finality provider with voting power
+// information.
 message FinalityProviderResponse {
   // description defines the description terms for the finality provider.
   cosmos.staking.v1beta1.Description description = 1;
   // commission defines the commission rate of the finality provider.
-  string commission = 2;
-  // babylon_pk is the Babylon secp256k1 PK of this finality provider
-  string addr = 3;
+  string commission = 2 [
+    (cosmos_proto.scalar) = "cosmos.Dec",
+    (gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"
+  ];
+  // addr is the address to receive commission from delegations.
+  string addr = 3 [ (cosmos_proto.scalar) = "cosmos.AddressString" ];
   // btc_pk is the Bitcoin secp256k1 PK of this finality provider
   // the PK follows encoding in BIP-340 spec
-  bytes btc_pk = 4;
-  // pop is the proof of possession of babylon_pk and btc_pk
-  btcstaking.v1.ProofOfPossessionBTC pop = 5;
+  bytes btc_pk = 4
+      [ (gogoproto.customtype) =
+            "github.com/babylonlabs-io/babylon/v3/types.BIP340PubKey" ];
+  // pop is the proof of possession of the BTC_PK by the fp addr.
+  // Essentially is the signature where the BTC SK sigs the fp addr.
+  ProofOfPossessionBTC pop = 5;
   // slashed_babylon_height indicates the Babylon height when
   // the finality provider is slashed.
   // if it's 0 then the finality provider is not slashed
@@ -202,10 +210,16 @@ message FinalityProviderResponse {
   uint32 slashed_btc_height = 7;
   // height is the queried Babylon height
   uint64 height = 8;
-  // voting_power is the voting power of this finality provider at the given height
-  uint64 voting_power = 9;
-  // consumer_id is the consumer id this finality provider is registered to
-  string consumer_id = 10;
+  // jailed defines whether the finality provider is jailed
+  bool jailed = 9;
+  // highest_voted_height is the highest height for which the
+  // finality provider has voted
+  uint32 highest_voted_height = 10;
+  // commission_info contains information details of the finality provider
+  // commission.
+  CommissionInfo commission_info = 11;
+  // bsn_id is the ID of the BSN the finality provider is securing
+  string bsn_id = 12;
 }
 
 // Description defines a validator description.
@@ -245,20 +259,22 @@ enum BTCSigType {
 }
 ```
 
-This query is used for verifying that finality providers exist and have valid
-voting power before accepting their finality signatures or public randomness
-commitments.
-
 ### 4.3. Babylon Genesis chain Custom Queries
 
-Finality contracts MUST utilize custom queries provided by the [babylon-bindings](https://github.com/babylonlabs-io/bindings/) crate to interact with Babylon-specific functionality. These custom queries provide access to Babylon chain state that is not available through standard CosmWasm queries.
+Finality contracts MUST utilize custom queries provided by the
+[babylon-bindings](https://github.com/babylonlabs-io/bindings/) crate to
+interact with Babylon-specific functionality. These custom queries provide
+access to Babylon chain state that is not available through standard CosmWasm
+queries.
 
-**Required Dependencies:**
-The contract must include the `babylon_bindings` crate which provides CosmWasm bindings to custom [Babylon](https://github.com/babylonlabs-io/babylon) features.
+**Required Dependencies:** The contract must include the `babylon_bindings`
+crate which provides CosmWasm bindings to custom
+[Babylon](https://github.com/babylonlabs-io/babylon) features.
 
 #### 4.3.1. CurrentEpoch (MUST)
 
-**Query Purpose:** Retrieves the current Babylon epoch number, which is essential for timestamping public randomness commitments.
+**Query Purpose:** Retrieves the current Babylon epoch number, which is
+essential for timestamping public randomness commitments.
 
 **Query Interface:**
 ```rust
@@ -275,11 +291,14 @@ pub struct CurrentEpochResponse {
 - Query the current epoch from the Babylon chain
 - Return the current epoch number as a `u64`
 
-**Usage Context:** This query is used when storing public randomness commitments to record the Babylon epoch at which the commitment was made, enabling BTC timestamping validation.
+**Usage Context:** This query is used when storing public randomness commitments
+to record the Babylon epoch at which the commitment was made, enabling BTC
+timestamping validation.
 
 #### 4.3.2. LastFinalizedEpoch (MUST)
 
-**Query Purpose:** Retrieves the last finalized Babylon epoch, which is used to verify that public randomness commitments have been timestamped by Bitcoin.
+**Query Purpose:** Retrieves the last finalized Babylon epoch, which is used to
+verify that public randomness commitments have been timestamped by Bitcoin.
 
 **Query Interface:**
 ```rust
@@ -303,32 +322,46 @@ pub struct EpochInfo {
 - Query the latest finalized epoch information from the Babylon chain
 - Return the epoch number and optional epoch metadata
 
-**Usage Context:** This query is used during finality signature verification to ensure that the public randomness commitment has been timestamped by Bitcoin before accepting finality signatures that reference it.
+**Usage Context:** This query is used during finality signature verification to
+ensure that the public randomness commitment has been timestamped by Bitcoin
+before accepting finality signatures that reference it.
 
-**BTC Timestamping Validation:** A public randomness commitment is considered BTC-timestamped if its commitment epoch is less than or equal to the last finalized epoch. This ensures that the commitment has been anchored to the Bitcoin blockchain before being used for finality signatures.
+**BTC Timestamping Validation:** A public randomness commitment is considered
+BTC-timestamped if its commitment epoch is less than or equal to the last
+finalized epoch. This ensures that the commitment has been anchored to the
+Bitcoin blockchain before being used for finality signatures.
 
 ### 4.4. Contract Instantiation
 
-Finality contracts MUST utilize custom queries provided by the [babylon-bindings](https://github.com/babylonlabs-io/bindings/) crate to interact with Babylon-specific functionality. These custom queries provide access to Babylon chain state that is not available through standard CosmWasm queries.
+Finality contracts MUST utilize custom queries provided by the
+[babylon-bindings](https://github.com/babylonlabs-io/bindings/) crate to
+interact with Babylon-specific functionality. These custom queries provide
+access to Babylon chain state that is not available through standard CosmWasm
+queries.
 ```rust
 pub struct InstantiateMsg {
     pub admin: String,
-    pub consumer_id: String,
+    pub bsn_id: String,
     pub is_enabled: bool,
 }
 ```
 
-**Expected Behavior:** When deploying the finality contract, the following parameters must be provided:
+**Expected Behaviour:** When deploying the finality contract, the following
+parameters must be provided:
 
 **Required Parameters:**
-- `admin`: String - The initial admin address for the contract who can update settings and enable/disable the finality gadget
-- `consumer_id`: String - The unique identifier for this consumer chain (e.g., "op-stack-l2-11155420")  
-- `is_enabled`: bool - Whether the finality gadget should be enabled at instantiation
+- `admin`: String - The initial admin address for the contract who can update
+  settings and enable/disable the finality gadget
+- `bsn_id`: String - The unique identifier for this BSN (e.g.,
+  `op-stack-l2-11155420`)  
+- `is_enabled`: bool - Whether the finality gadget should be enabled at
+  instantiation
 
 **Instantiation Process:**
 1. **Admin Setup**: Set the provided admin address as the contract administrator
-2. **Configuration Storage**: Save the consumer_id in the contract configuration
-3. **State Initialization**: Set the enabled/disabled state based on the is_enabled parameter
+2. **Configuration Storage**: Save the bsn_id in the contract configuration
+3. **State Initialization**: Set the enabled/disabled state based on the
+   is_enabled parameter
 4. **Response**: Return a success response with instantiation attributes
 
 ### 4.5. Finality Contract message handlers
@@ -372,8 +405,8 @@ pub enum ExecuteMsg {
     /// Submit Finality Signature.
     ///
     /// This is a message that can be called by a finality provider to submit their finality
-    /// signature to the Consumer chain.
-    /// The signature is verified by the Consumer chain using the finality provider's public key.
+    /// signature to the BSN.
+    /// The signature is verified by the BSN using the finality provider's public key.
     /// If an equivocation is detected (signing two different blocks at the same height),
     /// the contract will automatically extract the secret key using EOTS and submit evidence
     /// to Babylon Genesis for slashing.
@@ -433,27 +466,41 @@ CommitPublicRandomness {
 }
 ```
 
-**Expected Behavior:** Finality contracts MUST implement this handler with the following verification logic:
+**Expected Behaviour:** Finality contracts MUST implement this handler with the
+following verification logic:
 
-1. **Finality Provider Existence Check**: Verify that the finality provider exists and is not slashed by querying the Babylon Genesis chain through gRPC:
-   - Use `query_grpc` to call `/babylon.btcstkconsumer.v1.Query/FinalityProvider` with the `consumer_id` and `fp_pubkey_hex` parameters
+1. **Finality Provider Existence Check**: Verify that the finality provider
+   exists and is not slashed by querying the Babylon Genesis chain through gRPC:
+   - Use `query_grpc` to call `/babylon.btcstaking.v1.Query/FinalityProvider`
+     with the `fp_pubkey_hex` parameters
    - Verify the response contains a valid finality provider
-   - Ensure the finality provider has not been slashed (`slashed_babylon_height` and `slashed_btc_height` are both 0)
+   - Ensure the finality provider is associated with this BSN
+   - Ensure the finality provider has not been slashed (`slashed_babylon_height`
+     and `slashed_btc_height` are both 0)
 
-2. **Signature Verification**: Verify the commitment signature using Schnorr signature verification:
-   - Decode the finality provider's BTC public key from `fp_pubkey_hex` parameter
-   - Construct message: `start_height || num_pub_rand || commitment` (all in big-endian bytes)
+2. **Signature Verification**: Verify the commitment signature using Schnorr
+   signature verification:
+   - Decode the finality provider's BTC public key from `fp_pubkey_hex`
+     parameter
+   - Construct message: `start_height || num_pub_rand || commitment` (all in
+     big-endian bytes)
    - Verify signature against the constructed message using the BTC public key
 
-3. **Height Overlap Check**: Ensure no overlap with existing public randomness commitments:
-   - Query the last public randomness commitment for this finality provider from public randomness commitment state
+3. **Height Overlap Check**: Ensure no overlap with existing public randomness
+   commitments:
+   - Query the last public randomness commitment for this finality provider from
+     public randomness commitment state
    - Use key `(fp_pubkey_hex, _)` to find the highest height commitment
-   - Ensure `start_height > last_commit.start_height + last_commit.num_pub_rand - 1` to prevent overlapping ranges
+   - Ensure `start_height > last_commit.start_height + last_commit.num_pub_rand
+     - 1` to prevent overlapping ranges
 
 4. **Storage Operations**: Save the public randomness commitment data:
-   - Create a new `PubRandCommit` struct with provided parameters and current Babylon epoch
-   - Save to the public randomness commitment state using key `(fp_pubkey_hex, start_height)`
-   - Record the current Babylon epoch as the commitment epoch for BTC timestamping validation
+   - Create a new `PubRandCommit` struct with provided parameters and current
+     Babylon epoch
+   - Save to the public randomness commitment state using key `(fp_pubkey_hex,
+     start_height)`
+   - Record the current Babylon epoch as the commitment epoch for BTC
+     timestamping validation
 
 #### 4.5.2. SubmitFinalitySignature (MUST)
 
@@ -471,49 +518,69 @@ SubmitFinalitySignature {
 }
 ```
 
-**Finality Signature Message Format:**
-The finality signature is computed over a message constructed as follows:
-1. Construct the message: `height || block_hash` (where `height` is encoded as 8 bytes in big-endian format)
-2. Apply SHA256 hash to the message: `message_hash = SHA256(height || block_hash)`
+**Finality Signature Message Format:** The finality signature is computed over a
+message constructed as follows:
+1. Construct the message: `height || block_hash` (where `height` is encoded as 8
+bytes in big-endian format) 2. Apply SHA256 hash to the message: `message_hash =
+SHA256(height || block_hash)`
 3. Sign the message hash using EOTS with the public randomness
 
-**Expected Behavior:** Finality contracts MUST implement this handler with the following verification logic:
+**Expected Behaviour:** Finality contracts MUST implement this handler with the
+following verification logic:
 
-1. **Finality Provider Existence Check**: Verify that the finality provider exists and is not slashed by querying the Babylon Genesis chain through gRPC:
-   - Use `query_grpc` to call `/babylon.btcstkconsumer.v1.Query/FinalityProvider` with the `consumer_id` and `fp_pubkey_hex` parameters
+1. **Finality Provider Existence Check**: Verify that the finality provider
+   exists and is not slashed by querying the Babylon Genesis chain through gRPC:
+   - Use `query_grpc` to call `/babylon.btcstaking.v1.Query/FinalityProvider`
+     with the `bsn_id` parameters
    - Verify the response contains a valid finality provider
-   - Ensure the finality provider has not been slashed (`slashed_babylon_height` and `slashed_btc_height` are both 0)
+   - Ensure the finality provider is associated with this BSN
+   - Ensure the finality provider has not been slashed (`slashed_babylon_height`
+     and `slashed_btc_height` are both 0)
 
 2. **Duplicate Vote Check**: Check if an identical vote already exists:
    - Query finality signature state using key `(height, fp_pubkey_hex)`
-   - If the same signature exists for the same block hash, return success (duplicate vote)
-   - If a different signature exists for the same height, proceed to equivocation handling
+   - If the same signature exists for the same block hash, return success
+     (duplicate vote)
+   - If a different signature exists for the same height, proceed to
+     equivocation handling
 
-3. **Public Randomness Commitment Retrieval**: Find the public randomness commitment that covers the target height:
-   - Query public randomness commitment state to find commitment where `start_height <= height <= start_height + num_pub_rand - 1`
-   - **BTC Timestamping Validation**: Ensure the commitment is timestamped by BTC by verifying that the commitment's epoch is less than or equal to the last finalized epoch
+3. **Public Randomness Commitment Retrieval**: Find the public randomness
+   commitment that covers the target height:
+   - Query public randomness commitment state to find commitment where
+     `start_height <= height <= start_height + num_pub_rand - 1`
+   - **BTC Timestamping Validation**: Ensure the commitment is timestamped by
+     BTC by verifying that the commitment's epoch is less than or equal to the
+     last finalized epoch
    - Use the commitment for subsequent verification steps
 
 4. **Finality Signature Verification**:
    - Verify `height == pr_commit.start_height + proof.index`
    - Verify `proof.total == pr_commit.num_pub_rand`
-   - Verify the inclusion proof for the public randomness value against `pr_commit.commitment`
+   - Verify the inclusion proof for the public randomness value against
+     `pr_commit.commitment`
    - Verify the EOTS signature using:
      - Message: `SHA256(height || block_hash)` (in big-endian format)
      - Public randomness value and EOTS signature
 
-5. **Equivocation Detection and Handling**: Check if the finality provider has already voted for a different block at this height:
+5. **Equivocation Detection and Handling**: Check if the finality provider has
+   already voted for a different block at this height:
    - If existing signature differs from current block hash:
      - Extract the secret key using EOTS from the two different signatures
-     - Send `BabylonMsg::MsgEquivocationEvidence` to trigger slashing on Babylon Genesis
+     - Send `BabylonMsg::MsgEquivocationEvidence` to trigger slashing on Babylon
+       Genesis
      - Emit `slashed_finality_provider` event with extracted secret key
 
-6. **Storage Operations**: Store the finality signature and related data atomically:
-   - Use the `insert_finality_sig_and_signatory` helper function to perform all storage operations atomically
+6. **Storage Operations**: Store the finality signature and related data
+   atomically:
+   - Use the `insert_finality_sig_and_signatory` helper function to perform all
+     storage operations atomically
    - This function performs the following operations in sequence:
-     - Save finality signature using key `(height, fp_pubkey_hex)` (will override existing signature)
-     - Add signatory to the set of signatories for the block using key `(height, block_hash)`
-     - Save public randomness value using key `(fp_pubkey_hex, height)` if this is the first vote for this height
+     - Save finality signature using key `(height, fp_pubkey_hex)` (will
+       override existing signature)
+     - Add signatory to the set of signatories for the block using key `(height,
+       block_hash)`
+     - Save public randomness value using key `(fp_pubkey_hex, height)` if this
+       is the first vote for this height
 
 
 #### 4.5.3. SetEnabled (SHOULD)
@@ -525,13 +592,15 @@ SetEnabled {
 }
 ```
 
-**Expected Behavior:** Finality contracts SHOULD implement this administrative handler with the following verification logic:
+**Expected Behaviour:** Finality contracts SHOULD implement this administrative
+handler with the following verification logic:
 
 1. **Admin Authorization**: Verify that the caller is the contract admin:
    - Query `ADMIN` state to get the current admin address
    - Verify that the message sender matches the admin address
 
-2. **State Check**: Verify that the current enabled state differs from the requested state:
+2. **State Check**: Verify that the current enabled state differs from the
+   requested state:
    - Query current value from the contract state
    - Compare with the `enabled` parameter
    - Return error if values are identical (no change needed)
@@ -549,9 +618,11 @@ UpdateAdmin {
 }
 ```
 
-**Expected Behavior:** Finality contracts SHOULD implement this administrative handler with the following verification logic:
+**Expected Behaviour:** Finality contracts SHOULD implement this administrative
+handler with the following verification logic:
 
-1. **Admin Authorization**: Verify that the caller is the current contract admin:
+1. **Admin Authorization**: Verify that the caller is the current contract
+   admin:
    - Query the current admin address
    - Verify that the message sender matches the current admin address
 
@@ -566,7 +637,8 @@ UpdateAdmin {
 
 ### 4.6. Contract State Storage
 
-This section documents the actual state storage structure used by the finality contract implementation.
+This section documents the actual state storage structure used by the finality
+contract implementation.
 
 #### 4.6.1. Core Configuration
 
@@ -581,7 +653,7 @@ This section documents the actual state storage structure used by the finality c
 - Structure:
   ```rust
   pub struct Config {
-      pub consumer_id: String,
+      pub bsn_id: String,
   }
   ```
 
@@ -596,7 +668,8 @@ This section documents the actual state storage structure used by the finality c
 - Type: `Map<(u64, &[u8]), FinalitySigInfo>`
 - Storage key: `"finality_signatures"`
 - Key format: `(block_height, fp_pubkey_bytes)`
-- Purpose: Stores finality signature information including signature and block hash
+- Purpose: Stores finality signature information including signature and block
+  hash
 - Structure:
   ```rust
   pub struct FinalitySigInfo {
@@ -609,7 +682,8 @@ This section documents the actual state storage structure used by the finality c
 - Type: `Map<(u64, &[u8]), HashSet<String>>`
 - Storage key: `"signatories_by_block_hash"`
 - Key format: `(block_height, block_hash_bytes)`
-- Purpose: Maps each (height, block_hash) combination to the set of finality provider public keys (hex-encoded) that voted for it
+- Purpose: Maps each (height, block_hash) combination to the set of finality
+  provider public keys (hex-encoded) that voted for it
 
 #### 4.6.3. Public Randomness Storage
 
@@ -617,7 +691,8 @@ This section documents the actual state storage structure used by the finality c
 - Type: `Map<(&[u8], u64), Vec<u8>>`
 - Storage key: `"pub_rand_values"`
 - Key format: `(fp_pubkey_bytes, block_height)`
-- Purpose: Stores individual public randomness values revealed during finality signature submission
+- Purpose: Stores individual public randomness values revealed during finality
+  signature submission
 
 **PUB_RAND_COMMITS**: Public randomness commitments
 - Type: `Map<(&[u8], u64), PubRandCommit>`
@@ -692,16 +767,19 @@ BlockVoters {
 }
 ```
 
-**Return Type:** `Option<Vec<BlockVoterInfo>>` - List of finality providers and their signatures for the specified block, or `None` if no votes found.
+**Return Type:** `Option<Vec<BlockVoterInfo>>` - List of finality providers and
+their signatures for the specified block, or `None` if no votes found.
 
-**Expected Behavior:** Finality contracts MUST implement this query to return
-the finality providers that voted for a specific block along with their complete signature information:
+**Expected Behaviour:** Finality contracts MUST implement this query to return
+the finality providers that voted for a specific block along with their complete
+signature information:
 
 1. Decode hash_hex from hex string to bytes
    - IF decode fails: RETURN error with `QueryBlockVoterError`
 
 2. Query signatories storage using key (height, hash_bytes)
-   - Access the stored set of finality provider public keys from `SIGNATORIES_BY_BLOCK_HASH`
+   - Access the stored set of finality provider public keys from
+     `SIGNATORIES_BY_BLOCK_HASH`
 
 3. For each finality provider in the set:
    - Query the `FINALITY_SIGNATURES` storage using key (height, fp_pubkey_bytes)
@@ -712,12 +790,15 @@ the finality providers that voted for a specific block along with their complete
 
 4. Return the list of BlockVoterInfo
    - IF no votes found: RETURN `None`
-   - IF votes exist: RETURN `Some(Vec<BlockVoterInfo>)` with all voter information
+   - IF votes exist: RETURN `Some(Vec<BlockVoterInfo>)` with all voter
+     information
 
 WHERE BlockVoterInfo contains:
-- `fp_btc_pk_hex`: `String` - The finality provider's BTC public key in hex format
+- `fp_btc_pk_hex`: `String` - The finality provider's BTC public key in hex
+  format
 - `pub_rand`: `Vec<u8>` - The public randomness value for the block
-- `finality_signature`: `FinalitySigInfo` - Complete signature information including signature and block hash
+- `finality_signature`: `FinalitySigInfo` - Complete signature information
+  including signature and block hash
 
 #### 4.7.2. FirstPubRandCommit (MUST)
 
@@ -731,7 +812,7 @@ FirstPubRandCommit {
 **Return Type:** `Option<PubRandCommit>` - The first public randomness
 commitment or None if not found
 
-**Expected Behavior:** Finality contracts MUST implement this query to return
+**Expected Behaviour:** Finality contracts MUST implement this query to return
 the first public randomness commitment for a given finality provider:
 
 1. Query public randomness commitments storage with prefix btc_pk_hex
@@ -762,7 +843,7 @@ LastPubRandCommit {
 **Return Type:** `Option<PubRandCommit>` - The last public randomness commitment
 or `None` if not found
 
-**Expected Behavior:** Finality contracts MUST implement this query to return
+**Expected Behaviour:** Finality contracts MUST implement this query to return
 the last public randomness commitment for a given finality provider:
 
 1. Query public randomness commitments storage with prefix btc_pk_hex
@@ -790,7 +871,7 @@ Admin {}    // No parameters required
 
 **Return Type:** `AdminResponse` - Contains the current admin address
 
-**Expected Behavior:** Finality contracts SHOULD implement this administrative
+**Expected Behaviour:** Finality contracts SHOULD implement this administrative
 query to return the current admin address:
 
 1. Query admin storage to retrieve current admin address
@@ -812,7 +893,7 @@ Config {}    // No parameters required
 
 **Return Type:** `Config` - Contract configuration settings
 
-**Expected Behavior:** Finality contracts SHOULD implement this administrative
+**Expected Behaviour:** Finality contracts SHOULD implement this administrative
 query to return the contract configuration:
 
 1. Query configuration storage to retrieve current settings
@@ -823,7 +904,7 @@ query to return the contract configuration:
    - All configuration fields should be populated
    
 WHERE Config contains:
-- `consumer_id`: `String` - The consumer chain identifier for this finality contract
+- `bsn_id`: `String` - The BSN identifier for this finality contract
 
 #### 4.7.6. IsEnabled (SHOULD)
 
@@ -834,7 +915,7 @@ IsEnabled {}    // No parameters required
 
 **Return Type:** `bool` - Whether the finality contract is enabled
 
-**Expected Behavior:** Finality contracts SHOULD implement this administrative
+**Expected Behaviour:** Finality contracts SHOULD implement this administrative
 query to return whether the finality gadget is enabled:
 
 1. Query enabled status storage to retrieve current state
@@ -848,7 +929,10 @@ query to return whether the finality gadget is enabled:
 
 ### 5.1. Babylon implementation status
 
-The interfaces in this specification have been fully implemented in the [Babylon codebase](https://github.com/babylonlabs-io/babylon) (`main` branch). This includes all required message types, queries, and expected behaviors for finality contract integration.
+The interfaces in this specification have been fully implemented in the [Babylon
+codebase](https://github.com/babylonlabs-io/babylon) (`main` branch). This
+includes all required message types, queries, and expected behaviors for
+finality contract integration.
 
 ### 5.2. Finality contract implementation status
 
@@ -870,8 +954,8 @@ that integrate with Babylon's Bitcoin staking protocol:
    integration. The project is developed and maintained by AltLayer.
 
 **Comparison**: While both implementations follow the general principles
-outlined in this specification, they target different rollup architectures. The OP
-Finality Gadget is specifically designed for OP Stack chains and leverages
+outlined in this specification, they target different rollup architectures. The
+OP Finality Gadget is specifically designed for OP Stack chains and leverages
 CosmWasm for deployment on Babylon, whereas BLITZ focuses on Arbitrum Orbit
 chains and includes additional infrastructure components for the Nitro-based
 architecture.

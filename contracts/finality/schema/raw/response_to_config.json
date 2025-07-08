@@ -4,10 +4,10 @@
   "description": "Config are OP finality gadget's configuration",
   "type": "object",
   "required": [
-    "consumer_id"
+    "bsn_id"
   ],
   "properties": {
-    "consumer_id": {
+    "bsn_id": {
       "type": "string"
     }
   },
