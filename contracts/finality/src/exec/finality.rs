@@ -320,7 +320,7 @@ pub(crate) mod tests {
     fn verify_finality_signature_works() {
         // Read public randomness commitment test data
         let (pk_hex, pr_commit, _) = get_public_randomness_commitment();
-        let pub_rand_one = get_pub_rand_value();
+        let pub_rand_value = get_pub_rand_value();
         let add_finality_signature = get_add_finality_sig();
         let proof = add_finality_signature.proof.unwrap();
 
@@ -339,7 +339,7 @@ pub(crate) mod tests {
         let res = verify_finality_signature(
             &hex::decode(&pk_hex).unwrap(),
             pr_commit.start_height + proof.index.unsigned_abs(),
-            &pub_rand_one,
+            &pub_rand_value,
             // we need to add a typecast below because the provided proof is of type
             // tendermint_proto::crypto::Proof, whereas the fn expects babylon_merkle::proof
             &proof.into(),
@@ -353,14 +353,14 @@ pub(crate) mod tests {
     #[test]
     fn verify_slashing_works() {
         // Read test data
-        let (pk_hex, pub_rand, _) = get_public_randomness_commitment();
+        let (pk_hex, pr_commit, _) = get_public_randomness_commitment();
         let fp_btc_pk = hex::decode(&pk_hex).unwrap();
-        let pub_rand_one = get_pub_rand_value();
+        let pub_rand_value = get_pub_rand_value();
         let add_finality_signature = get_add_finality_sig();
         let add_finality_signature_2 = get_add_finality_sig_2();
         let proof = add_finality_signature.proof.unwrap();
 
-        let initial_height = pub_rand.start_height;
+        let initial_height = pr_commit.start_height;
         let block_height = initial_height + proof.index.unsigned_abs();
 
         // Create mock environment
@@ -371,7 +371,7 @@ pub(crate) mod tests {
             &info,
             &fp_btc_pk,
             block_height,
-            &pub_rand_one,
+            &pub_rand_value,
             &add_finality_signature.block_app_hash,
             &add_finality_signature.finality_sig,
             &add_finality_signature_2.block_app_hash,
@@ -398,7 +398,7 @@ pub(crate) mod tests {
                 assert_eq!(signer, "test");
                 assert_eq!(fp_btc_pk_hex, hex::encode(&fp_btc_pk));
                 assert_eq!(msg_height, block_height);
-                assert_eq!(pub_rand_hex, hex::encode(&pub_rand_one));
+                assert_eq!(pub_rand_hex, hex::encode(&pub_rand_value));
                 assert_eq!(
                     canonical_app_hash_hex,
                     hex::encode(&add_finality_signature.block_app_hash)
