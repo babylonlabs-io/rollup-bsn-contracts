@@ -68,8 +68,6 @@ pub enum ContractError {
     AlreadyDisabled,
     #[error("Public randomness already exists for finality provider {0} at height {1}")]
     PubRandAlreadyExists(String, u64),
-    #[error("Evidence already exists for finality provider {0} at height {1}")]
-    EvidenceAlreadyExists(String, u64),
     #[error("Duplicate signatory {0}")]
     DuplicateSignatory(String),
 }
