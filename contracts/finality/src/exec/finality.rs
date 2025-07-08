@@ -172,6 +172,7 @@ pub fn handle_finality_signature(
             &existing_finality_sig.finality_sig,
             block_hash,
             signature,
+            &context,
         )?;
         res = res.add_message(msg);
     } else {
@@ -272,6 +273,7 @@ fn get_msg_equivocation_evidence(
     canonical_finality_sig: &[u8],
     fork_app_hash: &[u8],
     fork_finality_sig: &[u8],
+    signing_context: &str,
 ) -> Result<BabylonMsg, ContractError> {
     let fp_btc_pk_hex = hex::encode(fp_btc_pk);
     let pub_rand_hex = hex::encode(pub_rand);
@@ -289,7 +291,7 @@ fn get_msg_equivocation_evidence(
         fork_app_hash_hex,
         canonical_finality_sig_hex,
         fork_finality_sig_hex,
-        signing_context: "".to_string(), // TODO: support signing context
+        signing_context: signing_context.to_string(),
     };
 
     Ok(msg)
@@ -387,6 +389,7 @@ pub(crate) mod tests {
             &add_finality_signature.finality_sig,
             &add_finality_signature_2.block_app_hash,
             &add_finality_signature_2.finality_sig,
+            "",
         )
         .unwrap();
 
