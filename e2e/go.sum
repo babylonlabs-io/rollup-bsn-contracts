@@ -727,6 +727,8 @@ github.com/aws/aws-sdk-go v1.44.312/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8
 github.com/aws/aws-sdk-go-v2 v0.18.0/go.mod h1:JWVYvqSMppoMJC0x5wdwiImzgXTI9FuZwxzkQq9wy+g=
 github.com/babylonlabs-io/babylon/v3 v3.0.0-20250704154332-d3d81178dc38 h1:fghv6N07YTJpiVVa5Gq6Ej2uoC1mnJW5Wd9MmK6kIGA=
 github.com/babylonlabs-io/babylon/v3 v3.0.0-20250704154332-d3d81178dc38/go.mod h1:aUC9FPKarPMW0uepNpDmv71RnqWTUQRVkC5Bb/on6uY=
+github.com/babylonlabs-io/babylon/v3 v3.0.0-20250707142850-fd530110d705 h1:1mP3efoFoHCSNr1JB/SqYMt/r7xIEYq9SC9+YaF7imA=
+github.com/babylonlabs-io/babylon/v3 v3.0.0-20250707142850-fd530110d705/go.mod h1:aUC9FPKarPMW0uepNpDmv71RnqWTUQRVkC5Bb/on6uY=
 github.com/babylonlabs-io/tokenfactory v0.50.6-wasmvm2 h1:7wtBLjwncBsYgc+LlW4eir/bGcycrhpbz7PkUVADzBc=
 github.com/babylonlabs-io/tokenfactory v0.50.6-wasmvm2/go.mod h1:L8XfncoH1M6fOrzqfRVQZePqo54ZlTDdatUpEr0Iz/E=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=

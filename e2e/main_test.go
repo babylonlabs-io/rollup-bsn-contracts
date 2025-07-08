@@ -11,6 +11,7 @@ import (
 	"github.com/babylonlabs-io/babylon/v3/crypto/eots"
 	"github.com/babylonlabs-io/babylon/v3/testutil/datagen"
 	bbn "github.com/babylonlabs-io/babylon/v3/types"
+	bstypes "github.com/babylonlabs-io/babylon/v3/x/btcstaking/types"
 	ckpttypes "github.com/babylonlabs-io/babylon/v3/x/checkpointing/types"
 	etypes "github.com/babylonlabs-io/babylon/v3/x/epoching/types"
 	ftypes "github.com/babylonlabs-io/babylon/v3/x/finality/types"
@@ -83,10 +84,23 @@ func (s *FinalityContractTestSuite) Test2CreateBSNFP() {
 	// register FP
 	fp, err := datagen.GenRandomFinalityProviderWithBTCSK(r, fpSK, "", bsn.ConsumerId)
 	s.NoError(err)
-	s.babylonApp.BTCStkConsumerKeeper.SetConsumerFinalityProvider(s.ctx, fp)
+	msgFP := bstypes.MsgCreateFinalityProvider{
+		Addr:        fp.Addr,
+		Description: fp.Description,
+		BtcPk:       fp.BtcPk,
+		Pop:         fp.Pop,
+		Commission: bstypes.NewCommissionRates(
+			*fp.Commission,
+			fp.CommissionInfo.MaxRate,
+			fp.CommissionInfo.MaxChangeRate,
+		),
+		BsnId: bsn.ConsumerId,
+	}
+	err = s.babylonApp.BTCStakingKeeper.AddFinalityProvider(s.ctx, &msgFP)
+	s.NoError(err)
 
 	// ensure FP is registered
-	fpInDB, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerFinalityProvider(s.ctx, bsn.ConsumerId, fp.BtcPk)
+	fpInDB, err := s.babylonApp.BTCStakingKeeper.GetFinalityProvider(s.ctx, fp.BtcPk.MustMarshal())
 	s.NoError(err)
 	s.Equal(fp.BtcPk, fpInDB.BtcPk)
 }
@@ -105,7 +119,7 @@ func (s *FinalityContractTestSuite) Test3CommitAndTimestampPubRand() {
 
 	// get FP
 	fpBTCPK := bbn.NewBIP340PubKeyFromBTCPK(fpPK)
-	fp, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerFinalityProvider(s.ctx, s.contractCfg.ConsumerID, fpBTCPK)
+	fp, err := s.babylonApp.BTCStakingKeeper.GetFinalityProvider(s.ctx, fpBTCPK.MustMarshal())
 	s.NoError(err)
 
 	// generate secret/public randomness list
@@ -160,7 +174,7 @@ func (s *FinalityContractTestSuite) Test3CommitAndTimestampPubRand() {
 func (s *FinalityContractTestSuite) Test4SubmitFinalitySignature() {
 	// get FP
 	fpBTCPK := bbn.NewBIP340PubKeyFromBTCPK(fpPK)
-	fp, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerFinalityProvider(s.ctx, s.contractCfg.ConsumerID, fpBTCPK)
+	fp, err := s.babylonApp.BTCStakingKeeper.GetFinalityProvider(s.ctx, fpBTCPK.MustMarshal())
 	s.NoError(err)
 
 	// Mock a block with start height 1
@@ -195,7 +209,7 @@ func (s *FinalityContractTestSuite) Test4SubmitFinalitySignature() {
 func (s *FinalityContractTestSuite) Test5Slash() {
 	// get FP
 	fpBTCPK := bbn.NewBIP340PubKeyFromBTCPK(fpPK)
-	fp, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerFinalityProvider(s.ctx, s.contractCfg.ConsumerID, fpBTCPK)
+	fp, err := s.babylonApp.BTCStakingKeeper.GetFinalityProvider(s.ctx, fpBTCPK.MustMarshal())
 	s.NoError(err)
 
 	// Mock another block with start height 1

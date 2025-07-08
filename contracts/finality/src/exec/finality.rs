@@ -233,18 +233,25 @@ fn ensure_fp_exists_and_not_slashed(
     fp_pubkey_hex: &str,
 ) -> Result<(), ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    let fp = query_finality_provider(deps, config.consumer_id.clone(), fp_pubkey_hex.to_string());
+    let fp = query_finality_provider(deps, fp_pubkey_hex.to_string());
     match fp {
+        // the finality provider is found but is associated with other BSNs
+        Ok(value) if value.bsn_id != config.consumer_id => Err(
+            ContractError::NotFoundFinalityProvider(config.consumer_id, fp_pubkey_hex.to_string()),
+        ),
+        // the finality provider is found but is slashed
         Ok(value) if value.is_slashed() => Err(ContractError::SlashedFinalityProvider(
             fp_pubkey_hex.to_string(),
             value.slashed_babylon_height,
             value.slashed_btc_height,
         )),
-        Ok(_) => Ok(()),
+        // other errors
         Err(_e) => Err(ContractError::NotFoundFinalityProvider(
             config.consumer_id,
             fp_pubkey_hex.to_string(),
         )),
+        // the finality provider is found, is associated with the correct BSN, and is not slashed
+        Ok(_) => Ok(()),
     }
 }
 
