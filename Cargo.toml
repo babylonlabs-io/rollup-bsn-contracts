@@ -64,6 +64,7 @@ k256 = { version = "0.13.1", default-features = false, features = ["schnorr"] }
 assert_matches = "1"
 rand = "0.9.1"
 cargo_metadata = "0.18.1"
+proptest = "1.0"
 
 babylon-test-utils = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
 

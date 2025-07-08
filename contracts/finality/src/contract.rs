@@ -139,35 +139,7 @@ pub(crate) mod tests {
         }
     }
 
-    #[test]
-    fn instantiate_works() {
-        let mut deps = mock_deps_babylon();
-        let init_admin = deps.api.addr_make(INIT_ADMIN);
-        let consumer_id = "op".to_string();
 
-        // Create an InstantiateMsg with admin set to init_admin
-        let msg = InstantiateMsg {
-            admin: init_admin.to_string(),
-            consumer_id,
-            is_enabled: true,
-            min_pub_rand: 1,
-        };
-
-        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-
-        // Call the instantiate function
-        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-        // Assert that no messages were returned
-        assert_eq!(0, res.messages.len());
-
-        ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
-
-        // ensure the admin is queryable as well
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::Admin {}).unwrap();
-        let admin: AdminResponse = from_json(res).unwrap();
-        assert_eq!(admin.admin.unwrap(), init_admin.as_str())
-    }
 
     #[test]
     fn test_update_admin() {
@@ -179,7 +151,7 @@ pub(crate) mod tests {
             admin: init_admin.to_string(), // Admin provided
             consumer_id: "op-stack-l2-11155420".to_string(),
             is_enabled: true,
-            min_pub_rand: 1,
+            min_pub_rand: 100,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -220,26 +192,65 @@ pub(crate) mod tests {
         ADMIN.assert_admin(deps.as_ref(), &new_admin).unwrap();
     }
 
-    #[test]
-    fn instantiate_fails_with_invalid_min_pub_rand() {
-        let mut deps = mock_deps_babylon();
-        let init_admin = deps.api.addr_make(INIT_ADMIN);
-        let consumer_id = "op".to_string();
+    mod property_tests {
+        use super::*;
+        use proptest::prelude::*;
 
-        // Create an InstantiateMsg with invalid min_pub_rand = 0
-        let msg = InstantiateMsg {
-            admin: init_admin.to_string(),
-            consumer_id,
-            is_enabled: true,
-            min_pub_rand: 0, // This should fail
-        };
+        proptest! {
+            #[test]
+            fn test_instantiate_validation(
+                min_pub_rand in 0u64..1000000,
+                is_enabled: bool,
+                consumer_id in "[a-zA-Z0-9-_]{1,20}"
+            ) {
+                let mut deps = mock_deps_babylon();
+                let init_admin = deps.api.addr_make(INIT_ADMIN);
+                
+                let msg = InstantiateMsg {
+                    admin: init_admin.to_string(),
+                    consumer_id: consumer_id.clone(),
+                    is_enabled,
+                    min_pub_rand,
+                };
 
-        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+                let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+                let result = instantiate(deps.as_mut(), mock_env(), info, msg);
 
-        // Call the instantiate function - should fail
-        let err = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-
-        // Should return InvalidMinPubRand error
-        assert_eq!(err, ContractError::InvalidMinPubRand(0));
+                // PROPERTY: "If min_pub_rand > 0, instantiate should succeed AND set state correctly"
+                if min_pub_rand > 0 {
+                    prop_assert!(result.is_ok(), "Expected success for min_pub_rand = {}", min_pub_rand);
+                    
+                    // Verify the response
+                    let res = result.unwrap();
+                    prop_assert_eq!(res.messages.len(), 0, "Should return no messages");
+                    
+                    // Verify admin was set correctly
+                    ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
+                    
+                    // Verify admin is queryable
+                    let admin_query = query(deps.as_ref(), mock_env(), QueryMsg::Admin {}).unwrap();
+                    let admin: AdminResponse = from_json(admin_query).unwrap();
+                    prop_assert_eq!(admin.admin.unwrap(), init_admin.as_str());
+                    
+                    // Verify config was saved correctly
+                    let config_query = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
+                    let config: Config = from_json(config_query).unwrap();
+                    prop_assert_eq!(config.consumer_id, consumer_id);
+                    prop_assert_eq!(config.min_pub_rand, min_pub_rand);
+                    
+                    // Verify is_enabled was saved correctly
+                    let enabled_query = query(deps.as_ref(), mock_env(), QueryMsg::IsEnabled {}).unwrap();
+                    let saved_enabled: bool = from_json(enabled_query).unwrap();
+                    prop_assert_eq!(saved_enabled, is_enabled);
+                    
+                } else {
+                    // PROPERTY: "If min_pub_rand = 0, instantiate should fail with specific error"
+                    prop_assert!(result.is_err(), "Expected error for min_pub_rand = 0");
+                    if let Err(err) = result {
+                        prop_assert_eq!(err, ContractError::InvalidMinPubRand(0));
+                    }
+                }
+            }
+        }
     }
 }
