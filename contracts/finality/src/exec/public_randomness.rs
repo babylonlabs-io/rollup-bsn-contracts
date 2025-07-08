@@ -69,9 +69,6 @@ pub fn handle_public_randomness_commit(
     Ok(Response::new().add_event(event))
 }
 
-/// Static validation function for public randomness commit parameters.
-/// This is a "sanity check" function similar to ValidateBasic in Cosmos SDK.
-/// It can be used by other offchain programs to validate parameters before submission.
 pub fn validate_pub_rand_commit_basic(
     fp_btc_pk_hex: &str,
     start_height: u64,
