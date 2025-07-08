@@ -2,9 +2,7 @@ use crate::custom_queries::get_current_epoch;
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::state::config::CONFIG;
-use crate::state::finality::{
-    insert_finality_sig_and_signatory, FinalitySigInfo, FINALITY_SIGNATURES,
-};
+use crate::state::finality::{get_finality_signature, insert_finality_sig_and_signatory};
 use crate::state::public_randomness::{
     get_timestamped_pub_rand_commit_for_height, insert_pub_rand_commit, insert_pub_rand_value,
     PubRandCommit,
