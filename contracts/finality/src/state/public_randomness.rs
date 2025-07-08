@@ -166,11 +166,6 @@ pub fn insert_pub_rand_commit(
     fp_btc_pk: &[u8],
     pr_commit: PubRandCommit,
 ) -> Result<(), ContractError> {
-    // Validate num_pub_rand is at least 1 to prevent integer underflow
-    if pr_commit.num_pub_rand == 0 {
-        return Err(ContractError::InvalidNumPubRand(pr_commit.num_pub_rand));
-    }
-
     // Get last public randomness commitment
     let last_pr_commit = get_last_pub_rand_commit(storage, fp_btc_pk)?;
 
