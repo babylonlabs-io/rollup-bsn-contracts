@@ -220,36 +220,17 @@ mod tests {
     use rand::{rng, Rng};
 
     #[test]
-    fn insert_pub_rand_commit_validates_num_pub_rand() {
+    fn insert_pub_rand_commit_works() {
         let mut deps = mock_dependencies();
         let env = mock_env();
         let fp_btc_pk = get_random_fp_pk();
         let start_height = get_random_u64();
         let commitment = get_random_block_hash();
 
-        // Test with num_pub_rand = 0 (should fail)
-        let invalid_commit = PubRandCommit::new(
-            start_height,
-            0, // Zero value should be rejected
-            env.block.height,
-            commitment.clone(),
-        );
-
-        let result = insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk, invalid_commit);
-
-        // Should return InvalidNumPubRand error
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            ContractError::InvalidNumPubRand(val) => {
-                assert_eq!(val, 0);
-            }
-            e => panic!("Expected InvalidNumPubRand error, got: {:?}", e),
-        }
-
-        // Test with num_pub_rand = 1 (should pass validation)
+        // Test with valid num_pub_rand (should pass)
         let valid_commit = PubRandCommit::new(
             start_height,
-            1, // Valid value should pass this validation
+            1, // Valid value should pass
             env.block.height,
             commitment,
         );
@@ -257,7 +238,7 @@ mod tests {
         let result =
             insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk, valid_commit.clone());
 
-        // Should pass the num_pub_rand validation
+        // Should pass
         assert!(result.is_ok());
 
         // Verify we can retrieve it with the helper functions

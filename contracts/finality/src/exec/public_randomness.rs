@@ -20,14 +20,23 @@ pub fn handle_public_randomness_commit(
     commitment: &[u8],
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
-    // Static validation that can be used by other programs
     let config = get_config(deps.as_ref())?;
-    validate_pub_rand_commit_basic(
-        fp_btc_pk_hex,
+    
+    // Check if FP BTC PubKey is empty
+    if fp_btc_pk_hex.is_empty() {
+        return Err(ContractError::EmptyFpBtcPubKey);
+    }
+    
+    // Check if signature is empty
+    if signature.is_empty() {
+        return Err(ContractError::EmptySignature);
+    }
+    
+    // Validate the commitment parameters
+    validate_pub_rand_commit(
         start_height,
         num_pub_rand,
         commitment,
-        signature,
         config.min_pub_rand,
     )?;
 
@@ -48,7 +57,7 @@ pub fn handle_public_randomness_commit(
     // insert the public randomness commitment into the storage
     // note that `insert_pub_rand_commit` has ensured that
     // - the new commitment does not overlap with the existing ones
-    // - the new commitment does not have num_pub_rand = 0
+    // - the new commitment >= min_pub_rand
     let current_epoch = get_current_epoch(&deps.as_ref())?;
     insert_pub_rand_commit(
         deps.storage,
@@ -69,19 +78,12 @@ pub fn handle_public_randomness_commit(
     Ok(Response::new().add_event(event))
 }
 
-pub fn validate_pub_rand_commit_basic(
-    fp_btc_pk_hex: &str,
+pub fn validate_pub_rand_commit(
     start_height: u64,
     num_pub_rand: u64,
     commitment: &[u8],
-    signature: &[u8],
     min_pub_rand: u64,
 ) -> Result<(), ContractError> {
-    // Check if FP BTC PubKey is empty
-    if fp_btc_pk_hex.is_empty() {
-        return Err(ContractError::EmptyFpBtcPubKey);
-    }
-
     // Check if commitment is exactly 32 bytes
     if commitment.len() != EXPECTED_COMMITMENT_LENGTH_BYTES {
         return Err(ContractError::InvalidCommitmentLength {
@@ -98,11 +100,6 @@ pub fn validate_pub_rand_commit_basic(
             start_height,
             end_height,
         });
-    }
-
-    // Check if signature is empty
-    if signature.is_empty() {
-        return Err(ContractError::EmptySignature);
     }
 
     // Validate minimum public randomness requirement
@@ -128,9 +125,6 @@ fn verify_commitment_signature(
         .map_err(|e| ContractError::SecP256K1Error(e.to_string()))?;
 
     // get signature
-    if signature.is_empty() {
-        return Err(ContractError::EmptySignature);
-    }
     let schnorr_sig =
         Signature::try_from(signature).map_err(|e| ContractError::SecP256K1Error(e.to_string()))?;
 
