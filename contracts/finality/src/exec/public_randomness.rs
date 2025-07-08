@@ -21,24 +21,19 @@ pub fn handle_public_randomness_commit(
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
     let config = get_config(deps.as_ref())?;
-    
+
     // Check if FP BTC PubKey is empty
     if fp_btc_pk_hex.is_empty() {
         return Err(ContractError::EmptyFpBtcPubKey);
     }
-    
+
     // Check if signature is empty
     if signature.is_empty() {
         return Err(ContractError::EmptySignature);
     }
-    
+
     // Validate the commitment parameters
-    validate_pub_rand_commit(
-        start_height,
-        num_pub_rand,
-        commitment,
-        config.min_pub_rand,
-    )?;
+    validate_pub_rand_commit(start_height, num_pub_rand, commitment, config.min_pub_rand)?;
 
     // Ensure the finality provider is registered and not slashed
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
@@ -159,9 +154,9 @@ fn ensure_fp_exists_and_not_slashed(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use babylon_test_utils::get_public_randomness_commitment;
     use crate::contract::tests::mock_deps_babylon;
     use crate::state::config::{Config, CONFIG};
+    use babylon_test_utils::get_public_randomness_commitment;
     use cosmwasm_std::testing::mock_env;
 
     #[test]
@@ -347,4 +342,4 @@ pub(crate) mod tests {
             "EXPECTED_COMMITMENT_LENGTH_BYTES should match expected value"
         );
     }
-} 
+}

@@ -204,7 +204,7 @@ pub(crate) mod tests {
             ) {
                 let mut deps = mock_deps_babylon();
                 let init_admin = deps.api.addr_make(INIT_ADMIN);
-                
+
                 let msg = InstantiateMsg {
                     admin: init_admin.to_string(),
                     bsn_id: bsn_id.clone(),
@@ -218,30 +218,30 @@ pub(crate) mod tests {
                 // PROPERTY: "If min_pub_rand > 0, instantiate should succeed AND set state correctly"
                 if min_pub_rand > 0 {
                     prop_assert!(result.is_ok(), "Expected success for min_pub_rand = {}", min_pub_rand);
-                    
+
                     // Verify the response
                     let res = result.unwrap();
                     prop_assert_eq!(res.messages.len(), 0, "Should return no messages");
-                    
+
                     // Verify admin was set correctly
                     ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
-                    
+
                     // Verify admin is queryable
                     let admin_query = query(deps.as_ref(), mock_env(), QueryMsg::Admin {}).unwrap();
                     let admin: AdminResponse = from_json(admin_query).unwrap();
                     prop_assert_eq!(admin.admin.unwrap(), init_admin.as_str());
-                    
+
                     // Verify config was saved correctly
                     let config_query = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
                     let config: Config = from_json(config_query).unwrap();
                     prop_assert_eq!(config.bsn_id, bsn_id);
                     prop_assert_eq!(config.min_pub_rand, min_pub_rand);
-                    
+
                     // Verify is_enabled was saved correctly
                     let enabled_query = query(deps.as_ref(), mock_env(), QueryMsg::IsEnabled {}).unwrap();
                     let saved_enabled: bool = from_json(enabled_query).unwrap();
                     prop_assert_eq!(saved_enabled, is_enabled);
-                    
+
                 } else {
                     // PROPERTY: "If min_pub_rand = 0, instantiate should fail with specific error"
                     prop_assert!(result.is_err(), "Expected error for min_pub_rand = 0");

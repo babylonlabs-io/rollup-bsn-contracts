@@ -11,8 +11,6 @@ use babylon_merkle::Proof;
 use cosmwasm_std::{Deps, DepsMut, Event, MessageInfo, Response};
 use k256::sha2::{Digest, Sha256};
 
-
-
 #[allow(clippy::too_many_arguments)]
 pub fn handle_finality_signature(
     deps: DepsMut<BabylonQuery>,
@@ -219,8 +217,6 @@ pub(crate) mod tests {
     };
     use cosmwasm_std::{testing::message_info, Addr};
 
-
-
     #[test]
     fn verify_finality_signature_works() {
         // Read public randomness commitment test data
@@ -324,6 +320,4 @@ pub(crate) mod tests {
             }
         }
     }
-
-
 }
