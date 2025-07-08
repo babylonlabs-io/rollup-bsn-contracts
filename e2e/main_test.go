@@ -11,6 +11,7 @@ import (
 	"github.com/babylonlabs-io/babylon/v3/crypto/eots"
 	"github.com/babylonlabs-io/babylon/v3/testutil/datagen"
 	bbn "github.com/babylonlabs-io/babylon/v3/types"
+	bstypes "github.com/babylonlabs-io/babylon/v3/x/btcstaking/types"
 	ckpttypes "github.com/babylonlabs-io/babylon/v3/x/checkpointing/types"
 	etypes "github.com/babylonlabs-io/babylon/v3/x/epoching/types"
 	ftypes "github.com/babylonlabs-io/babylon/v3/x/finality/types"
@@ -63,12 +64,12 @@ func (s *FinalityContractTestSuite) SetupSuite() {
 func (s *FinalityContractTestSuite) Test1RegisterRollupBSN() {
 	// register BSN
 	bsn := datagen.GenRandomRollupRegister(r, s.contractAddr.String())
-	bsn.ConsumerId = s.contractCfg.ConsumerID
+	bsn.ConsumerId = s.contractCfg.BsnID
 	err := s.babylonApp.BTCStkConsumerKeeper.RegisterConsumer(s.ctx, bsn)
 	s.NoError(err)
 
 	// ensure BSN is registered
-	bsnInDB, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerRegister(s.ctx, s.contractCfg.ConsumerID)
+	bsnInDB, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerRegister(s.ctx, s.contractCfg.BsnID)
 	s.NoError(err)
 	s.Equal(bsn.ConsumerId, bsnInDB.ConsumerId)
 	s.Equal(bsn.ConsumerDescription, bsnInDB.ConsumerDescription)
@@ -76,17 +77,26 @@ func (s *FinalityContractTestSuite) Test1RegisterRollupBSN() {
 }
 
 func (s *FinalityContractTestSuite) Test2CreateBSNFP() {
-	// get registered BSN
-	bsn, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerRegister(s.ctx, s.contractCfg.ConsumerID)
-	s.NoError(err)
-
 	// register FP
-	fp, err := datagen.GenRandomFinalityProviderWithBTCSK(r, fpSK, "", bsn.ConsumerId)
+	fp, err := datagen.GenRandomFinalityProviderWithBTCSK(r, fpSK, "", s.contractCfg.BsnID)
 	s.NoError(err)
-	s.babylonApp.BTCStkConsumerKeeper.SetConsumerFinalityProvider(s.ctx, fp)
+	msgFP := bstypes.MsgCreateFinalityProvider{
+		Addr:        fp.Addr,
+		Description: fp.Description,
+		BtcPk:       fp.BtcPk,
+		Pop:         fp.Pop,
+		Commission: bstypes.NewCommissionRates(
+			*fp.Commission,
+			fp.CommissionInfo.MaxRate,
+			fp.CommissionInfo.MaxChangeRate,
+		),
+		BsnId: s.contractCfg.BsnID,
+	}
+	err = s.babylonApp.BTCStakingKeeper.AddFinalityProvider(s.ctx, &msgFP)
+	s.NoError(err)
 
 	// ensure FP is registered
-	fpInDB, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerFinalityProvider(s.ctx, bsn.ConsumerId, fp.BtcPk)
+	fpInDB, err := s.babylonApp.BTCStakingKeeper.GetFinalityProvider(s.ctx, fp.BtcPk.MustMarshal())
 	s.NoError(err)
 	s.Equal(fp.BtcPk, fpInDB.BtcPk)
 }
@@ -105,7 +115,7 @@ func (s *FinalityContractTestSuite) Test3CommitAndTimestampPubRand() {
 
 	// get FP
 	fpBTCPK := bbn.NewBIP340PubKeyFromBTCPK(fpPK)
-	fp, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerFinalityProvider(s.ctx, s.contractCfg.ConsumerID, fpBTCPK)
+	fp, err := s.babylonApp.BTCStakingKeeper.GetFinalityProvider(s.ctx, fpBTCPK.MustMarshal())
 	s.NoError(err)
 
 	// generate secret/public randomness list
@@ -160,7 +170,7 @@ func (s *FinalityContractTestSuite) Test3CommitAndTimestampPubRand() {
 func (s *FinalityContractTestSuite) Test4SubmitFinalitySignature() {
 	// get FP
 	fpBTCPK := bbn.NewBIP340PubKeyFromBTCPK(fpPK)
-	fp, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerFinalityProvider(s.ctx, s.contractCfg.ConsumerID, fpBTCPK)
+	fp, err := s.babylonApp.BTCStakingKeeper.GetFinalityProvider(s.ctx, fpBTCPK.MustMarshal())
 	s.NoError(err)
 
 	// Mock a block with start height 1
@@ -195,7 +205,7 @@ func (s *FinalityContractTestSuite) Test4SubmitFinalitySignature() {
 func (s *FinalityContractTestSuite) Test5Slash() {
 	// get FP
 	fpBTCPK := bbn.NewBIP340PubKeyFromBTCPK(fpPK)
-	fp, err := s.babylonApp.BTCStkConsumerKeeper.GetConsumerFinalityProvider(s.ctx, s.contractCfg.ConsumerID, fpBTCPK)
+	fp, err := s.babylonApp.BTCStakingKeeper.GetFinalityProvider(s.ctx, fpBTCPK.MustMarshal())
 	s.NoError(err)
 
 	// Mock another block with start height 1
@@ -249,9 +259,9 @@ func (s *FinalityContractTestSuite) deployContracts(
 	bridgeCodeID, _ := StoreTestCodeCode(s.T(), s.ctx, s.babylonApp, deployer, bridgeCodePath)
 
 	// init message
-	consumerID := "test-consumer"
-	minPubRand := uint64(100) // Set reasonable minimum for e2e tests
-	initMsg := NewInitMsg(s.owner.String(), consumerID, true, minPubRand)
+	bsnID := "test-consumer"
+	minPubRand := uint64(100) 
+	initMsg := NewInitMsg(s.owner.String(), bsnID, true, minPubRand)
 	initMsgBz := []byte(initMsg)
 	// instantiate contract
 	contractKeeper := keeper.NewDefaultPermissionKeeper(s.babylonApp.WasmKeeper)
@@ -263,7 +273,7 @@ func (s *FinalityContractTestSuite) deployContracts(
 	var config Config
 	err = json.Unmarshal(resBz, &config)
 	s.NoError(err)
-	s.Equal(consumerID, config.ConsumerID)
+	s.Equal(bsnID, config.BsnID)
 	s.Equal(minPubRand, config.MinPubRand)
 
 	s.contractCfg = &config

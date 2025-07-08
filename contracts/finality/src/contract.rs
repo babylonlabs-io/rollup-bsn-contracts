@@ -27,7 +27,7 @@ pub fn instantiate(
     IS_ENABLED.save(deps.storage, &msg.is_enabled)?;
 
     let config = Config {
-        consumer_id: msg.consumer_id,
+        bsn_id: msg.bsn_id,
         min_pub_rand: msg.min_pub_rand,
     };
     CONFIG.save(deps.storage, &config)?;
@@ -140,8 +140,6 @@ pub(crate) mod tests {
         }
     }
 
-
-
     #[test]
     fn test_update_admin() {
         let mut deps = mock_deps_babylon();
@@ -150,7 +148,7 @@ pub(crate) mod tests {
         // Create an InstantiateMsg with admin set to Some(INIT_ADMIN.into())
         let instantiate_msg = InstantiateMsg {
             admin: init_admin.to_string(), // Admin provided
-            consumer_id: "op-stack-l2-11155420".to_string(),
+            bsn_id: "op-stack-l2-11155420".to_string(),
             is_enabled: true,
             min_pub_rand: 100,
         };
@@ -202,14 +200,14 @@ pub(crate) mod tests {
             fn test_instantiate_validation(
                 min_pub_rand in 0u64..1000000,
                 is_enabled: bool,
-                consumer_id in "[a-zA-Z0-9-_]{1,20}"
+                bsn_id in "[a-zA-Z0-9-_]{1,20}"
             ) {
                 let mut deps = mock_deps_babylon();
                 let init_admin = deps.api.addr_make(INIT_ADMIN);
                 
                 let msg = InstantiateMsg {
                     admin: init_admin.to_string(),
-                    consumer_id: consumer_id.clone(),
+                    bsn_id: bsn_id.clone(),
                     is_enabled,
                     min_pub_rand,
                 };

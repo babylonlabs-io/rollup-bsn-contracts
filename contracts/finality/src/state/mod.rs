@@ -1,5 +1,4 @@
 pub mod config;
-pub mod evidence;
 pub mod finality;
 pub mod public_randomness;
 

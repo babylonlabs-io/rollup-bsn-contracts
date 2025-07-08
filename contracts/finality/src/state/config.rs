@@ -12,7 +12,7 @@ pub const IS_ENABLED: Item<bool> = Item::new("is_enabled");
 /// Config are OP finality gadget's configuration
 #[cw_serde]
 pub struct Config {
-    pub consumer_id: String,
+    pub bsn_id: String,
     pub min_pub_rand: u64,
 }
 
