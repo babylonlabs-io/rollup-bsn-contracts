@@ -56,7 +56,7 @@ pub enum ContractError {
     StdError(#[from] StdError),
     #[error("Failed to query block voters for block {0} with hash {1}. {2}")]
     QueryBlockVoterError(u64, String, String),
-    #[error("Finality provider not found for consumer {0} with pubkey {1}")]
+    #[error("Finality provider not found for BSN {0} with pubkey {1}")]
     NotFoundFinalityProvider(String, String),
     #[error("Failed to query the voting power of the finality provider {0}")]
     FailedFetchVotingPower(String),
@@ -68,8 +68,6 @@ pub enum ContractError {
     AlreadyDisabled,
     #[error("Public randomness already exists for finality provider {0} at height {1}")]
     PubRandAlreadyExists(String, u64),
-    #[error("Evidence already exists for finality provider {0} at height {1}")]
-    EvidenceAlreadyExists(String, u64),
     #[error("Duplicate signatory {0}")]
     DuplicateSignatory(String),
 }

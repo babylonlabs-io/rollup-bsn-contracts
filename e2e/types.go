@@ -7,13 +7,13 @@ import (
 	"github.com/cometbft/cometbft/crypto/merkle"
 )
 
-func NewInitMsg(admin string, consumerID string, isEnabled bool) string {
-	initMsg := fmt.Sprintf(`{"admin":"%s","consumer_id":"%s","is_enabled":%t}`, admin, consumerID, isEnabled)
+func NewInitMsg(admin string, bsnID string, isEnabled bool) string {
+	initMsg := fmt.Sprintf(`{"admin":"%s","bsn_id":"%s","is_enabled":%t}`, admin, bsnID, isEnabled)
 	return initMsg
 }
 
 type Config struct {
-	ConsumerID string `json:"consumer_id"`
+	BsnID string `json:"bsn_id"`
 }
 
 type CommitPublicRandomnessMsg struct {

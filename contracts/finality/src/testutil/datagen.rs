@@ -1,4 +1,4 @@
-use crate::state::{evidence::Evidence, finality::FinalitySigInfo};
+use crate::state::finality::FinalitySigInfo;
 use rand::{rng, Rng};
 
 pub fn get_random_u64() -> u64 {
@@ -30,19 +30,5 @@ pub fn get_random_finality_sig(block_hash: &[u8]) -> FinalitySigInfo {
     FinalitySigInfo {
         finality_sig: (0..64).map(|_| rng.random()).collect(),
         block_hash: block_hash.to_vec(),
-    }
-}
-
-/// Get a random evidence for a given height and finality provider.
-/// NOTE: The result is a mocked result, the signatures are not valid.
-pub fn get_random_evidence(height: u64, fp_btc_pk_hex: &str) -> Evidence {
-    Evidence {
-        fp_btc_pk: hex::decode(fp_btc_pk_hex).unwrap(),
-        block_height: height,
-        pub_rand: get_random_pub_rand(),
-        canonical_app_hash: get_random_block_hash(),
-        fork_app_hash: get_random_block_hash(),
-        canonical_finality_sig: (0..64).map(|_| rand::random()).collect(),
-        fork_finality_sig: (0..64).map(|_| rand::random()).collect(),
     }
 }
