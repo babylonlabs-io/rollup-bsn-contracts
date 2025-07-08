@@ -166,11 +166,13 @@ fn ensure_fp_exists_and_not_slashed(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use babylon_test_utils::get_public_randomness_commitment;
+    use crate::contract::tests::mock_deps_babylon;
+    use crate::state::config::{Config, CONFIG};
+    use cosmwasm_std::testing::mock_env;
 
     #[test]
     fn verify_commitment_signature_works() {
-        use babylon_test_utils::get_public_randomness_commitment;
-        
         // Define test values
         let (fp_btc_pk_hex, pr_commit, sig) = get_public_randomness_commitment();
         let fp_btc_pk = hex::decode(&fp_btc_pk_hex).unwrap();
@@ -186,177 +188,170 @@ pub(crate) mod tests {
         assert!(res.is_ok());
     }
 
-    mod validation_tests {
-        use super::*;
-        use crate::contract::tests::mock_deps_babylon;
-        use crate::state::config::{Config, CONFIG};
-        use cosmwasm_std::testing::mock_env;
+    #[test]
+    fn test_empty_fp_btc_pk_fails() {
+        let mut deps = mock_deps_babylon();
 
-        #[test]
-        fn test_empty_fp_btc_pk_fails() {
-            let mut deps = mock_deps_babylon();
+        // Configure the contract with min_pub_rand
+        let config = Config {
+            consumer_id: "test".to_string(),
+            min_pub_rand: 100,
+        };
+        CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
-            // Configure the contract with min_pub_rand
-            let config = Config {
-                consumer_id: "test".to_string(),
-                min_pub_rand: 100,
-            };
-            CONFIG.save(deps.as_mut().storage, &config).unwrap();
+        let result = handle_public_randomness_commit(
+            deps.as_mut(),
+            &mock_env(),
+            "", // Empty FP BTC pubkey should fail
+            100,
+            100,
+            &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
+            &[1u8; 64],
+        );
 
-            let result = handle_public_randomness_commit(
-                deps.as_mut(),
-                &mock_env(),
-                "", // Empty FP BTC pubkey should fail
-                100,
-                100,
-                &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
-                &[1u8; 64],
-            );
+        assert_eq!(result.unwrap_err(), ContractError::EmptyFpBtcPubKey);
+    }
 
-            assert_eq!(result.unwrap_err(), ContractError::EmptyFpBtcPubKey);
-        }
+    #[test]
+    fn test_invalid_commitment_length_fails() {
+        let mut deps = mock_deps_babylon();
 
-        #[test]
-        fn test_invalid_commitment_length_fails() {
-            let mut deps = mock_deps_babylon();
+        // Configure the contract with min_pub_rand
+        let config = Config {
+            consumer_id: "test".to_string(),
+            min_pub_rand: 100,
+        };
+        CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
-            // Configure the contract with min_pub_rand
-            let config = Config {
-                consumer_id: "test".to_string(),
-                min_pub_rand: 100,
-            };
-            CONFIG.save(deps.as_mut().storage, &config).unwrap();
+        // Test commitment too short
+        let result = handle_public_randomness_commit(
+            deps.as_mut(),
+            &mock_env(),
+            "valid_fp_key",
+            100,
+            100,
+            &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES - 1], // Too short
+            &[1u8; 64],
+        );
 
-            // Test commitment too short
-            let result = handle_public_randomness_commit(
-                deps.as_mut(),
-                &mock_env(),
-                "valid_fp_key",
-                100,
-                100,
-                &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES - 1], // Too short
-                &[1u8; 64],
-            );
+        assert_eq!(
+            result.unwrap_err(),
+            ContractError::InvalidCommitmentLength {
+                expected: EXPECTED_COMMITMENT_LENGTH_BYTES,
+                actual: EXPECTED_COMMITMENT_LENGTH_BYTES - 1
+            }
+        );
 
-            assert_eq!(
-                result.unwrap_err(),
-                ContractError::InvalidCommitmentLength {
-                    expected: EXPECTED_COMMITMENT_LENGTH_BYTES,
-                    actual: EXPECTED_COMMITMENT_LENGTH_BYTES - 1
-                }
-            );
+        // Test commitment too long
+        let result = handle_public_randomness_commit(
+            deps.as_mut(),
+            &mock_env(),
+            "valid_fp_key",
+            100,
+            100,
+            &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES + 1], // Too long
+            &[1u8; 64],
+        );
 
-            // Test commitment too long
-            let result = handle_public_randomness_commit(
-                deps.as_mut(),
-                &mock_env(),
-                "valid_fp_key",
-                100,
-                100,
-                &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES + 1], // Too long
-                &[1u8; 64],
-            );
+        assert_eq!(
+            result.unwrap_err(),
+            ContractError::InvalidCommitmentLength {
+                expected: EXPECTED_COMMITMENT_LENGTH_BYTES,
+                actual: EXPECTED_COMMITMENT_LENGTH_BYTES + 1
+            }
+        );
+    }
 
-            assert_eq!(
-                result.unwrap_err(),
-                ContractError::InvalidCommitmentLength {
-                    expected: EXPECTED_COMMITMENT_LENGTH_BYTES,
-                    actual: EXPECTED_COMMITMENT_LENGTH_BYTES + 1
-                }
-            );
-        }
+    #[test]
+    fn test_empty_signature_fails() {
+        let mut deps = mock_deps_babylon();
 
-        #[test]
-        fn test_empty_signature_fails() {
-            let mut deps = mock_deps_babylon();
+        // Configure the contract with min_pub_rand
+        let config = Config {
+            consumer_id: "test".to_string(),
+            min_pub_rand: 100,
+        };
+        CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
-            // Configure the contract with min_pub_rand
-            let config = Config {
-                consumer_id: "test".to_string(),
-                min_pub_rand: 100,
-            };
-            CONFIG.save(deps.as_mut().storage, &config).unwrap();
+        let result = handle_public_randomness_commit(
+            deps.as_mut(),
+            &mock_env(),
+            "valid_fp_key",
+            100,
+            100,
+            &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
+            &[], // Empty signature should fail
+        );
 
-            let result = handle_public_randomness_commit(
-                deps.as_mut(),
-                &mock_env(),
-                "valid_fp_key",
-                100,
-                100,
-                &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
-                &[], // Empty signature should fail
-            );
+        assert_eq!(result.unwrap_err(), ContractError::EmptySignature);
+    }
 
-            assert_eq!(result.unwrap_err(), ContractError::EmptySignature);
-        }
+    #[test]
+    fn test_overflow_protection_fails() {
+        let mut deps = mock_deps_babylon();
 
-        #[test]
-        fn test_overflow_protection_fails() {
-            let mut deps = mock_deps_babylon();
+        // Configure the contract with min_pub_rand
+        let config = Config {
+            consumer_id: "test".to_string(),
+            min_pub_rand: 100,
+        };
+        CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
-            // Configure the contract with min_pub_rand
-            let config = Config {
-                consumer_id: "test".to_string(),
-                min_pub_rand: 100,
-            };
-            CONFIG.save(deps.as_mut().storage, &config).unwrap();
+        let result = handle_public_randomness_commit(
+            deps.as_mut(),
+            &mock_env(),
+            "valid_fp_key",
+            u64::MAX, // This will cause overflow when added to num_pub_rand
+            1,
+            &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
+            &[1u8; 64],
+        );
 
-            let result = handle_public_randomness_commit(
-                deps.as_mut(),
-                &mock_env(),
-                "valid_fp_key",
-                u64::MAX, // This will cause overflow when added to num_pub_rand
-                1,
-                &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
-                &[1u8; 64],
-            );
+        assert_eq!(
+            result.unwrap_err(),
+            ContractError::OverflowInBlockHeight {
+                start_height: u64::MAX,
+                end_height: u64::MAX // saturating_add results in MAX
+            }
+        );
+    }
 
-            assert_eq!(
-                result.unwrap_err(),
-                ContractError::OverflowInBlockHeight {
-                    start_height: u64::MAX,
-                    end_height: u64::MAX // saturating_add results in MAX
-                }
-            );
-        }
+    #[test]
+    fn test_minimum_pub_rand_validation_fails() {
+        let mut deps = mock_deps_babylon();
 
-        #[test]
-        fn test_minimum_pub_rand_validation_fails() {
-            let mut deps = mock_deps_babylon();
+        // Configure the contract with min_pub_rand = 100
+        let config = Config {
+            consumer_id: "test".to_string(),
+            min_pub_rand: 100,
+        };
+        CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
-            // Configure the contract with min_pub_rand = 100
-            let config = Config {
-                consumer_id: "test".to_string(),
-                min_pub_rand: 100,
-            };
-            CONFIG.save(deps.as_mut().storage, &config).unwrap();
+        let result = handle_public_randomness_commit(
+            deps.as_mut(),
+            &mock_env(),
+            "valid_fp_key",
+            100,
+            50, // Less than minimum of 100 should fail
+            &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
+            &[1u8; 64],
+        );
 
-            let result = handle_public_randomness_commit(
-                deps.as_mut(),
-                &mock_env(),
-                "valid_fp_key",
-                100,
-                50, // Less than minimum of 100 should fail
-                &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
-                &[1u8; 64],
-            );
+        assert_eq!(
+            result.unwrap_err(),
+            ContractError::TooFewPubRand {
+                given: 50,
+                required: 100
+            }
+        );
+    }
 
-            assert_eq!(
-                result.unwrap_err(),
-                ContractError::TooFewPubRand {
-                    given: 50,
-                    required: 100
-                }
-            );
-        }
-
-        #[test]
-        fn test_validation_constants_match_go() {
-            // Verify our constants match the expected values
-            assert_eq!(
-                EXPECTED_COMMITMENT_LENGTH_BYTES, 32,
-                "EXPECTED_COMMITMENT_LENGTH_BYTES should match expected value"
-            );
-        }
+    #[test]
+    fn test_validation_constants_match_go() {
+        // Verify our constants match the expected values
+        assert_eq!(
+            EXPECTED_COMMITMENT_LENGTH_BYTES, 32,
+            "EXPECTED_COMMITMENT_LENGTH_BYTES should match expected value"
+        );
     }
 } 
