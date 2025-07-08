@@ -391,15 +391,67 @@
     },
     "block_voters": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Nullable_Set_of_String",
-      "type": [
-        "array",
-        "null"
-      ],
+      "title": "Array_of_BlockVoterInfo",
+      "type": "array",
       "items": {
-        "type": "string"
+        "$ref": "#/definitions/BlockVoterInfo"
       },
-      "uniqueItems": true
+      "definitions": {
+        "BlockVoterInfo": {
+          "type": "object",
+          "required": [
+            "finality_signature",
+            "fp_btc_pk_hex",
+            "pub_rand"
+          ],
+          "properties": {
+            "finality_signature": {
+              "$ref": "#/definitions/FinalitySigInfo"
+            },
+            "fp_btc_pk_hex": {
+              "type": "string"
+            },
+            "pub_rand": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint8",
+                "minimum": 0.0
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "FinalitySigInfo": {
+          "description": "FinalitySigInfo is a struct that contains the finality signature and block hash for a given block height and fp",
+          "type": "object",
+          "required": [
+            "block_hash",
+            "finality_sig"
+          ],
+          "properties": {
+            "block_hash": {
+              "description": "the block hash that the finality signature is for",
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint8",
+                "minimum": 0.0
+              }
+            },
+            "finality_sig": {
+              "description": "the finality signature",
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint8",
+                "minimum": 0.0
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      }
     },
     "config": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -432,13 +484,13 @@
           "description": "`PubRandCommit` is a commitment to a series of public randomness. Currently, the commitment is a root of a Merkle tree that includes a series of public randomness values",
           "type": "object",
           "required": [
-            "babylon_genesis_epoch",
+            "babylon_epoch",
             "commitment",
             "num_pub_rand",
             "start_height"
           ],
           "properties": {
-            "babylon_genesis_epoch": {
+            "babylon_epoch": {
               "description": "The epoch number of Babylon when the commit was submitted",
               "type": "integer",
               "format": "uint64",
@@ -491,13 +543,13 @@
           "description": "`PubRandCommit` is a commitment to a series of public randomness. Currently, the commitment is a root of a Merkle tree that includes a series of public randomness values",
           "type": "object",
           "required": [
-            "babylon_genesis_epoch",
+            "babylon_epoch",
             "commitment",
             "num_pub_rand",
             "start_height"
           ],
           "properties": {
-            "babylon_genesis_epoch": {
+            "babylon_epoch": {
               "description": "The epoch number of Babylon when the commit was submitted",
               "type": "integer",
               "format": "uint64",

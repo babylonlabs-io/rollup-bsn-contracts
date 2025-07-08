@@ -17,6 +17,7 @@ precommit       = "./scripts/precommit.sh"
 lint            = "./scripts/lint.sh"
 fix-lint        = "./scripts/fix_lint.sh"
 integration     = "./scripts/integration_test.sh"
+e2e             = "./scripts/e2e_test.sh"
 
 [workspace.dependencies]
 babylon-bindings = { git = "https://github.com/babylonlabs-io/bindings", tag = "v0.2.0" }

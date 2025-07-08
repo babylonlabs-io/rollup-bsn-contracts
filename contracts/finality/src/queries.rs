@@ -2,9 +2,9 @@ use babylon_bindings::BabylonQuery;
 use cosmwasm_std::Deps;
 
 use crate::error::ContractError;
+use crate::state::finality::get_finality_signature;
+use crate::state::finality::get_signatories_by_block_hash;
 use crate::state::finality::FinalitySigInfo;
-use crate::state::finality::FINALITY_SIGNATURES;
-use crate::state::finality::SIGNATORIES_BY_BLOCK_HASH;
 use crate::state::public_randomness::PUB_RAND_VALUES;
 use cosmwasm_schema::cw_serde;
 
@@ -21,8 +21,7 @@ pub fn query_block_voters(
     hash_hex: String,
 ) -> Result<Option<Vec<BlockVoterInfo>>, ContractError> {
     let block_hash_bytes: Vec<u8> = hex::decode(&hash_hex).map_err(ContractError::HexError)?;
-    let fp_pubkey_hex_set = SIGNATORIES_BY_BLOCK_HASH
-        .may_load(deps.storage, (height, &block_hash_bytes))
+    let fp_pubkey_hex_set = get_signatories_by_block_hash(deps.storage, height, &block_hash_bytes)
         .map_err(|e| {
             ContractError::QueryBlockVoterError(
                 height,
@@ -34,15 +33,13 @@ pub fn query_block_voters(
         let mut result = Vec::with_capacity(set.len());
         for fp_btc_pk_hex in set.iter() {
             let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
-            let sig = FINALITY_SIGNATURES
-                .may_load(deps.storage, (height, &fp_btc_pk))?
-                .ok_or_else(|| {
-                    ContractError::QueryBlockVoterError(
-                        height,
-                        hash_hex.clone(),
-                        format!("Missing FinalitySigInfo for FP {}", fp_btc_pk_hex),
-                    )
-                })?;
+            let sig = get_finality_signature(deps.storage, height, &fp_btc_pk)?.ok_or(
+                ContractError::QueryBlockVoterError(
+                    height,
+                    hash_hex.clone(),
+                    format!("Missing FinalitySigInfo for FP {}", fp_btc_pk_hex),
+                ),
+            )?;
 
             let pub_rand = PUB_RAND_VALUES
                 .may_load(deps.storage, (&fp_btc_pk, height))?
@@ -69,8 +66,10 @@ pub fn query_block_voters(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contract::tests::mock_deps_babylon;
     use crate::testutil::datagen::*;
+    use crate::{
+        contract::tests::mock_deps_babylon, state::finality::insert_finality_sig_and_signatory,
+    };
     use rand::{rng, Rng};
     use std::collections::HashSet;
 
@@ -90,17 +89,19 @@ mod tests {
             let sig = get_random_finality_sig(&block_hash);
             let pub_rand = get_random_pub_rand();
             set.insert(fp_btc_pk_hex.clone());
-            FINALITY_SIGNATURES
-                .save(deps.as_mut().storage, (height, &fp_btc_pk), &sig)
-                .unwrap();
+            insert_finality_sig_and_signatory(
+                deps.as_mut().storage,
+                &fp_btc_pk,
+                height,
+                &block_hash,
+                &sig.finality_sig,
+            )
+            .unwrap();
             PUB_RAND_VALUES
                 .save(deps.as_mut().storage, (&fp_btc_pk, height), &pub_rand)
                 .unwrap();
             expected.push((fp_btc_pk_hex, pub_rand, sig));
         }
-        SIGNATORIES_BY_BLOCK_HASH
-            .save(deps.as_mut().storage, (height, &block_hash), &set)
-            .unwrap();
         let result = query_block_voters(deps.as_ref(), height, block_hash_hex).unwrap();
         let voters = result.expect("should have voters");
         assert_eq!(voters.len(), num_fps);
