@@ -39,6 +39,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### State and API breaking
 
+* [#61](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/61) Consolidate the is_enabled flag into Config.
 * [#40](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/40) Timestamped public randomness commitments.
   Breaks `PubRandCommit` struct that is being used for both storage and queries.
 
