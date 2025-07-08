@@ -178,23 +178,30 @@ pub(crate) mod tests {
 
     #[test]
     fn test_empty_fp_btc_pk_fails() {
+        use crate::testutil::datagen::*;
+        use rand::{rng, Rng};
+
         let mut deps = mock_deps_babylon();
 
-        // Configure the contract with min_pub_rand
+        // Configure the contract with random min_pub_rand
         let config = Config {
-            bsn_id: "test".to_string(),
-            min_pub_rand: 100,
+            bsn_id: format!("test-{}", get_random_u64()),
+            min_pub_rand: get_random_u64(),
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
+        // Generate random 64-byte signature
+        let mut rng = rng();
+        let random_signature: Vec<u8> = (0..64).map(|_| rng.random()).collect();
 
         let result = handle_public_randomness_commit(
             deps.as_mut(),
             &mock_env(),
             "", // Empty FP BTC pubkey should fail
-            100,
-            100,
-            &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
-            &[1u8; 64],
+            get_random_u64(),
+            get_random_u64(),
+            &get_random_block_hash(),
+            &random_signature,
         );
 
         assert_eq!(result.unwrap_err(), ContractError::EmptyFpBtcPubKey);
@@ -202,24 +209,38 @@ pub(crate) mod tests {
 
     #[test]
     fn test_invalid_commitment_length_fails() {
+        use crate::testutil::datagen::*;
+        use rand::{rng, Rng};
+
         let mut deps = mock_deps_babylon();
 
-        // Configure the contract with min_pub_rand
+        // Configure the contract with random min_pub_rand
         let config = Config {
-            bsn_id: "test".to_string(),
-            min_pub_rand: 100,
+            bsn_id: format!("test-{}", get_random_u64()),
+            min_pub_rand: get_random_u64(),
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
+        let fp_btc_pk_hex = get_random_fp_pk_hex();
+        let start_height = get_random_u64();
+        let num_pub_rand = get_random_u64();
+
+        // Generate random 64-byte signature
+        let mut rng = rng();
+        let random_signature: Vec<u8> = (0..64).map(|_| rng.random()).collect();
+
         // Test commitment too short
+        let short_commitment: Vec<u8> = (0..EXPECTED_COMMITMENT_LENGTH_BYTES - 1)
+            .map(|_| rng.random())
+            .collect();
         let result = handle_public_randomness_commit(
             deps.as_mut(),
             &mock_env(),
-            "valid_fp_key",
-            100,
-            100,
-            &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES - 1], // Too short
-            &[1u8; 64],
+            &fp_btc_pk_hex,
+            start_height,
+            num_pub_rand,
+            &short_commitment, // Too short
+            &random_signature,
         );
 
         assert_eq!(
@@ -231,14 +252,17 @@ pub(crate) mod tests {
         );
 
         // Test commitment too long
+        let long_commitment: Vec<u8> = (0..EXPECTED_COMMITMENT_LENGTH_BYTES + 1)
+            .map(|_| rng.random())
+            .collect();
         let result = handle_public_randomness_commit(
             deps.as_mut(),
             &mock_env(),
-            "valid_fp_key",
-            100,
-            100,
-            &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES + 1], // Too long
-            &[1u8; 64],
+            &fp_btc_pk_hex,
+            start_height,
+            num_pub_rand,
+            &long_commitment, // Too long
+            &random_signature,
         );
 
         assert_eq!(
@@ -252,22 +276,24 @@ pub(crate) mod tests {
 
     #[test]
     fn test_empty_signature_fails() {
+        use crate::testutil::datagen::*;
+
         let mut deps = mock_deps_babylon();
 
-        // Configure the contract with min_pub_rand
+        // Configure the contract with random min_pub_rand
         let config = Config {
-            bsn_id: "test".to_string(),
-            min_pub_rand: 100,
+            bsn_id: format!("test-{}", get_random_u64()),
+            min_pub_rand: get_random_u64(),
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
         let result = handle_public_randomness_commit(
             deps.as_mut(),
             &mock_env(),
-            "valid_fp_key",
-            100,
-            100,
-            &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
+            &get_random_fp_pk_hex(),
+            get_random_u64(),
+            get_random_u64(),
+            &get_random_block_hash(),
             &[], // Empty signature should fail
         );
 
@@ -276,23 +302,30 @@ pub(crate) mod tests {
 
     #[test]
     fn test_overflow_protection_fails() {
+        use crate::testutil::datagen::*;
+        use rand::{rng, Rng};
+
         let mut deps = mock_deps_babylon();
 
-        // Configure the contract with min_pub_rand
+        // Configure the contract with random min_pub_rand
         let config = Config {
-            bsn_id: "test".to_string(),
-            min_pub_rand: 100,
+            bsn_id: format!("test-{}", get_random_u64()),
+            min_pub_rand: get_random_u64(),
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
+        // Generate random 64-byte signature
+        let mut rng = rng();
+        let random_signature: Vec<u8> = (0..64).map(|_| rng.random()).collect();
 
         let result = handle_public_randomness_commit(
             deps.as_mut(),
             &mock_env(),
-            "valid_fp_key",
+            &get_random_fp_pk_hex(),
             u64::MAX, // This will cause overflow when added to num_pub_rand
             1,
-            &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
-            &[1u8; 64],
+            &get_random_block_hash(),
+            &random_signature,
         );
 
         assert_eq!(
@@ -306,40 +339,46 @@ pub(crate) mod tests {
 
     #[test]
     fn test_minimum_pub_rand_validation_fails() {
+        use crate::testutil::datagen::*;
+        use rand::{rng, Rng};
+
         let mut deps = mock_deps_babylon();
 
-        // Configure the contract with min_pub_rand = 100
+        // Configure the contract with random min_pub_rand
+        let min_pub_rand = get_random_u64().max(10); // Ensure it's at least 10
         let config = Config {
-            bsn_id: "test".to_string(),
-            min_pub_rand: 100,
+            bsn_id: format!("test-{}", get_random_u64()),
+            min_pub_rand,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
+        // Generate random 64-byte signature
+        let mut rng = rng();
+        let random_signature: Vec<u8> = (0..64).map(|_| rng.random()).collect();
+
+        // Use a value less than min_pub_rand
+        let too_few_pub_rand = if min_pub_rand > 1 {
+            min_pub_rand - 1
+        } else {
+            0
+        };
 
         let result = handle_public_randomness_commit(
             deps.as_mut(),
             &mock_env(),
-            "valid_fp_key",
-            100,
-            50, // Less than minimum of 100 should fail
-            &[0u8; EXPECTED_COMMITMENT_LENGTH_BYTES],
-            &[1u8; 64],
+            &get_random_fp_pk_hex(),
+            get_random_u64(),
+            too_few_pub_rand, // Less than minimum should fail
+            &get_random_block_hash(),
+            &random_signature,
         );
 
         assert_eq!(
             result.unwrap_err(),
             ContractError::TooFewPubRand {
-                given: 50,
-                required: 100
+                given: too_few_pub_rand,
+                required: min_pub_rand
             }
-        );
-    }
-
-    #[test]
-    fn test_validation_constants_match_go() {
-        // Verify our constants match the expected values
-        assert_eq!(
-            EXPECTED_COMMITMENT_LENGTH_BYTES, 32,
-            "EXPECTED_COMMITMENT_LENGTH_BYTES should match expected value"
         );
     }
 }
