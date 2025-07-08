@@ -4,11 +4,15 @@
   "description": "Config are OP finality gadget's configuration",
   "type": "object",
   "required": [
-    "bsn_id"
+    "bsn_id",
+    "is_enabled"
   ],
   "properties": {
     "bsn_id": {
       "type": "string"
+    },
+    "is_enabled": {
+      "type": "boolean"
     }
   },
   "additionalProperties": false

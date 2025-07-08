@@ -349,19 +349,6 @@
           }
         },
         "additionalProperties": false
-      },
-      {
-        "type": "object",
-        "required": [
-          "is_enabled"
-        ],
-        "properties": {
-          "is_enabled": {
-            "type": "object",
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
       }
     ]
   },
@@ -459,11 +446,15 @@
       "description": "Config are OP finality gadget's configuration",
       "type": "object",
       "required": [
-        "bsn_id"
+        "bsn_id",
+        "is_enabled"
       ],
       "properties": {
         "bsn_id": {
           "type": "string"
+        },
+        "is_enabled": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -521,11 +512,6 @@
           "additionalProperties": false
         }
       }
-    },
-    "is_enabled": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Boolean",
-      "type": "boolean"
     },
     "last_pub_rand_commit": {
       "$schema": "http://json-schema.org/draft-07/schema#",
