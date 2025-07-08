@@ -248,7 +248,7 @@ mod tests {
             ContractError::InvalidNumPubRand(val) => {
                 assert_eq!(val, 0);
             }
-            e => panic!("Expected InvalidNumPubRand error, got: {:?}", e),
+            e => panic!("Expected InvalidNumPubRand error, got: {e:?}"),
         }
 
         // Test with num_pub_rand = 1 (should pass validation)
@@ -410,7 +410,7 @@ mod tests {
                     assert_eq!(pk, &hex::encode(fp_btc_pk));
                     assert_eq!(h, *height);
                 }
-                _ => panic!("Expected PubRandAlreadyExists error, got {:?}", err),
+                _ => panic!("Expected PubRandAlreadyExists error, got {err:?}"),
             }
         }
     }
