@@ -1,9 +1,7 @@
 use crate::custom_queries::get_current_epoch;
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
-use crate::state::config::{
-    get_config, EXPECTED_COMMITMENT_LENGTH_BYTES, MAX_PUB_RAND_COMMIT_OFFSET,
-};
+use crate::state::config::get_config;
 use crate::state::evidence::{insert_evidence, Evidence};
 use crate::state::finality::{get_finality_signature, insert_finality_sig_and_signatory};
 use crate::state::public_randomness::{
@@ -17,6 +15,9 @@ use cosmwasm_std::{Deps, DepsMut, Env, Event, MessageInfo, Response};
 use k256::ecdsa::signature::Verifier;
 use k256::schnorr::{Signature, VerifyingKey};
 use k256::sha2::{Digest, Sha256};
+
+const MAX_PUB_RAND_COMMIT_OFFSET: u64 = 160_000; // Maximum blocks into the future for commits
+const EXPECTED_COMMITMENT_LENGTH_BYTES: usize = 32; // Commitment must be exactly 32 bytes
 
 pub fn handle_public_randomness_commit(
     deps: DepsMut<BabylonQuery>,

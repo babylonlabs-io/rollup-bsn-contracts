@@ -9,10 +9,6 @@ pub const CONFIG: Item<Config> = Item::new("config");
 // if the finality gadget is disabled, it will always return true for the is finalized query
 pub const IS_ENABLED: Item<bool> = Item::new("is_enabled");
 
-// Configuration constants for validation
-pub const MAX_PUB_RAND_COMMIT_OFFSET: u64 = 160_000; // Maximum blocks into the future for commits
-pub const EXPECTED_COMMITMENT_LENGTH_BYTES: usize = 32; // Commitment must be exactly 32 bytes
-
 /// Config are OP finality gadget's configuration
 #[cw_serde]
 pub struct Config {
