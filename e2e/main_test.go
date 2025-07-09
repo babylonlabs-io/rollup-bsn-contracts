@@ -8,6 +8,7 @@ import (
 
 	"github.com/CosmWasm/wasmd/x/wasm/keeper"
 	"github.com/babylonlabs-io/babylon/v3/app"
+	"github.com/babylonlabs-io/babylon/v3/app/signingcontext"
 	"github.com/babylonlabs-io/babylon/v3/crypto/eots"
 	"github.com/babylonlabs-io/babylon/v3/testutil/datagen"
 	bbn "github.com/babylonlabs-io/babylon/v3/types"
@@ -122,7 +123,8 @@ func (s *FinalityContractTestSuite) Test3CommitAndTimestampPubRand() {
 	numPubRand := uint64(100)
 	commitStartHeight := uint64(1)
 	var msg *ftypes.MsgCommitPubRandList
-	randListInfo, msg, err = datagen.GenRandomMsgCommitPubRandList(r, fpSK, "", commitStartHeight, numPubRand)
+	signingCtx := signingcontext.FpRandCommitContextV0(s.contractCfg.BsnID, s.contractAddr.String())
+	randListInfo, msg, err = datagen.GenRandomMsgCommitPubRandList(r, fpSK, signingCtx, commitStartHeight, numPubRand)
 	s.NoError(err)
 
 	// construct pub rand commit message
@@ -179,7 +181,10 @@ func (s *FinalityContractTestSuite) Test4SubmitFinalitySignature() {
 	appHash := blockToVote.AppHash
 
 	idx := 0
-	msgToSign := append(sdk.Uint64ToBigEndian(startHeight), appHash...)
+
+	signingCtx := signingcontext.FpFinVoteContextV0(s.contractCfg.BsnID, s.contractAddr.String())
+	msgToSign := append([]byte(signingCtx), sdk.Uint64ToBigEndian(startHeight)...)
+	msgToSign = append(msgToSign, appHash...)
 
 	// Generate EOTS signature
 	sig, err := eots.Sign(fpSK, randListInfo.SRList[idx], msgToSign)
@@ -214,7 +219,10 @@ func (s *FinalityContractTestSuite) Test5Slash() {
 	appHash := blockToVote.AppHash
 
 	idx := 0
-	msgToSign := append(sdk.Uint64ToBigEndian(startHeight), appHash...)
+
+	signingCtx := signingcontext.FpFinVoteContextV0(s.contractCfg.BsnID, s.contractAddr.String())
+	msgToSign := append([]byte(signingCtx), sdk.Uint64ToBigEndian(startHeight)...)
+	msgToSign = append(msgToSign, appHash...)
 
 	// Generate EOTS signature
 	sig, err := eots.Sign(fpSK, randListInfo.SRList[idx], msgToSign)
@@ -260,8 +268,8 @@ func (s *FinalityContractTestSuite) deployContracts(
 
 	// init message
 	bsnID := "test-consumer"
-	minPubRand := uint64(100) 
-	initMsg := NewInitMsg(s.owner.String(), bsnID, true, minPubRand)
+	minPubRand := uint64(100)
+	initMsg := NewInitMsg(s.owner.String(), bsnID, minPubRand)
 	initMsgBz := []byte(initMsg)
 	// instantiate contract
 	contractKeeper := keeper.NewDefaultPermissionKeeper(s.babylonApp.WasmKeeper)

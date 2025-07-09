@@ -1,7 +1,10 @@
-use babylon_merkle::error::MerkleError;
-use cosmwasm_std::StdError;
 use hex::FromHexError;
 use thiserror::Error;
+
+use cosmwasm_std::StdError;
+use cw_controllers::AdminError;
+
+use babylon_merkle::error::MerkleError;
 
 // Note: copied from contracts/btc-staking/src/error.rs
 #[derive(Error, Debug, PartialEq)]
@@ -56,6 +59,8 @@ pub enum ContractError {
     SlashedFinalityProvider(String, u64, u64),
     #[error("{0}")]
     StdError(#[from] StdError),
+    #[error("Admin error: {0}")]
+    Admin(#[from] AdminError),
     #[error("Failed to query block voters for block {0} with hash {1}. {2}")]
     QueryBlockVoterError(u64, String, String),
     #[error("Finality provider not found for BSN {0} with pubkey {1}")]
@@ -64,10 +69,6 @@ pub enum ContractError {
     FailedFetchVotingPower(String),
     #[error("Caller is not the admin")]
     Unauthorized,
-    #[error("Finality gadget is already enabled")]
-    AlreadyEnabled,
-    #[error("Finality gadget is already disabled")]
-    AlreadyDisabled,
     #[error("Public randomness already exists for finality provider {0} at height {1}")]
     PubRandAlreadyExists(String, u64),
     #[error("Duplicate signatory {0}")]
@@ -82,4 +83,6 @@ pub enum ContractError {
     InvalidSignatureLength { expected: usize, actual: usize },
     #[error("Empty finality provider BTC public key")]
     EmptyFpBtcPubKey,
+    #[error("Invalid consumer ID: {0}")]
+    InvalidBsnId(String),
 }

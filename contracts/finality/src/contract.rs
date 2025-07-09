@@ -1,15 +1,14 @@
 use crate::error::ContractError;
-use crate::exec::admin::set_enabled;
 use crate::exec::finality::handle_finality_signature;
 use crate::exec::public_randomness::handle_public_randomness_commit;
 use crate::msg::BabylonMsg;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::queries::query_block_voters;
-use crate::state::config::{get_config, Config, ADMIN, CONFIG, IS_ENABLED};
+use crate::state::config::{get_config, Config, ADMIN, CONFIG};
 use crate::state::public_randomness::{get_first_pub_rand_commit, get_last_pub_rand_commit};
+use crate::utils::validate_bsn_id_format;
 use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{to_json_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response};
-use cw_controllers::AdminError;
 
 pub fn instantiate(
     mut deps: DepsMut<BabylonQuery>,
@@ -23,8 +22,12 @@ pub fn instantiate(
     }
 
     let api = deps.api;
+
+    // Validate and set admin address
     ADMIN.set(deps.branch(), Some(api.addr_validate(&msg.admin)?))?;
-    IS_ENABLED.save(deps.storage, &msg.is_enabled)?;
+
+    // Validate consumer ID format
+    validate_bsn_id_format(&msg.bsn_id)?;
 
     let config = Config {
         bsn_id: msg.bsn_id,
@@ -52,7 +55,6 @@ pub fn query(
         QueryMsg::LastPubRandCommit { btc_pk_hex } => Ok(to_json_binary(
             &get_last_pub_rand_commit(deps.storage, &hex::decode(&btc_pk_hex)?)?,
         )?),
-        QueryMsg::IsEnabled {} => Ok(to_json_binary(&IS_ENABLED.load(deps.storage)?)?),
     }
 }
 
@@ -91,7 +93,7 @@ pub fn execute(
             signature,
         } => handle_finality_signature(
             deps,
-            info,
+            &env,
             &fp_pubkey_hex,
             l1_block_number,
             l1_block_hash_hex,
@@ -101,13 +103,10 @@ pub fn execute(
             &block_hash,
             &signature,
         ),
-        ExecuteMsg::SetEnabled { enabled } => set_enabled(deps, info, enabled),
-        ExecuteMsg::UpdateAdmin { admin } => ADMIN
-            .execute_update_admin(deps, info, Some(api.addr_validate(&admin)?))
-            .map_err(|err| match err {
-                AdminError::Std(e) => ContractError::StdError(e),
-                AdminError::NotAdmin {} => ContractError::Unauthorized,
-            }),
+        ExecuteMsg::UpdateAdmin { admin } => {
+            // Validate and set the new admin address
+            Ok(ADMIN.execute_update_admin(deps, info, Some(api.addr_validate(&admin)?))?)
+        }
     }
 }
 
@@ -116,13 +115,14 @@ pub(crate) mod tests {
     use super::*;
     use std::marker::PhantomData;
 
+    use crate::testutil::datagen::*;
     use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage};
     use cosmwasm_std::{
         from_json,
         testing::{message_info, mock_env},
         OwnedDeps,
     };
-    use cw_controllers::AdminResponse;
+    use cw_controllers::{AdminError, AdminResponse};
 
     pub(crate) const CREATOR: &str = "creator";
     pub(crate) const INIT_ADMIN: &str = "initial_admin";
@@ -149,7 +149,6 @@ pub(crate) mod tests {
         let instantiate_msg = InstantiateMsg {
             admin: init_admin.to_string(), // Admin provided
             bsn_id: "op-stack-l2-11155420".to_string(),
-            is_enabled: true,
             min_pub_rand: 100,
         };
 
@@ -178,7 +177,7 @@ pub(crate) mod tests {
             update_admin_msg.clone(),
         )
         .unwrap_err();
-        assert_eq!(err, ContractError::Unauthorized);
+        assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
 
         // Execute the UpdateAdmin message with the initial admin info
         let admin_info = message_info(&init_admin, &[]);
@@ -193,19 +192,15 @@ pub(crate) mod tests {
 
     #[test]
     fn test_instantiate_validation() {
-        use crate::testutil::datagen::*;
-
         let mut deps = mock_deps_babylon();
         let init_admin = deps.api.addr_make(INIT_ADMIN);
 
         let min_pub_rand = get_random_u64_range(0, 1000000);
-        let bsn_id = get_random_string();
-        let is_enabled = get_random_bool();
+        let bsn_id = "op-stack-l2-11155420".to_string();
 
         let msg = InstantiateMsg {
             admin: init_admin.to_string(),
             bsn_id: bsn_id.clone(),
-            is_enabled,
             min_pub_rand,
         };
 
@@ -237,15 +232,100 @@ pub(crate) mod tests {
             let config: Config = from_json(config_query).unwrap();
             assert_eq!(config.bsn_id, bsn_id);
             assert_eq!(config.min_pub_rand, min_pub_rand);
-
-            // Verify is_enabled was saved correctly
-            let enabled_query = query(deps.as_ref(), mock_env(), QueryMsg::IsEnabled {}).unwrap();
-            let saved_enabled: bool = from_json(enabled_query).unwrap();
-            assert_eq!(saved_enabled, is_enabled);
         } else {
             // Should fail with specific error
             assert!(result.is_err(), "Expected error for min_pub_rand = 0");
             assert_eq!(result.unwrap_err(), ContractError::InvalidMinPubRand(0));
         }
+    }
+
+    #[test]
+    fn test_invalid_admin_address() {
+        let mut deps = mock_deps_babylon();
+        let invalid_admin = "invalid-address";
+        let bsn_id = "op-stack-l2-11155420".to_string();
+        let min_pub_rand = get_random_u64_range(1, 1000000);
+
+        let instantiate_msg = InstantiateMsg {
+            admin: invalid_admin.to_string(),
+            bsn_id,
+            min_pub_rand,
+        };
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+
+        // Call the instantiate function - should fail due to invalid admin address
+        let err = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap_err();
+        assert!(matches!(err, ContractError::StdError(_)));
+    }
+
+    #[test]
+    fn test_invalid_consumer_id() {
+        let mut deps = mock_deps_babylon();
+        let valid_admin = deps.api.addr_make(INIT_ADMIN);
+        let invalid_bsn_id = "invalid@bsn#id"; // Contains invalid characters
+        let min_pub_rand = get_random_u64_range(1, 1000000);
+
+        let instantiate_msg = InstantiateMsg {
+            admin: valid_admin.to_string(),
+            bsn_id: invalid_bsn_id.to_string(),
+            min_pub_rand,
+        };
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+
+        // Call the instantiate function - should fail due to invalid consumer ID
+        let err = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap_err();
+        assert!(matches!(err, ContractError::InvalidBsnId(_)));
+    }
+
+    #[test]
+    fn test_empty_consumer_id() {
+        let mut deps = mock_deps_babylon();
+        let valid_admin = deps.api.addr_make(INIT_ADMIN);
+        let empty_bsn_id = "";
+        let min_pub_rand = get_random_u64_range(1, 1000000);
+
+        let instantiate_msg = InstantiateMsg {
+            admin: valid_admin.to_string(),
+            bsn_id: empty_bsn_id.to_string(),
+            min_pub_rand,
+        };
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+
+        // Call the instantiate function - should fail due to empty consumer ID
+        let err = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap_err();
+        assert!(matches!(err, ContractError::InvalidBsnId(_)));
+    }
+
+    #[test]
+    fn test_update_admin_invalid_address() {
+        let mut deps = mock_deps_babylon();
+        let init_admin = deps.api.addr_make(INIT_ADMIN);
+        let invalid_new_admin = "invalid-new-admin";
+        let bsn_id = "op-stack-l2-11155420".to_string();
+        let min_pub_rand = get_random_u64_range(1, 1000000);
+
+        let instantiate_msg = InstantiateMsg {
+            admin: init_admin.to_string(),
+            bsn_id,
+            min_pub_rand,
+        };
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+
+        // Call the instantiate function
+        let res = instantiate(deps.as_mut(), mock_env(), info.clone(), instantiate_msg).unwrap();
+        assert_eq!(0, res.messages.len());
+
+        // Try to update admin with invalid address
+        let update_admin_msg = ExecuteMsg::UpdateAdmin {
+            admin: invalid_new_admin.to_string(),
+        };
+
+        let admin_info = message_info(&init_admin, &[]);
+        let err = execute(deps.as_mut(), mock_env(), admin_info, update_admin_msg).unwrap_err();
+        assert!(matches!(err, ContractError::StdError(_)));
     }
 }

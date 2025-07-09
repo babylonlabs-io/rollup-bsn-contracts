@@ -386,7 +386,7 @@ mod tests {
                     assert_eq!(pk, &hex::encode(fp_btc_pk));
                     assert_eq!(h, *height);
                 }
-                _ => panic!("Expected PubRandAlreadyExists error, got {:?}", err),
+                _ => panic!("Expected PubRandAlreadyExists error, got {err:?}"),
             }
         }
     }

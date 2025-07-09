@@ -140,28 +140,6 @@
       "additionalProperties": false
     },
     {
-      "description": "Set enabled status of the finality contract.\n\nThis message can be called by the admin only. If disabled, the finality contract and the BTC staking finality will not be used by the rollup. Note this should be implemented in the rollup's finality gadget daemon program and is not enforced by the contract itself.",
-      "type": "object",
-      "required": [
-        "set_enabled"
-      ],
-      "properties": {
-        "set_enabled": {
-          "type": "object",
-          "required": [
-            "enabled"
-          ],
-          "properties": {
-            "enabled": {
-              "type": "boolean"
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
       "description": "Update the admin address.\n\nThis message can be called by the admin only. The new admin address must be a valid Cosmos address.",
       "type": "object",
       "required": [

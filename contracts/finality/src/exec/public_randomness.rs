@@ -3,6 +3,7 @@ use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::state::config::get_config;
 use crate::state::public_randomness::{insert_pub_rand_commit, PubRandCommit};
+use crate::utils::get_fp_rand_commit_context_v0;
 use crate::utils::query_finality_provider;
 use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{DepsMut, Env, Event, Response};
@@ -14,7 +15,7 @@ const BIP340_SIGNATURE_LENGTH_BYTES: usize = 64; // BIP340 signatures must be ex
 
 pub fn handle_public_randomness_commit(
     deps: DepsMut<BabylonQuery>,
-    _env: &Env,
+    env: &Env,
     fp_btc_pk_hex: &str,
     start_height: u64,
     num_pub_rand: u64,
@@ -50,11 +51,15 @@ pub fn handle_public_randomness_commit(
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
 
     // Verify signature over the list
+    let context = get_fp_rand_commit_context_v0(deps.as_ref(), &env)?;
+
+    // Verify signature over the list
     verify_commitment_signature(
         &fp_btc_pk,
         start_height,
         num_pub_rand,
         commitment,
+        &context,
         signature,
     )?;
 
@@ -117,11 +122,13 @@ pub fn validate_pub_rand_commit(
     Ok(())
 }
 
+// Copied from contracts/btc-staking/src/finality.rs
 fn verify_commitment_signature(
     fp_btc_pk: &[u8],
     start_height: u64,
     num_pub_rand: u64,
     commitment: &[u8],
+    context: &str,
     signature: &[u8],
 ) -> Result<(), ContractError> {
     // get BTC public key for verification
@@ -129,11 +136,16 @@ fn verify_commitment_signature(
         .map_err(|e| ContractError::SecP256K1Error(e.to_string()))?;
 
     // get signature
+    if signature.is_empty() {
+        return Err(ContractError::EmptySignature);
+    }
     let schnorr_sig =
         Signature::try_from(signature).map_err(|e| ContractError::SecP256K1Error(e.to_string()))?;
 
-    // get signed message
+    // get message to be signed
+    // (signing_context || start_height || num_pub_rand || commitment)
     let mut msg: Vec<u8> = vec![];
+    msg.extend_from_slice(context.as_bytes());
     msg.extend_from_slice(&start_height.to_be_bytes());
     msg.extend_from_slice(&num_pub_rand.to_be_bytes());
     msg.extend_from_slice(commitment);
@@ -175,11 +187,16 @@ pub(crate) mod tests {
         let fp_btc_pk = hex::decode(&fp_btc_pk_hex).unwrap();
 
         // Verify commitment signature
+        // TODO: test with non-empty signing context
+        // this needs mock data from babylon_test_utils
+        // https://github.com/babylonlabs-io/rollup-bsn-contracts/issues/66
+        let signing_context = "";
         let res = verify_commitment_signature(
             &fp_btc_pk,
             pr_commit.start_height,
             pr_commit.num_pub_rand,
             &pr_commit.commitment,
+            &signing_context,
             &sig,
         );
         assert!(res.is_ok());
