@@ -9,7 +9,7 @@ use cosmwasm_std::{DepsMut, Env, Event, Response};
 use k256::ecdsa::signature::Verifier;
 use k256::schnorr::{Signature, VerifyingKey};
 
-const EXPECTED_COMMITMENT_LENGTH_BYTES: usize = 32; // Commitment must be exactly 32 bytes
+const COMMITMENT_LENGTH_BYTES: usize = 32; // Commitment must be exactly 32 bytes
 
 pub fn handle_public_randomness_commit(
     deps: DepsMut<BabylonQuery>,
@@ -80,9 +80,9 @@ pub fn validate_pub_rand_commit(
     min_pub_rand: u64,
 ) -> Result<(), ContractError> {
     // Check if commitment is exactly 32 bytes
-    if commitment.len() != EXPECTED_COMMITMENT_LENGTH_BYTES {
+    if commitment.len() != COMMITMENT_LENGTH_BYTES {
         return Err(ContractError::InvalidCommitmentLength {
-            expected: EXPECTED_COMMITMENT_LENGTH_BYTES,
+            expected: COMMITMENT_LENGTH_BYTES,
             actual: commitment.len(),
         });
     }
@@ -230,7 +230,7 @@ pub(crate) mod tests {
         let random_signature: Vec<u8> = (0..64).map(|_| rng.random()).collect();
 
         // Test commitment too short
-        let short_commitment: Vec<u8> = (0..EXPECTED_COMMITMENT_LENGTH_BYTES - 1)
+        let short_commitment: Vec<u8> = (0..COMMITMENT_LENGTH_BYTES - 1)
             .map(|_| rng.random())
             .collect();
         let result = handle_public_randomness_commit(
@@ -246,13 +246,13 @@ pub(crate) mod tests {
         assert_eq!(
             result.unwrap_err(),
             ContractError::InvalidCommitmentLength {
-                expected: EXPECTED_COMMITMENT_LENGTH_BYTES,
-                actual: EXPECTED_COMMITMENT_LENGTH_BYTES - 1
+                expected: COMMITMENT_LENGTH_BYTES,
+                actual: COMMITMENT_LENGTH_BYTES - 1
             }
         );
 
         // Test commitment too long
-        let long_commitment: Vec<u8> = (0..EXPECTED_COMMITMENT_LENGTH_BYTES + 1)
+        let long_commitment: Vec<u8> = (0..COMMITMENT_LENGTH_BYTES + 1)
             .map(|_| rng.random())
             .collect();
         let result = handle_public_randomness_commit(
@@ -268,8 +268,8 @@ pub(crate) mod tests {
         assert_eq!(
             result.unwrap_err(),
             ContractError::InvalidCommitmentLength {
-                expected: EXPECTED_COMMITMENT_LENGTH_BYTES,
-                actual: EXPECTED_COMMITMENT_LENGTH_BYTES + 1
+                expected: COMMITMENT_LENGTH_BYTES,
+                actual: COMMITMENT_LENGTH_BYTES + 1
             }
         );
     }
