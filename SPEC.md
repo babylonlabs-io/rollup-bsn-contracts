@@ -357,12 +357,20 @@ parameters must be provided:
 - `is_enabled`: bool - Whether the finality gadget should be enabled at
   instantiation
 
+**Validation Requirements:**
+1. **Admin Address Validation**: The `admin` parameter MUST be a valid Babylon address
+2. **Consumer ID Validation**: The `bsn_id` parameter MUST:
+   - Not be empty
+   - Contain only alphanumeric characters, hyphens, and underscores
+   - Not exceed 100 characters in length
+
 **Instantiation Process:**
-1. **Admin Setup**: Set the provided admin address as the contract administrator
-2. **Configuration Storage**: Save the bsn_id in the contract configuration
-3. **State Initialization**: Set the enabled/disabled state based on the
+1. **Parameter Validation**: Validate the admin address and consumer ID format
+2. **Admin Setup**: Set the provided admin address as the contract administrator
+3. **Configuration Storage**: Save the bsn_id in the contract configuration
+4. **State Initialization**: Set the enabled/disabled state based on the
    is_enabled parameter
-4. **Response**: Return a success response with instantiation attributes
+5. **Response**: Return a success response with instantiation attributes
 
 ### 4.5. Finality Contract message handlers
 
@@ -446,7 +454,7 @@ pub enum ExecuteMsg {
     /// Update the admin address.
     ///
     /// This message can be called by the admin only.
-    /// The new admin address must be a valid Cosmos address.
+    /// The new admin address must be a valid Babylon address.
     UpdateAdmin {
         admin: String,
     },
@@ -627,7 +635,7 @@ handler with the following verification logic:
    - Verify that the message sender matches the current admin address
 
 2. **Admin Validation**: Validate the new admin address:
-   - Ensure the `admin` parameter is a valid address format
+   - Ensure the `admin` parameter is a valid Babylon address
    - Optionally ensure the new admin differs from the current admin
 
 3. **Storage Operations**: Update the admin address:
@@ -950,7 +958,7 @@ that integrate with Babylon's Bitcoin staking protocol:
    [alt-research/blitz](https://github.com/alt-research/blitz). This
    implementation provides fast finality for Arbitrum Orbit chains using
    Babylon's Bitcoin staking protocol. BLITZ includes both the finality contract
-   (`nitro-finality-gadget`) and supporting infrastructure for Arbitrum Orbit
+   (`nitro-finality-gadget`) and support infrastructure for Arbitrum Orbit
    integration. The project is developed and maintained by AltLayer.
 
 **Comparison**: While both implementations follow the general principles
@@ -959,4 +967,4 @@ OP Finality Gadget is specifically designed for OP Stack chains and leverages
 CosmWasm for deployment on Babylon, whereas BLITZ focuses on Arbitrum Orbit
 chains and includes additional infrastructure components for the Nitro-based
 architecture.
-<!-- TODO: add Manta contract after open-source --> 
+<!-- TODO: add Manta contract after open-source -->
