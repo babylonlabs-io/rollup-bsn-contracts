@@ -1,8 +1,6 @@
 use crate::msg::BabylonMsg;
 use babylon_bindings::BabylonQuery;
-use cosmwasm_std::{
-    entry_point, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, StdResult,
-};
+use cosmwasm_std::{entry_point, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response};
 use error::ContractError;
 use msg::{ExecuteMsg, InstantiateMsg};
 
@@ -21,7 +19,7 @@ pub fn instantiate(
     env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
-) -> StdResult<Response<BabylonMsg>> {
+) -> Result<Response<BabylonMsg>, ContractError> {
     contract::instantiate(deps, env, info, msg)
 }
 
