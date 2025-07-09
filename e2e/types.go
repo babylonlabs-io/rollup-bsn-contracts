@@ -7,8 +7,8 @@ import (
 	"github.com/cometbft/cometbft/crypto/merkle"
 )
 
-func NewInitMsg(admin string, bsnID string, isEnabled bool) string {
-	initMsg := fmt.Sprintf(`{"admin":"%s","bsn_id":"%s","is_enabled":%t}`, admin, bsnID, isEnabled)
+func NewInitMsg(admin string, bsnID string) string {
+	initMsg := fmt.Sprintf(`{"admin":"%s","bsn_id":"%s"}`, admin, bsnID)
 	return initMsg
 }
 

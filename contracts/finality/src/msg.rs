@@ -12,7 +12,6 @@ use {
 pub struct InstantiateMsg {
     pub admin: String,
     pub bsn_id: String,
-    pub is_enabled: bool,
 }
 
 #[cw_serde]
@@ -37,8 +36,6 @@ pub enum QueryMsg {
     Admin {},
     #[returns(Config)]
     Config {},
-    #[returns(bool)]
-    IsEnabled {},
 }
 
 // Note: Adapted from packages/apis/src/btc_staking_api.rs / packages/apis/src/finality_api.rs
@@ -99,13 +96,6 @@ pub enum ExecuteMsg {
     },
 
     // SHOULD: Administrative messages
-    /// Set enabled status of the finality contract.
-    ///
-    /// This message can be called by the admin only.
-    /// If disabled, the finality contract and the BTC staking finality will not be used
-    /// by the rollup. Note this should be implemented in the rollup's finality gadget daemon
-    /// program and is not enforced by the contract itself.
-    SetEnabled { enabled: bool },
     /// Update the admin address.
     ///
     /// This message can be called by the admin only.

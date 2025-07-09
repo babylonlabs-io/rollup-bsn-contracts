@@ -8,8 +8,7 @@
     "type": "object",
     "required": [
       "admin",
-      "bsn_id",
-      "is_enabled"
+      "bsn_id"
     ],
     "properties": {
       "admin": {
@@ -17,9 +16,6 @@
       },
       "bsn_id": {
         "type": "string"
-      },
-      "is_enabled": {
-        "type": "boolean"
       }
     },
     "additionalProperties": false
@@ -158,28 +154,6 @@
                     "$ref": "#/definitions/Binary"
                   }
                 ]
-              }
-            },
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "description": "Set enabled status of the finality contract.\n\nThis message can be called by the admin only. If disabled, the finality contract and the BTC staking finality will not be used by the rollup. Note this should be implemented in the rollup's finality gadget daemon program and is not enforced by the contract itself.",
-        "type": "object",
-        "required": [
-          "set_enabled"
-        ],
-        "properties": {
-          "set_enabled": {
-            "type": "object",
-            "required": [
-              "enabled"
-            ],
-            "properties": {
-              "enabled": {
-                "type": "boolean"
               }
             },
             "additionalProperties": false
@@ -349,19 +323,6 @@
           }
         },
         "additionalProperties": false
-      },
-      {
-        "type": "object",
-        "required": [
-          "is_enabled"
-        ],
-        "properties": {
-          "is_enabled": {
-            "type": "object",
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
       }
     ]
   },
@@ -521,11 +482,6 @@
           "additionalProperties": false
         }
       }
-    },
-    "is_enabled": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Boolean",
-      "type": "boolean"
     },
     "last_pub_rand_commit": {
       "$schema": "http://json-schema.org/draft-07/schema#",

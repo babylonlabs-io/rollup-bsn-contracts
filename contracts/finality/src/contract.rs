@@ -1,10 +1,9 @@
 use crate::error::ContractError;
-use crate::exec::admin::set_enabled;
 use crate::exec::finality::{handle_finality_signature, handle_public_randomness_commit};
 use crate::msg::BabylonMsg;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::queries::query_block_voters;
-use crate::state::config::{get_config, Config, ADMIN, CONFIG, IS_ENABLED};
+use crate::state::config::{get_config, Config, ADMIN, CONFIG};
 use crate::state::public_randomness::{get_first_pub_rand_commit, get_last_pub_rand_commit};
 use crate::utils::validate_bsn_id_format;
 use babylon_bindings::BabylonQuery;
@@ -23,8 +22,6 @@ pub fn instantiate(
 
     // Validate consumer ID format
     validate_bsn_id_format(&msg.bsn_id)?;
-
-    IS_ENABLED.save(deps.storage, &msg.is_enabled)?;
 
     let config = Config { bsn_id: msg.bsn_id };
     CONFIG.save(deps.storage, &config)?;
@@ -49,7 +46,6 @@ pub fn query(
         QueryMsg::LastPubRandCommit { btc_pk_hex } => Ok(to_json_binary(
             &get_last_pub_rand_commit(deps.storage, &hex::decode(&btc_pk_hex)?)?,
         )?),
-        QueryMsg::IsEnabled {} => Ok(to_json_binary(&IS_ENABLED.load(deps.storage)?)?),
     }
 }
 
@@ -98,7 +94,6 @@ pub fn execute(
             &block_hash,
             &signature,
         ),
-        ExecuteMsg::SetEnabled { enabled } => set_enabled(deps, info, enabled),
         ExecuteMsg::UpdateAdmin { admin } => {
             // Validate and set the new admin address
             Ok(ADMIN.execute_update_admin(deps, info, Some(api.addr_validate(&admin)?))?)
@@ -145,7 +140,6 @@ pub(crate) mod tests {
         let msg = InstantiateMsg {
             admin: init_admin.to_string(),
             bsn_id,
-            is_enabled: true,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -173,7 +167,6 @@ pub(crate) mod tests {
         let instantiate_msg = InstantiateMsg {
             admin: init_admin.to_string(), // Admin provided
             bsn_id: "op-stack-l2-11155420".to_string(),
-            is_enabled: true,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -223,7 +216,6 @@ pub(crate) mod tests {
         let instantiate_msg = InstantiateMsg {
             admin: invalid_admin.to_string(),
             bsn_id,
-            is_enabled: true,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -242,7 +234,6 @@ pub(crate) mod tests {
         let instantiate_msg = InstantiateMsg {
             admin: valid_admin.to_string(),
             bsn_id: invalid_bsn_id.to_string(),
-            is_enabled: true,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -261,7 +252,6 @@ pub(crate) mod tests {
         let instantiate_msg = InstantiateMsg {
             admin: valid_admin.to_string(),
             bsn_id: empty_bsn_id.to_string(),
-            is_enabled: true,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -280,7 +270,6 @@ pub(crate) mod tests {
         let instantiate_msg = InstantiateMsg {
             admin: init_admin.to_string(),
             bsn_id: "op-stack-l2-11155420".to_string(),
-            is_enabled: true,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
