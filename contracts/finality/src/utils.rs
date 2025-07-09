@@ -1,3 +1,4 @@
+use crate::error::ContractError;
 use crate::state::config::get_config;
 use anybuf::{Anybuf, Bufany};
 use babylon_bindings::BabylonQuery;
@@ -43,6 +44,36 @@ pub fn query_finality_provider(
     };
 
     Ok(res)
+}
+
+const MAX_BSN_ID_LENGTH: usize = 100;
+
+/// Validates that a BSN ID has a valid format (non-empty, valid characters, etc.)
+pub fn validate_bsn_id_format(bsn_id: &str) -> Result<(), ContractError> {
+    if bsn_id.is_empty() {
+        return Err(ContractError::InvalidBsnId(
+            "BSN ID cannot be empty".to_string(),
+        ));
+    }
+
+    // Check for valid characters (alphanumeric, hyphens, underscores)
+    if !bsn_id
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+    {
+        return Err(ContractError::InvalidBsnId(
+            "BSN ID can only contain alphanumeric characters, hyphens, and underscores".to_string(),
+        ));
+    }
+
+    // Check length (reasonable bounds)
+    if bsn_id.len() > MAX_BSN_ID_LENGTH {
+        return Err(ContractError::InvalidBsnId(
+            "BSN ID cannot exceed {MAX_BSN_ID_LENGTH} characters".to_string(),
+        ));
+    }
+
+    Ok(())
 }
 
 impl FinalityProviderResponse {
