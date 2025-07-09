@@ -1,104 +1,15 @@
-use crate::custom_queries::get_current_epoch;
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
-use crate::state::config::CONFIG;
+use crate::state::config::get_config;
 use crate::state::finality::{get_finality_signature, insert_finality_sig_and_signatory};
 use crate::state::public_randomness::{
-    get_timestamped_pub_rand_commit_for_height, insert_pub_rand_commit, insert_pub_rand_value,
-    PubRandCommit,
+    get_timestamped_pub_rand_commit_for_height, insert_pub_rand_value, PubRandCommit,
 };
-use crate::utils::{
-    get_fp_fin_vote_context_v0, get_fp_rand_commit_context_v0, query_finality_provider,
-};
+use crate::utils::{get_fp_fin_vote_context_v0, query_finality_provider};
 use babylon_bindings::BabylonQuery;
 use babylon_merkle::Proof;
 use cosmwasm_std::{Deps, DepsMut, Env, Event, Response};
-use k256::ecdsa::signature::Verifier;
-use k256::schnorr::{Signature, VerifyingKey};
 use k256::sha2::{Digest, Sha256};
-
-pub fn handle_public_randomness_commit(
-    deps: DepsMut<BabylonQuery>,
-    env: &Env,
-    fp_btc_pk_hex: &str,
-    start_height: u64,
-    num_pub_rand: u64,
-    commitment: &[u8],
-    signature: &[u8],
-) -> Result<Response<BabylonMsg>, ContractError> {
-    // Ensure the finality provider is registered and not slashed
-    ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
-
-    let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
-
-    // Verify signature over the list
-    let context = get_fp_rand_commit_context_v0(deps.as_ref(), &env)?;
-    verify_commitment_signature(
-        &fp_btc_pk,
-        start_height,
-        num_pub_rand,
-        commitment,
-        &context,
-        signature,
-    )?;
-
-    // insert the public randomness commitment into the storage
-    // note that `insert_pub_rand_commit` has ensured that
-    // - the new commitment does not overlap with the existing ones
-    // - the new commitment does not have num_pub_rand = 0
-    let current_epoch = get_current_epoch(&deps.as_ref())?;
-    insert_pub_rand_commit(
-        deps.storage,
-        &fp_btc_pk,
-        PubRandCommit {
-            start_height,
-            num_pub_rand,
-            babylon_epoch: current_epoch,
-            commitment: commitment.to_vec(),
-        },
-    )?;
-
-    let event = Event::new("public_randomness_commit")
-        .add_attribute("fp_pubkey_hex", hex::encode(fp_btc_pk))
-        .add_attribute("pr_commit.start_height", start_height.to_string())
-        .add_attribute("pr_commit.num_pub_rand", num_pub_rand.to_string());
-
-    Ok(Response::new().add_event(event))
-}
-
-// Copied from contracts/btc-staking/src/finality.rs
-fn verify_commitment_signature(
-    fp_btc_pk: &[u8],
-    start_height: u64,
-    num_pub_rand: u64,
-    commitment: &[u8],
-    context: &str,
-    signature: &[u8],
-) -> Result<(), ContractError> {
-    // get BTC public key for verification
-    let btc_pk = VerifyingKey::from_bytes(fp_btc_pk)
-        .map_err(|e| ContractError::SecP256K1Error(e.to_string()))?;
-
-    // get signature
-    if signature.is_empty() {
-        return Err(ContractError::EmptySignature);
-    }
-    let schnorr_sig =
-        Signature::try_from(signature).map_err(|e| ContractError::SecP256K1Error(e.to_string()))?;
-
-    // get message to be signed
-    // (signing_context || start_height || num_pub_rand || commitment)
-    let mut msg: Vec<u8> = vec![];
-    msg.extend_from_slice(context.as_bytes());
-    msg.extend_from_slice(&start_height.to_be_bytes());
-    msg.extend_from_slice(&num_pub_rand.to_be_bytes());
-    msg.extend_from_slice(commitment);
-
-    // Verify the signature
-    btc_pk
-        .verify(&msg, &schnorr_sig)
-        .map_err(|e| ContractError::SecP256K1Error(e.to_string()))
-}
 
 #[allow(clippy::too_many_arguments)]
 pub fn handle_finality_signature(
@@ -239,7 +150,7 @@ fn ensure_fp_exists_and_not_slashed(
     deps: Deps<BabylonQuery>,
     fp_pubkey_hex: &str,
 ) -> Result<(), ContractError> {
-    let config = CONFIG.load(deps.storage)?;
+    let config = get_config(deps)?;
     let fp = query_finality_provider(deps, fp_pubkey_hex.to_string());
     match fp {
         // the finality provider is found but is associated with other BSNs
@@ -307,28 +218,6 @@ pub(crate) mod tests {
         get_public_randomness_commitment,
     };
     use cosmwasm_std::testing::mock_env;
-
-    #[test]
-    fn verify_commitment_signature_works() {
-        // Define test values
-        let (fp_btc_pk_hex, pr_commit, sig) = get_public_randomness_commitment();
-        let fp_btc_pk = hex::decode(&fp_btc_pk_hex).unwrap();
-
-        // Verify commitment signature
-        // TODO: test with non-empty signing context
-        // this needs mock data from babylon_test_utils
-        // https://github.com/babylonlabs-io/rollup-bsn-contracts/issues/66
-        let signing_context = "";
-        let res = verify_commitment_signature(
-            &fp_btc_pk,
-            pr_commit.start_height,
-            pr_commit.num_pub_rand,
-            &pr_commit.commitment,
-            &signing_context,
-            &sig,
-        );
-        assert!(res.is_ok());
-    }
 
     #[test]
     fn verify_finality_signature_works() {

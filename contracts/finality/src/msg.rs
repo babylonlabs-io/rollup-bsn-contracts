@@ -12,6 +12,7 @@ use {
 pub struct InstantiateMsg {
     pub admin: String,
     pub bsn_id: String,
+    pub min_pub_rand: u64,
 }
 
 #[cw_serde]

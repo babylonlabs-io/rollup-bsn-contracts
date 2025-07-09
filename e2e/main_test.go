@@ -268,7 +268,8 @@ func (s *FinalityContractTestSuite) deployContracts(
 
 	// init message
 	bsnID := "test-consumer"
-	initMsg := NewInitMsg(s.owner.String(), bsnID)
+	minPubRand := uint64(100)
+	initMsg := NewInitMsg(s.owner.String(), bsnID, minPubRand)
 	initMsgBz := []byte(initMsg)
 	// instantiate contract
 	contractKeeper := keeper.NewDefaultPermissionKeeper(s.babylonApp.WasmKeeper)
@@ -281,6 +282,7 @@ func (s *FinalityContractTestSuite) deployContracts(
 	err = json.Unmarshal(resBz, &config)
 	s.NoError(err)
 	s.Equal(bsnID, config.BsnID)
+	s.Equal(minPubRand, config.MinPubRand)
 
 	s.contractCfg = &config
 

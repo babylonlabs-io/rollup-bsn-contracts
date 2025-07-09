@@ -67,3 +67,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 * [#24](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/24) Validate public randomness commitment.
 * [#25](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/25) Improve `check_fp_exist` to ensure FP is not slashed.
 * [#29](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/29) feat: Remove slashing evidence message
+* [59](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/59) chore: add missing validations in handle_public_randomness_commit

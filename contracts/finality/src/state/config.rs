@@ -11,6 +11,7 @@ pub const CONFIG: Item<Config> = Item::new("config");
 #[cw_serde]
 pub struct Config {
     pub bsn_id: String,
+    pub min_pub_rand: u64,
 }
 
 pub fn get_config(deps: Deps<BabylonQuery>) -> StdResult<Config> {
