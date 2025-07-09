@@ -44,29 +44,30 @@ pub fn query_finality_provider(
     Ok(res)
 }
 
-/// Validates that a consumer ID has a valid format (non-empty, valid characters, etc.)
-pub fn validate_consumer_id_format(consumer_id: &str) -> Result<(), ContractError> {
-    if consumer_id.is_empty() {
-        return Err(ContractError::InvalidConsumerId(
-            "Consumer ID cannot be empty".to_string(),
+const MAX_BSN_ID_LENGTH: usize = 100;
+
+/// Validates that a BSN ID has a valid format (non-empty, valid characters, etc.)
+pub fn validate_bsn_id_format(bsn_id: &str) -> Result<(), ContractError> {
+    if bsn_id.is_empty() {
+        return Err(ContractError::InvalidBsnId(
+            "BSN ID cannot be empty".to_string(),
         ));
     }
 
     // Check for valid characters (alphanumeric, hyphens, underscores)
-    if !consumer_id
+    if !bsn_id
         .chars()
         .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
     {
-        return Err(ContractError::InvalidConsumerId(
-            "Consumer ID can only contain alphanumeric characters, hyphens, and underscores"
-                .to_string(),
+        return Err(ContractError::InvalidBsnId(
+            "BSN ID can only contain alphanumeric characters, hyphens, and underscores".to_string(),
         ));
     }
 
     // Check length (reasonable bounds)
-    if consumer_id.len() > 100 {
-        return Err(ContractError::InvalidConsumerId(
-            "Consumer ID cannot exceed 100 characters".to_string(),
+    if bsn_id.len() > MAX_BSN_ID_LENGTH {
+        return Err(ContractError::InvalidBsnId(
+            "BSN ID cannot exceed {MAX_BSN_ID_LENGTH} characters".to_string(),
         ));
     }
 

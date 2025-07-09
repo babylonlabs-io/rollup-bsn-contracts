@@ -6,7 +6,7 @@ use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::queries::query_block_voters;
 use crate::state::config::{get_config, Config, ADMIN, CONFIG, IS_ENABLED};
 use crate::state::public_randomness::{get_first_pub_rand_commit, get_last_pub_rand_commit};
-use crate::utils::validate_consumer_id_format;
+use crate::utils::validate_bsn_id_format;
 use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{to_json_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response};
 
@@ -22,7 +22,7 @@ pub fn instantiate(
     ADMIN.set(deps.branch(), Some(api.addr_validate(&msg.admin)?))?;
 
     // Validate consumer ID format
-    validate_consumer_id_format(&msg.bsn_id)?;
+    validate_bsn_id_format(&msg.bsn_id)?;
 
     IS_ENABLED.save(deps.storage, &msg.is_enabled)?;
 
@@ -249,7 +249,7 @@ pub(crate) mod tests {
 
         // Call the instantiate function - should fail due to invalid consumer ID
         let err = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap_err();
-        assert!(matches!(err, ContractError::InvalidConsumerId(_)));
+        assert!(matches!(err, ContractError::InvalidBsnId(_)));
     }
 
     #[test]
@@ -268,7 +268,7 @@ pub(crate) mod tests {
 
         // Call the instantiate function - should fail due to empty consumer ID
         let err = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap_err();
-        assert!(matches!(err, ContractError::InvalidConsumerId(_)));
+        assert!(matches!(err, ContractError::InvalidBsnId(_)));
     }
 
     #[test]

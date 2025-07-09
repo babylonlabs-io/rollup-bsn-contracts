@@ -76,5 +76,5 @@ pub enum ContractError {
     #[error("Duplicate signatory {0}")]
     DuplicateSignatory(String),
     #[error("Invalid consumer ID: {0}")]
-    InvalidConsumerId(String),
+    InvalidBsnId(String),
 }
