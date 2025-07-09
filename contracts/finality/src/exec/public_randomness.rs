@@ -50,9 +50,7 @@ pub fn handle_public_randomness_commit(
 
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
 
-    // Verify signature over the list
     let context = get_fp_rand_commit_context_v0(deps.as_ref(), &env)?;
-
     // Verify signature over the list
     verify_commitment_signature(
         &fp_btc_pk,
@@ -135,10 +133,6 @@ fn verify_commitment_signature(
     let btc_pk = VerifyingKey::from_bytes(fp_btc_pk)
         .map_err(|e| ContractError::SecP256K1Error(e.to_string()))?;
 
-    // get signature
-    if signature.is_empty() {
-        return Err(ContractError::EmptySignature);
-    }
     let schnorr_sig =
         Signature::try_from(signature).map_err(|e| ContractError::SecP256K1Error(e.to_string()))?;
 
