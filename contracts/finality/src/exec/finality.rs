@@ -258,6 +258,7 @@ fn ensure_fp_exists_and_not_slashed(
 
 /// `get_msg_equivocation_evidence` returns the message for an equivocation evidence.
 /// The message will be sent to Babylon for slashing
+#[allow(clippy::too_many_arguments)]
 fn get_msg_equivocation_evidence(
     info: &MessageInfo,
     fp_btc_pk: &[u8],

@@ -1,12 +1,12 @@
 use cosmwasm_std::{from_json, Coin, ContractResult, Response};
 use cosmwasm_vm::testing::{
-    execute, instantiate, mock_env, mock_info, mock_instance_with_options, query, MockApi,
+    instantiate, mock_env, mock_info, mock_instance_with_options, query, MockApi,
     MockInstanceOptions, MockQuerier, MockStorage,
 };
 use cosmwasm_vm::{capabilities_from_csv, Instance};
 
 use cw_controllers::AdminResponse;
-use finality::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use finality::msg::{InstantiateMsg, QueryMsg};
 use finality::state::config::Config;
 
 static WASM: &[u8] = include_bytes!("../../../artifacts/finality.wasm");
