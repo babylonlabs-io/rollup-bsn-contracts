@@ -7,17 +7,19 @@ use crate::state::public_randomness::{
     get_timestamped_pub_rand_commit_for_height, insert_pub_rand_commit, insert_pub_rand_value,
     PubRandCommit,
 };
-use crate::utils::query_finality_provider;
+use crate::utils::{
+    get_fp_fin_vote_context_v0, get_fp_rand_commit_context_v0, query_finality_provider,
+};
 use babylon_bindings::BabylonQuery;
 use babylon_merkle::Proof;
-use cosmwasm_std::{Deps, DepsMut, Env, Event, MessageInfo, Response};
+use cosmwasm_std::{Deps, DepsMut, Env, Event, Response};
 use k256::ecdsa::signature::Verifier;
 use k256::schnorr::{Signature, VerifyingKey};
 use k256::sha2::{Digest, Sha256};
 
 pub fn handle_public_randomness_commit(
     deps: DepsMut<BabylonQuery>,
-    _env: &Env,
+    env: &Env,
     fp_btc_pk_hex: &str,
     start_height: u64,
     num_pub_rand: u64,
@@ -30,11 +32,13 @@ pub fn handle_public_randomness_commit(
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
 
     // Verify signature over the list
+    let context = get_fp_rand_commit_context_v0(deps.as_ref(), &env)?;
     verify_commitment_signature(
         &fp_btc_pk,
         start_height,
         num_pub_rand,
         commitment,
+        &context,
         signature,
     )?;
 
@@ -68,6 +72,7 @@ fn verify_commitment_signature(
     start_height: u64,
     num_pub_rand: u64,
     commitment: &[u8],
+    context: &str,
     signature: &[u8],
 ) -> Result<(), ContractError> {
     // get BTC public key for verification
@@ -81,8 +86,10 @@ fn verify_commitment_signature(
     let schnorr_sig =
         Signature::try_from(signature).map_err(|e| ContractError::SecP256K1Error(e.to_string()))?;
 
-    // get signed message
+    // get message to be signed
+    // (signing_context || start_height || num_pub_rand || commitment)
     let mut msg: Vec<u8> = vec![];
+    msg.extend_from_slice(context.as_bytes());
     msg.extend_from_slice(&start_height.to_be_bytes());
     msg.extend_from_slice(&num_pub_rand.to_be_bytes());
     msg.extend_from_slice(commitment);
@@ -96,7 +103,7 @@ fn verify_commitment_signature(
 #[allow(clippy::too_many_arguments)]
 pub fn handle_finality_signature(
     deps: DepsMut<BabylonQuery>,
-    info: MessageInfo,
+    env: &Env,
     fp_btc_pk_hex: &str,
     l1_block_number: Option<u64>,
     l1_block_hash_hex: Option<String>,
@@ -128,8 +135,9 @@ pub fn handle_finality_signature(
     let pr_commit = get_timestamped_pub_rand_commit_for_height(&deps.as_ref(), &fp_btc_pk, height)?;
 
     // Verify the finality signature message
+    let context = get_fp_fin_vote_context_v0(deps.as_ref(), &env)?;
     verify_finality_signature(
-        &fp_btc_pk, height, pub_rand, proof, &pr_commit, block_hash, signature,
+        &fp_btc_pk, height, pub_rand, proof, &pr_commit, block_hash, &context, signature,
     )?;
 
     // Save the finality signature and signatory in an atomic operation
@@ -157,7 +165,7 @@ pub fn handle_finality_signature(
         // The finality provider has voted for a different block at the same height!
         // send equivocation evidence to Babylon Genesis for slashing
         let msg = get_msg_equivocation_evidence(
-            &info,
+            &env,
             &fp_btc_pk,
             height,
             pub_rand,
@@ -165,6 +173,7 @@ pub fn handle_finality_signature(
             &existing_finality_sig.finality_sig,
             block_hash,
             signature,
+            &context,
         )?;
         res = res.add_message(msg);
     } else {
@@ -187,7 +196,8 @@ fn verify_finality_signature(
     pub_rand: &[u8],
     proof: &Proof,
     pr_commit: &PubRandCommit,
-    app_hash: &[u8],
+    block_hash: &[u8],
+    signing_context: &str,
     signature: &[u8],
 ) -> Result<(), ContractError> {
     let proof_height = pr_commit.start_height + proof.index;
@@ -210,22 +220,19 @@ fn verify_finality_signature(
 
     // Public randomness is good, verify finality signature
     let pubkey = eots::PublicKey::from_bytes(fp_btc_pk)?;
-    let msg = msg_to_sign(block_height, app_hash);
+
+    // get message to be signed
+    // (signing_context || block_height || block_hash)
+    let mut msg = vec![];
+    msg.extend_from_slice(signing_context.as_bytes());
+    msg.extend_from_slice(&block_height.to_be_bytes());
+    msg.extend_from_slice(block_hash);
     let msg_hash = Sha256::digest(msg);
 
     if !pubkey.verify(pub_rand, &msg_hash, signature)? {
         return Err(ContractError::FailedSignatureVerification("EOTS".into()));
     }
     Ok(())
-}
-
-/// `msg_to_sign` returns the message for an EOTS signature.
-///
-/// The EOTS signature on a block will be (block_height || block_app_hash)
-fn msg_to_sign(height: u64, block_app_hash: &[u8]) -> Vec<u8> {
-    let mut msg: Vec<u8> = height.to_be_bytes().to_vec();
-    msg.extend_from_slice(block_app_hash);
-    msg
 }
 
 fn ensure_fp_exists_and_not_slashed(
@@ -260,7 +267,7 @@ fn ensure_fp_exists_and_not_slashed(
 /// The message will be sent to Babylon for slashing
 #[allow(clippy::too_many_arguments)]
 fn get_msg_equivocation_evidence(
-    info: &MessageInfo,
+    env: &Env,
     fp_btc_pk: &[u8],
     block_height: u64,
     pub_rand: &[u8],
@@ -268,6 +275,7 @@ fn get_msg_equivocation_evidence(
     canonical_finality_sig: &[u8],
     fork_app_hash: &[u8],
     fork_finality_sig: &[u8],
+    signing_context: &str,
 ) -> Result<BabylonMsg, ContractError> {
     let fp_btc_pk_hex = hex::encode(fp_btc_pk);
     let pub_rand_hex = hex::encode(pub_rand);
@@ -277,7 +285,7 @@ fn get_msg_equivocation_evidence(
     let fork_finality_sig_hex = hex::encode(fork_finality_sig);
 
     let msg = BabylonMsg::MsgEquivocationEvidence {
-        signer: info.sender.to_string(),
+        signer: env.contract.address.to_string(),
         fp_btc_pk_hex,
         block_height,
         pub_rand_hex,
@@ -285,7 +293,7 @@ fn get_msg_equivocation_evidence(
         fork_app_hash_hex,
         canonical_finality_sig_hex,
         fork_finality_sig_hex,
-        signing_context: "".to_string(), // TODO: support signing context
+        signing_context: signing_context.to_string(),
     };
 
     Ok(msg)
@@ -298,7 +306,7 @@ pub(crate) mod tests {
         get_add_finality_sig, get_add_finality_sig_2, get_pub_rand_value,
         get_public_randomness_commitment,
     };
-    use cosmwasm_std::{testing::message_info, Addr};
+    use cosmwasm_std::testing::mock_env;
 
     #[test]
     fn verify_commitment_signature_works() {
@@ -307,11 +315,16 @@ pub(crate) mod tests {
         let fp_btc_pk = hex::decode(&fp_btc_pk_hex).unwrap();
 
         // Verify commitment signature
+        // TODO: test with non-empty signing context
+        // this needs mock data from babylon_test_utils
+        // https://github.com/babylonlabs-io/rollup-bsn-contracts/issues/66
+        let signing_context = "";
         let res = verify_commitment_signature(
             &fp_btc_pk,
             pr_commit.start_height,
             pr_commit.num_pub_rand,
             &pr_commit.commitment,
+            &signing_context,
             &sig,
         );
         assert!(res.is_ok());
@@ -336,7 +349,10 @@ pub(crate) mod tests {
         };
 
         // Verify finality signature
-        assert!(proof.index >= 0, "Proof index should be non-negative");
+        // TODO: test with non-empty signing context
+        // This needs mock data from babylon_test_utils
+        // https://github.com/babylonlabs-io/rollup-bsn-contracts/issues/66
+        let context = "";
         let res = verify_finality_signature(
             &hex::decode(&pk_hex).unwrap(),
             pr_commit.start_height + proof.index.unsigned_abs(),
@@ -346,6 +362,7 @@ pub(crate) mod tests {
             &proof.into(),
             &pr_commit,
             &add_finality_signature.block_app_hash,
+            &context,
             &add_finality_signature.finality_sig,
         );
         assert!(res.is_ok());
@@ -364,12 +381,11 @@ pub(crate) mod tests {
         let initial_height = pr_commit.start_height;
         let block_height = initial_height + proof.index.unsigned_abs();
 
-        // Create mock environment
-        let info = message_info(&Addr::unchecked("test"), &[]);
+        let env = mock_env();
 
         // Test slash_finality_provider
         let msg = get_msg_equivocation_evidence(
-            &info,
+            &env,
             &fp_btc_pk,
             block_height,
             &pub_rand_value,
@@ -377,6 +393,7 @@ pub(crate) mod tests {
             &add_finality_signature.finality_sig,
             &add_finality_signature_2.block_app_hash,
             &add_finality_signature_2.finality_sig,
+            "",
         )
         .unwrap();
 
@@ -396,7 +413,7 @@ pub(crate) mod tests {
                 fork_finality_sig_hex,
                 signing_context,
             } => {
-                assert_eq!(signer, "test");
+                assert_eq!(signer, env.contract.address.to_string());
                 assert_eq!(fp_btc_pk_hex, hex::encode(&fp_btc_pk));
                 assert_eq!(msg_height, block_height);
                 assert_eq!(pub_rand_hex, hex::encode(&pub_rand_value));

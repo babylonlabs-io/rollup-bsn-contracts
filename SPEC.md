@@ -14,21 +14,21 @@
     - [4.3.1. CurrentEpoch (MUST)](#431-currentepoch-must)
     - [4.3.2. LastFinalizedEpoch (MUST)](#432-lastfinalizedepoch-must)
   - [4.4. Contract Instantiation](#44-contract-instantiation)
-  - [4.5. Finality Contract message handlers](#45-finality-contract-message-handlers)
-    - [4.5.1. CommitPublicRandomness (MUST)](#451-commitpublicrandomness-must)
-    - [4.5.2. SubmitFinalitySignature (MUST)](#452-submitfinalitysignature-must)
+  - [4.5. Signing Context](#45-signing-context)
+  - [4.6. Finality Contract message handlers](#46-finality-contract-message-handlers)
+    - [4.6.1. CommitPublicRandomness (MUST)](#461-commitpublicrandomness-must)
+    - [4.6.2. SubmitFinalitySignature (MUST)](#462-submitfinalitysignature-must)
     - [4.5.3. UpdateAdmin (SHOULD)](#453-updateadmin-should)
-  - [4.6. Contract State Storage](#46-contract-state-storage)
-    - [4.6.1. Core Configuration](#461-core-configuration)
-    - [4.6.2. Finality State Storage](#462-finality-state-storage)
-    - [4.6.3. Public Randomness Storage](#463-public-randomness-storage)
-  - [4.7. Finality contract queries](#47-finality-contract-queries)
-    - [4.7.1. BlockVoters (MUST)](#471-blockvoters-must)
-    - [4.7.2. FirstPubRandCommit (MUST)](#472-firstpubrandcommit-must)
-    - [4.7.3. LastPubRandCommit (MUST)](#473-lastpubrandcommit-must)
-    - [4.7.4. Admin (SHOULD)](#474-admin-should)
-    - [4.7.5. Config (SHOULD)](#475-config-should)
-
+  - [4.7. Contract State Storage](#47-contract-state-storage)
+    - [4.7.1. Core Configuration](#471-core-configuration)
+    - [4.7.2. Finality State Storage](#472-finality-state-storage)
+    - [4.7.3. Public Randomness Storage](#473-public-randomness-storage)
+  - [4.8. Finality contract queries](#48-finality-contract-queries)
+    - [4.8.1. BlockVoters (MUST)](#481-blockvoters-must)
+    - [4.8.2. FirstPubRandCommit (MUST)](#482-firstpubrandcommit-must)
+    - [4.8.3. LastPubRandCommit (MUST)](#483-lastpubrandcommit-must)
+    - [4.8.4. Admin (SHOULD)](#484-admin-should)
+    - [4.8.5. Config (SHOULD)](#485-config-should)
 - [5. Implementation status](#5-implementation-status)
   - [5.1. Babylon implementation status](#51-babylon-implementation-status)
   - [5.2. Finality contract implementation status](#52-finality-contract-implementation-status)
@@ -366,7 +366,41 @@ parameters must be provided:
 3. **Configuration Storage**: Save the bsn_id in the contract configuration
 4. **Response**: Return a success response with instantiation attributes
 
-### 4.5. Finality Contract message handlers
+### 4.5. Signing Context
+
+Finality contracts MUST implement signing context to ensure message signatures
+are bound to the specific contract and BSN. The signing context prevents
+signature replay attacks across different contracts or BSNs.
+[Babylon](https://github.com/babylonlabs-io/babylon/tree/main/app/signingcontext)
+provides a library for signing context.
+
+**Signing Context Format:** The signing context is a hex-encoded SHA256 hash of
+a structured string that includes:
+- Protocol name: `btcstaking`
+- Version: `0`
+- Operation type: `fp_rand_commit` or `fp_fin_vote`
+- BSN ID: The unique identifier for the BSN
+- Contract address: The address of the finality contract
+
+**Context Generation:**
+1. **Public Randomness Commitment Context**: 
+   ```
+   hex(sha256("btcstaking/0/fp_rand_commit/{bsn_id}/{contract_address}"))
+   ```
+   Used for verifying signatures on public randomness commitments.
+
+2. **Finality Vote Context**:
+   ```
+   hex(sha256("btcstaking/0/fp_fin_vote/{bsn_id}/{contract_address}"))
+   ```
+   Used for verifying EOTS signatures on finality votes.
+
+**Usage in Message Construction:** The signing context is prepended to the
+message being signed as raw bytes from the hex string. This ensures that
+signatures are cryptographically bound to the specific contract instance and
+cannot be replayed across different contracts or BSNs.
+
+### 4.6. Finality Contract message handlers
 
 The finality contract message requirements are divided into core finality
 functionality (MUST) and administrative functionality (SHOULD):
@@ -446,7 +480,7 @@ pub enum ExecuteMsg {
 }
 ```
 
-#### 4.5.1. CommitPublicRandomness (MUST)
+#### 4.6.1. CommitPublicRandomness (MUST)
 
 **Message Structure:**
 ```rust
@@ -475,8 +509,12 @@ following verification logic:
    signature verification:
    - Decode the finality provider's BTC public key from `fp_pubkey_hex`
      parameter
-   - Construct message: `start_height || num_pub_rand || commitment` (all in
-     big-endian bytes)
+   - Generate signing context:
+     `hex(sha256("btcstaking/0/fp_rand_commit/{bsn_id}/{contract_address}"))`
+   - Construct message: `signing_context || start_height || num_pub_rand ||
+     commitment` (where
+     signing_context is the hex string as bytes, start_height and num_pub_rand
+     are in big-endian bytes)
    - Verify signature against the constructed message using the BTC public key
 
 3. **Height Overlap Check**: Ensure no overlap with existing public randomness
@@ -495,7 +533,7 @@ following verification logic:
    - Record the current Babylon epoch as the commitment epoch for BTC
      timestamping validation
 
-#### 4.5.2. SubmitFinalitySignature (MUST)
+#### 4.6.2. SubmitFinalitySignature (MUST)
 
 **Message Structure:**
 ```rust
@@ -513,10 +551,13 @@ SubmitFinalitySignature {
 
 **Finality Signature Message Format:** The finality signature is computed over a
 message constructed as follows:
-1. Construct the message: `height || block_hash` (where `height` is encoded as 8
-bytes in big-endian format) 2. Apply SHA256 hash to the message: `message_hash =
-SHA256(height || block_hash)`
-3. Sign the message hash using EOTS with the public randomness
+1. Generate signing context:
+   `hex(sha256("btcstaking/0/fp_fin_vote/{bsn_id}/{contract_address}"))`
+2. Construct the message: `signing_context || height || block_hash` (where
+signing_context is the hex string as bytes, height is encoded as 8 bytes in
+big-endian format) 3. Apply SHA256 hash to the message: `message_hash =
+SHA256(signing_context || height || block_hash)`
+4. Sign the message hash using EOTS with the public randomness
 
 **Expected Behaviour:** Finality contracts MUST implement this handler with the
 following verification logic:
@@ -552,7 +593,11 @@ following verification logic:
    - Verify the inclusion proof for the public randomness value against
      `pr_commit.commitment`
    - Verify the EOTS signature using:
-     - Message: `SHA256(height || block_hash)` (in big-endian format)
+     - Generate signing context:
+       `hex(sha256("btcstaking/0/fp_fin_vote/{bsn_id}/{contract_address}"))`
+     - Message: `SHA256(signing_context || height || block_hash)` (where
+       signing_context is the hex string as bytes, height is in big-endian
+       format)
      - Public randomness value and EOTS signature
 
 5. **Equivocation Detection and Handling**: Check if the finality provider has
@@ -602,12 +647,12 @@ handler with the following verification logic:
    - The new admin address from `admin` parameter replaces the current admin
    - Return success response
 
-### 4.6. Contract State Storage
+### 4.7. Contract State Storage
 
 This section documents the actual state storage structure used by the finality
 contract implementation.
 
-#### 4.6.1. Core Configuration
+#### 4.7.1. Core Configuration
 
 **ADMIN**: Admin controller for contract administration
 - Type: `Admin` (from cw-controllers)
@@ -626,7 +671,7 @@ contract implementation.
 
 
 
-#### 4.6.2. Finality State Storage
+#### 4.7.2. Finality State Storage
 
 **FINALITY_SIGNATURES**: Finality signatures by height and provider
 - Type: `Map<(u64, &[u8]), FinalitySigInfo>`
@@ -649,7 +694,7 @@ contract implementation.
 - Purpose: Maps each (height, block_hash) combination to the set of finality
   provider public keys (hex-encoded) that voted for it
 
-#### 4.6.3. Public Randomness Storage
+#### 4.7.3. Public Randomness Storage
 
 **PUB_RAND_VALUES**: Individual public randomness values
 - Type: `Map<(&[u8], u64), Vec<u8>>`
@@ -677,7 +722,7 @@ contract implementation.
   }
   ```
 
-### 4.7. Finality contract queries
+### 4.8. Finality contract queries
 
 The finality contract query requirements are divided into core finality
 functionality (MUST) and administrative functionality (SHOULD):
@@ -720,7 +765,7 @@ pub enum QueryMsg {
 }
 ```
 
-#### 4.7.1. BlockVoters (MUST)
+#### 4.8.1. BlockVoters (MUST)
 
 **Query Structure:**
 ```rust
@@ -763,7 +808,7 @@ WHERE BlockVoterInfo contains:
 - `finality_signature`: `FinalitySigInfo` - Complete signature information
   including signature and block hash
 
-#### 4.7.2. FirstPubRandCommit (MUST)
+#### 4.8.2. FirstPubRandCommit (MUST)
 
 **Query Structure:**
 ```rust
@@ -794,7 +839,7 @@ WHERE PubRandCommit contains:
 - `babylon_epoch`: `u64`
 - `commitment`: `Vec<u8>`
 
-#### 4.7.3. LastPubRandCommit (MUST)
+#### 4.8.3. LastPubRandCommit (MUST)
 
 **Query Structure:**
 ```rust
@@ -825,7 +870,7 @@ WHERE PubRandCommit contains:
 - `babylon_epoch`: `u64`
 - `commitment`: `Vec<u8>`
 
-#### 4.7.4. Admin (SHOULD)
+#### 4.8.4. Admin (SHOULD)
 
 **Query Structure:**
 ```rust
@@ -847,7 +892,7 @@ query to return the current admin address:
 WHERE AdminResponse contains:
 - `admin`: `Option<String>`
 
-#### 4.7.5. Config (SHOULD)
+#### 4.8.5. Config (SHOULD)
 
 **Query Structure:**
 ```rust
@@ -868,8 +913,6 @@ query to return the contract configuration:
    
 WHERE Config contains:
 - `bsn_id`: `String` - The BSN identifier for this finality contract
-
-
 
 ## 5. Implementation status
 
