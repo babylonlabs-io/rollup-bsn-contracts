@@ -32,3 +32,24 @@ pub fn get_random_finality_sig(block_hash: &[u8]) -> FinalitySigInfo {
         block_hash: block_hash.to_vec(),
     }
 }
+
+pub fn get_random_string() -> String {
+    let mut rng = rng();
+    let chars: Vec<char> = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
+        .chars()
+        .collect();
+    let len = rng.random_range(1..=20);
+    (0..len)
+        .map(|_| chars[rng.random_range(0..chars.len())])
+        .collect()
+}
+
+pub fn get_random_bool() -> bool {
+    let mut rng = rng();
+    rng.random()
+}
+
+pub fn get_random_u64_range(start: u64, end: u64) -> u64 {
+    let mut rng = rng();
+    rng.random_range(start..=end)
+}

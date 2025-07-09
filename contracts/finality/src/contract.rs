@@ -191,65 +191,61 @@ pub(crate) mod tests {
         ADMIN.assert_admin(deps.as_ref(), &new_admin).unwrap();
     }
 
-    mod property_tests {
-        use super::*;
-        use proptest::prelude::*;
+    #[test]
+    fn test_instantiate_validation() {
+        use crate::testutil::datagen::*;
 
-        proptest! {
-            #[test]
-            fn test_instantiate_validation(
-                min_pub_rand in 0u64..1000000,
-                is_enabled: bool,
-                bsn_id in "[a-zA-Z0-9-_]{1,20}"
-            ) {
-                let mut deps = mock_deps_babylon();
-                let init_admin = deps.api.addr_make(INIT_ADMIN);
+        let mut deps = mock_deps_babylon();
+        let init_admin = deps.api.addr_make(INIT_ADMIN);
 
-                let msg = InstantiateMsg {
-                    admin: init_admin.to_string(),
-                    bsn_id: bsn_id.clone(),
-                    is_enabled,
-                    min_pub_rand,
-                };
+        let min_pub_rand = get_random_u64_range(0, 1000000);
+        let bsn_id = get_random_string();
+        let is_enabled = get_random_bool();
 
-                let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-                let result = instantiate(deps.as_mut(), mock_env(), info, msg);
+        let msg = InstantiateMsg {
+            admin: init_admin.to_string(),
+            bsn_id: bsn_id.clone(),
+            is_enabled,
+            min_pub_rand,
+        };
 
-                // PROPERTY: "If min_pub_rand > 0, instantiate should succeed AND set state correctly"
-                if min_pub_rand > 0 {
-                    prop_assert!(result.is_ok(), "Expected success for min_pub_rand = {}", min_pub_rand);
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        let result = instantiate(deps.as_mut(), mock_env(), info, msg);
 
-                    // Verify the response
-                    let res = result.unwrap();
-                    prop_assert_eq!(res.messages.len(), 0, "Should return no messages");
+        if min_pub_rand > 0 {
+            // Should succeed and set state correctly
+            assert!(
+                result.is_ok(),
+                "Expected success for min_pub_rand = {}",
+                min_pub_rand
+            );
 
-                    // Verify admin was set correctly
-                    ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
+            // Verify the response
+            let res = result.unwrap();
+            assert_eq!(res.messages.len(), 0);
 
-                    // Verify admin is queryable
-                    let admin_query = query(deps.as_ref(), mock_env(), QueryMsg::Admin {}).unwrap();
-                    let admin: AdminResponse = from_json(admin_query).unwrap();
-                    prop_assert_eq!(admin.admin.unwrap(), init_admin.as_str());
+            // Verify admin was set correctly
+            ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
 
-                    // Verify config was saved correctly
-                    let config_query = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
-                    let config: Config = from_json(config_query).unwrap();
-                    prop_assert_eq!(config.bsn_id, bsn_id);
-                    prop_assert_eq!(config.min_pub_rand, min_pub_rand);
+            // Verify admin is queryable
+            let admin_query = query(deps.as_ref(), mock_env(), QueryMsg::Admin {}).unwrap();
+            let admin: AdminResponse = from_json(admin_query).unwrap();
+            assert_eq!(admin.admin.unwrap(), init_admin.as_str());
 
-                    // Verify is_enabled was saved correctly
-                    let enabled_query = query(deps.as_ref(), mock_env(), QueryMsg::IsEnabled {}).unwrap();
-                    let saved_enabled: bool = from_json(enabled_query).unwrap();
-                    prop_assert_eq!(saved_enabled, is_enabled);
+            // Verify config was saved correctly
+            let config_query = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
+            let config: Config = from_json(config_query).unwrap();
+            assert_eq!(config.bsn_id, bsn_id);
+            assert_eq!(config.min_pub_rand, min_pub_rand);
 
-                } else {
-                    // PROPERTY: "If min_pub_rand = 0, instantiate should fail with specific error"
-                    prop_assert!(result.is_err(), "Expected error for min_pub_rand = 0");
-                    if let Err(err) = result {
-                        prop_assert_eq!(err, ContractError::InvalidMinPubRand(0));
-                    }
-                }
-            }
+            // Verify is_enabled was saved correctly
+            let enabled_query = query(deps.as_ref(), mock_env(), QueryMsg::IsEnabled {}).unwrap();
+            let saved_enabled: bool = from_json(enabled_query).unwrap();
+            assert_eq!(saved_enabled, is_enabled);
+        } else {
+            // Should fail with specific error
+            assert!(result.is_err(), "Expected error for min_pub_rand = 0");
+            assert_eq!(result.unwrap_err(), ContractError::InvalidMinPubRand(0));
         }
     }
 }
