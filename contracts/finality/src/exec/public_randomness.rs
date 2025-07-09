@@ -10,6 +10,7 @@ use k256::ecdsa::signature::Verifier;
 use k256::schnorr::{Signature, VerifyingKey};
 
 const COMMITMENT_LENGTH_BYTES: usize = 32; // Commitment must be exactly 32 bytes
+const BIP340_SIGNATURE_LENGTH_BYTES: usize = 64; // BIP340 signatures must be exactly 64 bytes
 
 pub fn handle_public_randomness_commit(
     deps: DepsMut<BabylonQuery>,
@@ -30,6 +31,14 @@ pub fn handle_public_randomness_commit(
     // Check if signature is empty
     if signature.is_empty() {
         return Err(ContractError::EmptySignature);
+    }
+
+    // Check if signature is exactly 64 bytes (BIP340 requirement)
+    if signature.len() != BIP340_SIGNATURE_LENGTH_BYTES {
+        return Err(ContractError::InvalidSignatureLength {
+            expected: BIP340_SIGNATURE_LENGTH_BYTES,
+            actual: signature.len(),
+        });
     }
 
     // Validate the commitment parameters
@@ -192,7 +201,9 @@ pub(crate) mod tests {
 
         // Generate random 64-byte signature
         let mut rng = rng();
-        let random_signature: Vec<u8> = (0..64).map(|_| rng.random()).collect();
+        let random_signature: Vec<u8> = (0..BIP340_SIGNATURE_LENGTH_BYTES)
+            .map(|_| rng.random())
+            .collect();
 
         let result = handle_public_randomness_commit(
             deps.as_mut(),
@@ -227,7 +238,9 @@ pub(crate) mod tests {
 
         // Generate random 64-byte signature
         let mut rng = rng();
-        let random_signature: Vec<u8> = (0..64).map(|_| rng.random()).collect();
+        let random_signature: Vec<u8> = (0..BIP340_SIGNATURE_LENGTH_BYTES)
+            .map(|_| rng.random())
+            .collect();
 
         // Test commitment too short
         let short_commitment: Vec<u8> = (0..COMMITMENT_LENGTH_BYTES - 1)
@@ -301,6 +314,72 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn test_invalid_signature_length_fails() {
+        use crate::testutil::datagen::*;
+        use rand::{rng, Rng};
+
+        let mut deps = mock_deps_babylon();
+
+        // Configure the contract with random min_pub_rand
+        let config = Config {
+            bsn_id: format!("test-{}", get_random_u64()),
+            min_pub_rand: get_random_u64(),
+        };
+        CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
+        let fp_btc_pk_hex = get_random_fp_pk_hex();
+        let start_height = get_random_u64();
+        let num_pub_rand = get_random_u64();
+        let commitment = get_random_block_hash();
+
+        let mut rng = rng();
+
+        // Test signature too short
+        let short_signature: Vec<u8> = (0..BIP340_SIGNATURE_LENGTH_BYTES - 1)
+            .map(|_| rng.random())
+            .collect();
+        let result = handle_public_randomness_commit(
+            deps.as_mut(),
+            &mock_env(),
+            &fp_btc_pk_hex,
+            start_height,
+            num_pub_rand,
+            &commitment,
+            &short_signature, // Too short
+        );
+
+        assert_eq!(
+            result.unwrap_err(),
+            ContractError::InvalidSignatureLength {
+                expected: BIP340_SIGNATURE_LENGTH_BYTES,
+                actual: BIP340_SIGNATURE_LENGTH_BYTES - 1
+            }
+        );
+
+        // Test signature too long
+        let long_signature: Vec<u8> = (0..BIP340_SIGNATURE_LENGTH_BYTES + 1)
+            .map(|_| rng.random())
+            .collect();
+        let result = handle_public_randomness_commit(
+            deps.as_mut(),
+            &mock_env(),
+            &fp_btc_pk_hex,
+            start_height,
+            num_pub_rand,
+            &commitment,
+            &long_signature, // Too long
+        );
+
+        assert_eq!(
+            result.unwrap_err(),
+            ContractError::InvalidSignatureLength {
+                expected: BIP340_SIGNATURE_LENGTH_BYTES,
+                actual: BIP340_SIGNATURE_LENGTH_BYTES + 1
+            }
+        );
+    }
+
+    #[test]
     fn test_overflow_protection_fails() {
         use crate::testutil::datagen::*;
         use rand::{rng, Rng};
@@ -316,7 +395,9 @@ pub(crate) mod tests {
 
         // Generate random 64-byte signature
         let mut rng = rng();
-        let random_signature: Vec<u8> = (0..64).map(|_| rng.random()).collect();
+        let random_signature: Vec<u8> = (0..BIP340_SIGNATURE_LENGTH_BYTES)
+            .map(|_| rng.random())
+            .collect();
 
         let result = handle_public_randomness_commit(
             deps.as_mut(),
@@ -354,7 +435,9 @@ pub(crate) mod tests {
 
         // Generate random 64-byte signature
         let mut rng = rng();
-        let random_signature: Vec<u8> = (0..64).map(|_| rng.random()).collect();
+        let random_signature: Vec<u8> = (0..BIP340_SIGNATURE_LENGTH_BYTES)
+            .map(|_| rng.random())
+            .collect();
 
         // Use a value less than min_pub_rand
         let too_few_pub_rand = if min_pub_rand > 1 {

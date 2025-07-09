@@ -78,6 +78,8 @@ pub enum ContractError {
     OverflowInBlockHeight { start_height: u64, end_height: u64 },
     #[error("Invalid commitment length: expected {expected} bytes, got {actual}")]
     InvalidCommitmentLength { expected: usize, actual: usize },
+    #[error("Invalid signature length: expected {expected} bytes, got {actual}")]
+    InvalidSignatureLength { expected: usize, actual: usize },
     #[error("Empty finality provider BTC public key")]
     EmptyFpBtcPubKey,
 }
