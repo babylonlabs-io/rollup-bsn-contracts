@@ -17,8 +17,7 @@
   - [4.5. Finality Contract message handlers](#45-finality-contract-message-handlers)
     - [4.5.1. CommitPublicRandomness (MUST)](#451-commitpublicrandomness-must)
     - [4.5.2. SubmitFinalitySignature (MUST)](#452-submitfinalitysignature-must)
-    - [4.5.3. SetEnabled (SHOULD)](#453-setenabled-should)
-    - [4.5.4. UpdateAdmin (SHOULD)](#454-updateadmin-should)
+    - [4.5.3. UpdateAdmin (SHOULD)](#453-updateadmin-should)
   - [4.6. Contract State Storage](#46-contract-state-storage)
     - [4.6.1. Core Configuration](#461-core-configuration)
     - [4.6.2. Finality State Storage](#462-finality-state-storage)
@@ -29,7 +28,7 @@
     - [4.7.3. LastPubRandCommit (MUST)](#473-lastpubrandcommit-must)
     - [4.7.4. Admin (SHOULD)](#474-admin-should)
     - [4.7.5. Config (SHOULD)](#475-config-should)
-    - [4.7.6. IsEnabled (SHOULD)](#476-isenabled-should)
+
 - [5. Implementation status](#5-implementation-status)
   - [5.1. Babylon implementation status](#51-babylon-implementation-status)
   - [5.2. Finality contract implementation status](#52-finality-contract-implementation-status)
@@ -342,7 +341,6 @@ queries.
 pub struct InstantiateMsg {
     pub admin: String,
     pub bsn_id: String,
-    pub is_enabled: bool,
 }
 ```
 
@@ -351,11 +349,9 @@ parameters must be provided:
 
 **Required Parameters:**
 - `admin`: String - The initial admin address for the contract who can update
-  settings and enable/disable the finality gadget
+  settings
 - `bsn_id`: String - The unique identifier for this BSN (e.g.,
-  `op-stack-l2-11155420`)  
-- `is_enabled`: bool - Whether the finality gadget should be enabled at
-  instantiation
+  `op-stack-l2-11155420`)
 
 **Validation Requirements:**
 1. **Admin Address Validation**: The `admin` parameter MUST be a valid Babylon address
@@ -368,9 +364,7 @@ parameters must be provided:
 1. **Parameter Validation**: Validate the admin address and consumer ID format
 2. **Admin Setup**: Set the provided admin address as the contract administrator
 3. **Configuration Storage**: Save the bsn_id in the contract configuration
-4. **State Initialization**: Set the enabled/disabled state based on the
-   is_enabled parameter
-5. **Response**: Return a success response with instantiation attributes
+4. **Response**: Return a success response with instantiation attributes
 
 ### 4.5. Finality Contract message handlers
 
@@ -442,15 +436,6 @@ pub enum ExecuteMsg {
 
     // SHOULD: Administrative messages
 
-    /// Set enabled status of the finality contract.
-    ///
-    /// This message can be called by the admin only.
-    /// If disabled, the finality contract and the BTC staking finality will not be used 
-    /// by the rollup. Note this should be implemented in the rollup's finality gadget daemon
-    /// program and is not enforced by the contract itself.
-    SetEnabled {
-        enabled: bool,
-    },
     /// Update the admin address.
     ///
     /// This message can be called by the admin only.
@@ -591,33 +576,7 @@ following verification logic:
        is the first vote for this height
 
 
-#### 4.5.3. SetEnabled (SHOULD)
-
-**Message Structure:**
-```rust
-SetEnabled {
-    enabled: bool,
-}
-```
-
-**Expected Behaviour:** Finality contracts SHOULD implement this administrative
-handler with the following verification logic:
-
-1. **Admin Authorization**: Verify that the caller is the contract admin:
-   - Query `ADMIN` state to get the current admin address
-   - Verify that the message sender matches the admin address
-
-2. **State Check**: Verify that the current enabled state differs from the
-   requested state:
-   - Query current value from the contract state
-   - Compare with the `enabled` parameter
-   - Return error if values are identical (no change needed)
-
-3. **Storage Operations**: Update the enabled flag:
-   - Save the `enabled` parameter value to the contract state
-   - Return success response
-
-#### 4.5.4. UpdateAdmin (SHOULD)
+#### 4.5.3. UpdateAdmin (SHOULD)
 
 **Message Structure:**
 ```rust
@@ -665,10 +624,7 @@ contract implementation.
   }
   ```
 
-**IS_ENABLED**: Finality gadget enabled status
-- Type: `Item<bool>`
-- Storage key: `"is_enabled"`
-- Purpose: Controls whether the finality gadget is active
+
 
 #### 4.6.2. Finality State Storage
 
@@ -760,8 +716,7 @@ pub enum QueryMsg {
     Admin {},
     #[returns(Config)]
     Config {},
-    #[returns(bool)]
-    IsEnabled {},
+
 }
 ```
 
@@ -914,24 +869,7 @@ query to return the contract configuration:
 WHERE Config contains:
 - `bsn_id`: `String` - The BSN identifier for this finality contract
 
-#### 4.7.6. IsEnabled (SHOULD)
 
-**Query Structure:**
-```rust
-IsEnabled {}    // No parameters required
-```
-
-**Return Type:** `bool` - Whether the finality contract is enabled
-
-**Expected Behaviour:** Finality contracts SHOULD implement this administrative
-query to return whether the finality gadget is enabled:
-
-1. Query enabled status storage to retrieve current state
-   - Access the stored boolean enabled flag
-
-2. Return enabled status
-   - Return `true` if finality contract is enabled
-   - Return `false` if finality contract is disabled
 
 ## 5. Implementation status
 
