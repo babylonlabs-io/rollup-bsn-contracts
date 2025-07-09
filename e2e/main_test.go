@@ -260,7 +260,7 @@ func (s *FinalityContractTestSuite) deployContracts(
 
 	// init message
 	bsnID := "test-consumer"
-	initMsg := NewInitMsg(s.owner.String(), bsnID, true)
+	initMsg := NewInitMsg(s.owner.String(), bsnID)
 	initMsgBz := []byte(initMsg)
 	// instantiate contract
 	contractKeeper := keeper.NewDefaultPermissionKeeper(s.babylonApp.WasmKeeper)
