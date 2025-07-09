@@ -4,11 +4,21 @@ use crate::state::config::{get_config, ADMIN, CONFIG};
 use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{DepsMut, MessageInfo, Response};
 
-// Enable or disable the finality gadget.
-// Only callable by contract admin.
-// If disabled, the verifier should bypass the EOTS verification logic, allowing the OP derivation
-// derivation pipeline to pass through. Note this should be implemented in the verifier and is not
-// enforced by the contract itself.
+/// Enable or disable the finality gadget.
+/// Only callable by contract admin.
+/// If disabled, the verifier should bypass the EOTS verification logic, allowing the OP derivation
+/// derivation pipeline to pass through. Note this should be implemented in the verifier and is not
+/// enforced by the contract itself.
+///
+/// The finality providers / gadgets are responsible for interpreting this boolean value and
+/// determining whether they should keep submitting finality signatures, and whether they should
+/// respect BTC staking finality, respectively.
+///
+/// The BSN is supposed to be able to turn on and turn off BTC staking integration anytime, in case
+/// of various situations like Babylon has a long chain halt, BSN is not happy with the amount of
+/// BTC staked, etc.
+///
+/// Relevant issue: https://github.com/babylonlabs-io/rollup-finality-gadget/issues/19.
 pub fn set_enabled(
     deps: DepsMut<BabylonQuery>,
     info: MessageInfo,
