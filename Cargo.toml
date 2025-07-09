@@ -20,30 +20,29 @@ integration     = "./scripts/integration_test.sh"
 e2e             = "./scripts/e2e_test.sh"
 
 [workspace.dependencies]
+anybuf           = { version = "0.5.0" }
+anyhow           = "1.0.82"
 babylon-bindings = { git = "https://github.com/babylonlabs-io/bindings", tag = "v0.2.0" }
 babylon-merkle   = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
-eots             = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
-anybuf = { version = "0.5.0" }
-anyhow = "1.0.82"
-cosmwasm-schema = "2.1.4"
-cosmwasm-std = { version = "2.1.4", default-features = false, features = [
+cosmwasm-schema  = "2.1.4"
+cosmwasm-std     = { version = "2.1.4", default-features = false, features = [
     "std",
-    "abort",
     "cosmwasm_2_0",
 ] }
-cw-controllers = "2.0.0"
-cw-multi-test = { version = "2.0.1", features = [ "staking", "cosmwasm_1_1", "cosmwasm_2_0" ] }
-cw-storage-plus = "2.0.0"
-derivative = "2"
-digest = "0.10"
-hex = "0.4.3"
-thiserror = "1.0.40"
-k256 = { version = "0.13.1", default-features = false, features = ["schnorr"] }
+cw-controllers   = "2.0.0"
+cw-multi-test    = { version = "2.0.1", features = [ "staking", "cosmwasm_1_1", "cosmwasm_2_0" ] }
+cw-storage-plus  = "2.0.0"
+derivative       = "2"
+digest           = "0.10"
+eots             = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
+hex              = "0.4.3"
+k256             = { version = "0.13.1", default-features = false, features = ["schnorr"] }
+thiserror        = "1.0.40"
 
 # dev deps
 babylon-test-utils = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
-cosmwasm-vm = { version = "2.1.4", default-features = false, features = ["iterator", "stargate"] }
-rand = "0.9.1"
+cosmwasm-vm        = { version = "2.1.4", default-features = false, features = ["iterator", "stargate"] }
+rand               = "0.9.1"
 
 [profile.release]
 codegen-units    = 1
