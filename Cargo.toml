@@ -4,8 +4,8 @@ resolver = "2"
 
 [workspace.package]
 edition    = "2021"
-version    = "0.14.1"
-license    = "Apache-2.0"
+version    = "0.1.0-dev"
+license    = "BSL-1.1"
 repository = "https://github.com/babylonlabs-io/rollup-bsn-contracts"
 authors    = ["Babylon Labs Ltd. <admin@babylonlabs.io>"]
 publish    = false
@@ -23,51 +23,27 @@ e2e             = "./scripts/e2e_test.sh"
 babylon-bindings = { git = "https://github.com/babylonlabs-io/bindings", tag = "v0.2.0" }
 babylon-merkle   = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
 eots             = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
-
 anybuf = { version = "0.5.0" }
 anyhow = "1.0.82"
-bech32 = "0.9.1"
-bitcoin = "0.31.1"
-bitvec = "1"
-blst = "0.3.11"
-cosmos-sdk-proto = { version = "0.19.0", default-features = false, features = [
-    "cosmwasm",
-] }
-cosmwasm-derive = "2.1.4"
 cosmwasm-schema = "2.1.4"
 cosmwasm-std = { version = "2.1.4", default-features = false, features = [
     "std",
     "abort",
-    "staking",
-    "stargate",
     "cosmwasm_2_0",
 ] }
-cw2 = "2.0.0"
 cw-controllers = "2.0.0"
 cw-multi-test = { version = "2.0.1", features = [ "staking", "cosmwasm_1_1", "cosmwasm_2_0" ] }
 cw-storage-plus = "2.0.0"
-cw-utils = "2.0.0"
 derivative = "2"
 digest = "0.10"
 hex = "0.4.3"
-prost = "0.11.9"
-schemars = "0.8.3"
-serde = { version = "1.0.103", default-features = false, features = ["derive"] }
-serde_json = "1.0"
-sha2 = "0.10.6"
-tendermint-proto = "0.32.2"
 thiserror = "1.0.40"
-rust_decimal = "1.35"
 k256 = { version = "0.13.1", default-features = false, features = ["schnorr"] }
 
 # dev deps
-assert_matches = "1"
-rand = "0.9.1"
-cargo_metadata = "0.18.1"
-
 babylon-test-utils = { git = "https://github.com/babylonlabs-io/cosmos-bsn-contracts" }
-
 cosmwasm-vm = { version = "2.1.4", default-features = false, features = ["iterator", "stargate"] }
+rand = "0.9.1"
 
 [profile.release]
 codegen-units    = 1
