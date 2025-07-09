@@ -26,7 +26,7 @@ pub fn query_block_voters(
             ContractError::QueryBlockVoterError(
                 height,
                 hash_hex.clone(),
-                format!("Original error: {:?}", e),
+                format!("Original error: {e:?}"),
             )
         })?;
     if let Some(set) = fp_pubkey_hex_set {
@@ -37,7 +37,7 @@ pub fn query_block_voters(
                 ContractError::QueryBlockVoterError(
                     height,
                     hash_hex.clone(),
-                    format!("Missing FinalitySigInfo for FP {}", fp_btc_pk_hex),
+                    format!("Missing FinalitySigInfo for FP {fp_btc_pk_hex}"),
                 ),
             )?;
 
@@ -47,7 +47,7 @@ pub fn query_block_voters(
                     ContractError::QueryBlockVoterError(
                         height,
                         hash_hex.clone(),
-                        format!("Missing public randomness for FP {}", fp_btc_pk_hex),
+                        format!("Missing public randomness for FP {fp_btc_pk_hex}"),
                     )
                 })?;
 
@@ -108,7 +108,7 @@ mod tests {
         // Check all expected FPs and signatures are present
         for (fp, pub_rand, sig) in expected {
             let found = voters.iter().find(|v| v.fp_btc_pk_hex == fp);
-            assert!(found.is_some(), "FP {} not found in voters", fp);
+            assert!(found.is_some(), "FP {fp} not found in voters");
             let found = found.unwrap();
             assert_eq!(found.pub_rand, pub_rand);
             assert_eq!(found.finality_signature.finality_sig, sig.finality_sig);
