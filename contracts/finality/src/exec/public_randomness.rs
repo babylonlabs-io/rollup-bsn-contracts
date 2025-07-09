@@ -22,8 +22,6 @@ pub fn handle_public_randomness_commit(
     commitment: &[u8],
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
-    let config = get_config(deps.as_ref())?;
-
     // Check if FP BTC PubKey is empty
     if fp_btc_pk_hex.is_empty() {
         return Err(ContractError::EmptyFpBtcPubKey);
@@ -42,6 +40,8 @@ pub fn handle_public_randomness_commit(
         });
     }
 
+    let config = get_config(deps.as_ref())?;
+
     // Validate the commitment parameters
     validate_pub_rand_commit(start_height, num_pub_rand, commitment, config.min_pub_rand)?;
 
@@ -49,7 +49,6 @@ pub fn handle_public_randomness_commit(
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
 
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
-
     let context = get_fp_rand_commit_context_v0(deps.as_ref(), &env)?;
     // Verify signature over the list
     verify_commitment_signature(
