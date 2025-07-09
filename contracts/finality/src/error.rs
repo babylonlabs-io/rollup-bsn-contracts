@@ -67,10 +67,6 @@ pub enum ContractError {
     FailedFetchVotingPower(String),
     #[error("Caller is not the admin")]
     Unauthorized,
-    #[error("Finality gadget is already enabled")]
-    AlreadyEnabled,
-    #[error("Finality gadget is already disabled")]
-    AlreadyDisabled,
     #[error("Public randomness already exists for finality provider {0} at height {1}")]
     PubRandAlreadyExists(String, u64),
     #[error("Duplicate signatory {0}")]

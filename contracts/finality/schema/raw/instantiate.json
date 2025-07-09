@@ -4,8 +4,7 @@
   "type": "object",
   "required": [
     "admin",
-    "bsn_id",
-    "is_enabled"
+    "bsn_id"
   ],
   "properties": {
     "admin": {
@@ -13,9 +12,6 @@
     },
     "bsn_id": {
       "type": "string"
-    },
-    "is_enabled": {
-      "type": "boolean"
     }
   },
   "additionalProperties": false
