@@ -105,13 +105,13 @@ fn hashed_hex_context(context_string: &str) -> String {
 }
 
 /// Returns context string in format:
-/// btcstaking/0/fp_rand_commit/{chain_id}/{address}
+/// hex(sha256(btcstaking/0/fp_rand_commit/{chain_id}/{address}))
 fn fp_rand_commit_context_v0(chain_id: &str, address: &str) -> String {
     hashed_hex_context(&btc_staking_v0_context(FP_RAND_COMMIT, chain_id, address))
 }
 
 /// Returns context string in format:
-/// btcstaking/0/fp_fin_vote/{chain_id}/{address}
+/// hex(sha256(btcstaking/0/fp_fin_vote/{chain_id}/{address}))
 fn fp_fin_vote_context_v0(chain_id: &str, address: &str) -> String {
     hashed_hex_context(&btc_staking_v0_context(FP_FIN_VOTE, chain_id, address))
 }

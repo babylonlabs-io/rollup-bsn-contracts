@@ -317,6 +317,7 @@ pub(crate) mod tests {
         // Verify commitment signature
         // TODO: test with non-empty signing context
         // this needs mock data from babylon_test_utils
+        // https://github.com/babylonlabs-io/rollup-bsn-contracts/issues/66
         let signing_context = "";
         let res = verify_commitment_signature(
             &fp_btc_pk,
@@ -350,6 +351,7 @@ pub(crate) mod tests {
         // Verify finality signature
         // TODO: test with non-empty signing context
         // This needs mock data from babylon_test_utils
+        // https://github.com/babylonlabs-io/rollup-bsn-contracts/issues/66
         let context = "";
         let res = verify_finality_signature(
             &hex::decode(&pk_hex).unwrap(),
