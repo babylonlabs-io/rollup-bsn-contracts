@@ -115,7 +115,7 @@ pub fn get_timestamped_pub_rand_commit_for_height(
 const MAX_LIMIT: u32 = 30;
 const DEFAULT_LIMIT: u32 = 10;
 
-fn get_pub_rand_commit(
+pub fn get_pub_rand_commit(
     storage: &dyn Storage,
     fp_btc_pk: &[u8],
     start_after: Option<u64>,
@@ -246,6 +246,26 @@ mod tests {
         assert_eq!(first_commit.unwrap(), valid_commit);
         let last_commit = get_last_pub_rand_commit(deps.as_ref().storage, &fp_btc_pk).unwrap();
         assert_eq!(last_commit.unwrap(), valid_commit);
+
+        // Test the new get_pub_rand_commit function (used by ListPubRandCommit query)
+        let list_result = get_pub_rand_commit(deps.as_ref().storage, &fp_btc_pk, None, None, None).unwrap();
+        assert_eq!(list_result.len(), 1);
+        assert_eq!(list_result[0], valid_commit);
+
+        // Test with different pagination parameters
+        let limited_result = get_pub_rand_commit(deps.as_ref().storage, &fp_btc_pk, None, Some(5), None).unwrap();
+        assert_eq!(limited_result.len(), 1);
+        assert_eq!(limited_result[0], valid_commit);
+
+        // Test with reverse ordering
+        let reverse_result = get_pub_rand_commit(deps.as_ref().storage, &fp_btc_pk, None, None, Some(true)).unwrap();
+        assert_eq!(reverse_result.len(), 1);
+        assert_eq!(reverse_result[0], valid_commit);
+
+        // Test with non-existent FP (should return empty)
+        let other_fp_pk = get_random_fp_pk();
+        let empty_result = get_pub_rand_commit(deps.as_ref().storage, &other_fp_pk, None, None, None).unwrap();
+        assert_eq!(empty_result.len(), 0);
     }
 
     #[test]

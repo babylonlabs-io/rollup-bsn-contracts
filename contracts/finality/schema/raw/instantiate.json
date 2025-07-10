@@ -4,7 +4,8 @@
   "type": "object",
   "required": [
     "admin",
-    "bsn_id"
+    "bsn_id",
+    "min_pub_rand"
   ],
   "properties": {
     "admin": {
@@ -12,6 +13,11 @@
     },
     "bsn_id": {
       "type": "string"
+    },
+    "min_pub_rand": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
     }
   },
   "additionalProperties": false

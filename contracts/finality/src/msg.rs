@@ -31,6 +31,19 @@ pub enum QueryMsg {
     /// `btc_pk_hex` is the BTC public key of the finality provider, in hex format.
     #[returns(Option<PubRandCommit>)]
     LastPubRandCommit { btc_pk_hex: String },
+    /// `ListPubRandCommit` returns a list of public random commitments for a given FP.
+    ///
+    /// `btc_pk_hex` is the BTC public key of the finality provider, in hex format.
+    /// `start_after` is optional and can be used for pagination.
+    /// `limit` is optional and defaults to 10, max 30.
+    /// `reverse` is optional and defaults to false.
+    #[returns(Vec<PubRandCommit>)]
+    ListPubRandCommit {
+        btc_pk_hex: String,
+        start_after: Option<u64>,
+        limit: Option<u32>,
+        reverse: Option<bool>,
+    },
 
     // SHOULD: Administrative queries
     #[returns(AdminResponse)]
