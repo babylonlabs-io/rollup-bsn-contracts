@@ -48,7 +48,15 @@ Alternatively, you can run the following command to run all the checks at once.
 cargo run-script lint
 ```
 
-### Test the contract
+### Build the optimized contract
+
+```bash
+cargo run-script optimize
+```
+
+## Tests
+
+### Unit tests
 
 Note: Requires the optimized contract to be built (`cargo optimize`)
 
@@ -58,7 +66,7 @@ Runs all the CI checks locally (in your actual toolchain).
 cargo test --lib
 ```
 
-### Integration tests the contract
+### Integration tests
 
 Note: Requires the optimized contract to be built (`cargo optimize`)
 
@@ -73,8 +81,12 @@ optimized contract before running the integration tests.
 cargo run-script integration
 ```
 
-### Build the optimized contract
+### End-to-End Tests
+
+Note: Requires the optimized contract to be built (`cargo optimize`)
+
+Run the end-to-end tests for the contract.
 
 ```bash
-cargo run-script optimize
+cargo run-script e2e
 ```

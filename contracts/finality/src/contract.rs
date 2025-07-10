@@ -4,7 +4,7 @@ use crate::exec::public_randomness::handle_public_randomness_commit;
 use crate::msg::BabylonMsg;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::queries::query_block_voters;
-use crate::state::config::{get_config, Config, ADMIN, CONFIG};
+use crate::state::config::{get_config, set_config, Config, ADMIN};
 use crate::state::public_randomness::{get_first_pub_rand_commit, get_last_pub_rand_commit, get_pub_rand_commit};
 use crate::utils::validate_bsn_id_format;
 use babylon_bindings::BabylonQuery;
@@ -33,7 +33,7 @@ pub fn instantiate(
         bsn_id: msg.bsn_id,
         min_pub_rand: msg.min_pub_rand,
     };
-    CONFIG.save(deps.storage, &config)?;
+    set_config(deps.storage, &config)?;
 
     Ok(Response::new().add_attribute("action", "instantiate"))
 }
@@ -214,8 +214,7 @@ pub(crate) mod tests {
             // Should succeed and set state correctly
             assert!(
                 result.is_ok(),
-                "Expected success for min_pub_rand = {}",
-                min_pub_rand
+                "Expected success for min_pub_rand = {min_pub_rand}"
             );
 
             // Verify the response
