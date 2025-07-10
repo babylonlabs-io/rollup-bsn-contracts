@@ -4,11 +4,17 @@
   "description": "Config are OP finality gadget's configuration",
   "type": "object",
   "required": [
-    "bsn_id"
+    "bsn_id",
+    "min_pub_rand"
   ],
   "properties": {
     "bsn_id": {
       "type": "string"
+    },
+    "min_pub_rand": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
     }
   },
   "additionalProperties": false
