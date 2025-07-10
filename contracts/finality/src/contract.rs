@@ -211,8 +211,7 @@ pub(crate) mod tests {
             // Should succeed and set state correctly
             assert!(
                 result.is_ok(),
-                "Expected success for min_pub_rand = {}",
-                min_pub_rand
+                "Expected success for min_pub_rand = {min_pub_rand}"
             );
 
             // Verify the response

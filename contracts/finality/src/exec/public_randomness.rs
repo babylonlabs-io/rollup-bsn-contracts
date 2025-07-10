@@ -49,7 +49,7 @@ pub fn handle_public_randomness_commit(
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
 
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
-    let context = get_fp_rand_commit_context_v0(deps.as_ref(), &env)?;
+    let context = get_fp_rand_commit_context_v0(deps.as_ref(), env)?;
     // Verify signature over the list
     verify_commitment_signature(
         &fp_btc_pk,
@@ -189,7 +189,7 @@ pub(crate) mod tests {
             pr_commit.start_height,
             pr_commit.num_pub_rand,
             &pr_commit.commitment,
-            &signing_context,
+            signing_context,
             &sig,
         );
         assert!(res.is_ok());
@@ -450,11 +450,7 @@ pub(crate) mod tests {
             .collect();
 
         // Use a value less than min_pub_rand
-        let too_few_pub_rand = if min_pub_rand > 1 {
-            min_pub_rand - 1
-        } else {
-            0
-        };
+        let too_few_pub_rand = min_pub_rand.saturating_sub(1);
 
         let result = handle_public_randomness_commit(
             deps.as_mut(),

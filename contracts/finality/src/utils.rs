@@ -84,17 +84,13 @@ impl FinalityProviderResponse {
 }
 
 /// Signing context library
-
 const PROTOCOL_NAME: &str = "btcstaking";
 const VERSION_V0: &str = "0";
 const FP_RAND_COMMIT: &str = "fp_rand_commit";
 const FP_FIN_VOTE: &str = "fp_fin_vote";
 
 fn btc_staking_v0_context(operation_tag: &str, chain_id: &str, address: &str) -> String {
-    format!(
-        "{}/{}/{}/{}/{}",
-        PROTOCOL_NAME, VERSION_V0, operation_tag, chain_id, address
-    )
+    format!("{PROTOCOL_NAME}/{VERSION_V0}/{operation_tag}/{chain_id}/{address}")
 }
 
 /// Returns the hex encoded sha256 hash of the context string i.e
