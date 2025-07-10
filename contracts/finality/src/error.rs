@@ -1,10 +1,8 @@
-use hex::FromHexError;
-use thiserror::Error;
-
+use babylon_merkle::error::MerkleError;
 use cosmwasm_std::StdError;
 use cw_controllers::AdminError;
-
-use babylon_merkle::error::MerkleError;
+use hex::FromHexError;
+use thiserror::Error;
 
 // Note: copied from contracts/btc-staking/src/error.rs
 #[derive(Error, Debug, PartialEq)]

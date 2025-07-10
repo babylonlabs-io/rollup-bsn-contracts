@@ -1,12 +1,11 @@
-use babylon_bindings::BabylonQuery;
-use cosmwasm_std::Deps;
-
 use crate::error::ContractError;
 use crate::state::finality::get_finality_signature;
 use crate::state::finality::get_signatories_by_block_hash;
 use crate::state::finality::FinalitySigInfo;
 use crate::state::public_randomness::PUB_RAND_VALUES;
+use babylon_bindings::BabylonQuery;
 use cosmwasm_schema::cw_serde;
+use cosmwasm_std::Deps;
 
 #[cw_serde]
 pub struct BlockVoterInfo {

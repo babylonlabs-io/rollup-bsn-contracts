@@ -4,7 +4,6 @@ use cosmwasm_vm::testing::{
     MockInstanceOptions, MockQuerier, MockStorage,
 };
 use cosmwasm_vm::{capabilities_from_csv, Instance};
-
 use cw_controllers::AdminResponse;
 use finality::msg::{InstantiateMsg, QueryMsg};
 use finality::state::config::Config;
