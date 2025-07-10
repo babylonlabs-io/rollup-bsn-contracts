@@ -1,12 +1,10 @@
+use crate::queries::BlockVoterInfo;
+use crate::state::config::Config;
+use crate::state::public_randomness::PubRandCommit;
 use babylon_merkle::Proof;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Binary, CosmosMsg};
-
-#[cfg(not(target_arch = "wasm32"))]
-use {
-    crate::queries::BlockVoterInfo, crate::state::config::Config,
-    crate::state::public_randomness::PubRandCommit, cw_controllers::AdminResponse,
-};
+use cw_controllers::AdminResponse;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -102,11 +100,6 @@ pub enum ExecuteMsg {
     /// This message can be called by the admin only.
     /// The new admin address must be a valid Cosmos address.
     UpdateAdmin { admin: String },
-}
-
-#[cw_serde]
-pub struct FinalitySignatureResponse {
-    pub signature: Vec<u8>,
 }
 
 /// Messages that the finality contract can send to Babylon node's Cosmos SDK layer

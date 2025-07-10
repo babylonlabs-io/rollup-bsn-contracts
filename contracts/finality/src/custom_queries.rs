@@ -1,8 +1,6 @@
-use cosmwasm_std::Deps;
-
-use babylon_bindings::{BabylonQuerier, BabylonQuery};
-
 use crate::error::ContractError;
+use babylon_bindings::{BabylonQuerier, BabylonQuery};
+use cosmwasm_std::Deps;
 
 pub fn get_current_epoch(deps: &Deps<BabylonQuery>) -> Result<u64, ContractError> {
     // Use a Custom query to query the current Babylon epoch
