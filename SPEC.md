@@ -141,20 +141,20 @@ chain](https://github.com/babylonlabs-io/babylon/blob/b9774782f38e9758c4f5aafab1
 
 ```go
 func WhitelistedGrpcQuery() wasmkeeper.AcceptedQueries {
-return wasmkeeper.AcceptedQueries{
-// btcstkconsumer
-"/babylon.btcstaking.v1.Query/FinalityProvider": func () proto.Message {
-return &btcstakingtypes.QueryFinalityProviderResponse{}
-},
-// btcstaking
-"/babylon.btcstaking.v1.Query/FinalityProviderCurrentPower": func () proto.Message {
-return &ftypes.QueryFinalityProviderCurrentPowerResponse{}
-},
-// for testing
-"/babylon.epoching.v1.Query/CurrentEpoch": func () proto.Message {
-return &epochtypes.QueryCurrentEpochResponse{}
-},
-}
+    return wasmkeeper.AcceptedQueries{
+        // btcstkconsumer
+        "/babylon.btcstaking.v1.Query/FinalityProvider": func() proto.Message {
+            return &btcstakingtypes.QueryFinalityProviderResponse{}
+        },
+        // btcstaking
+        "/babylon.btcstaking.v1.Query/FinalityProviderCurrentPower": func() proto.Message {
+            return &ftypes.QueryFinalityProviderCurrentPowerResponse{}
+        },
+        // for testing
+        "/babylon.epoching.v1.Query/CurrentEpoch": func() proto.Message {
+            return &epochtypes.QueryCurrentEpochResponse{}
+        },
+    }
 }
 ```
 
@@ -190,12 +190,12 @@ message FinalityProviderResponse {
     (gogoproto.customtype) = "cosmossdk.io/math.LegacyDec"
   ];
   // addr is the address to receive commission from delegations.
-  string addr = 3 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string addr = 3 [ (cosmos_proto.scalar) = "cosmos.AddressString" ];
   // btc_pk is the Bitcoin secp256k1 PK of this finality provider
   // the PK follows encoding in BIP-340 spec
   bytes btc_pk = 4
-  [(gogoproto.customtype) =
-      "github.com/babylonlabs-io/babylon/v3/types.BIP340PubKey"];
+      [ (gogoproto.customtype) =
+            "github.com/babylonlabs-io/babylon/v3/types.BIP340PubKey" ];
   // pop is the proof of possession of the BTC_PK by the fp addr.
   // Essentially is the signature where the BTC SK sigs the fp addr.
   ProofOfPossessionBTC pop = 5;
@@ -239,22 +239,22 @@ message Description {
 // address and a Bitcoin secp256k1 secret key are held by the same
 // person
 message ProofOfPossessionBTC {
-  // btc_sig_type indicates the type of btc_sig in the pop
-  BTCSigType btc_sig_type = 1;
-  // btc_sig is the signature generated via sign(sk_btc, babylon_staker_address)
-  // the signature follows encoding in either BIP-340 spec or BIP-322 spec
-  bytes btc_sig = 2;
+    // btc_sig_type indicates the type of btc_sig in the pop
+    BTCSigType btc_sig_type = 1;
+    // btc_sig is the signature generated via sign(sk_btc, babylon_staker_address)
+    // the signature follows encoding in either BIP-340 spec or BIP-322 spec
+    bytes btc_sig = 2;
 }
 
 // BTCSigType indicates the type of btc_sig in a pop
 enum BTCSigType {
-  // BIP340 means the btc_sig will follow the BIP-340 encoding
-  BIP340 = 0;
-  // BIP322 means the btc_sig will follow the BIP-322 encoding
-  BIP322 = 1;
-  // ECDSA means the btc_sig will follow the ECDSA encoding
-  // ref: https://github.com/okx/js-wallet-sdk/blob/a57c2acbe6ce917c0aa4e951d96c4e562ad58444/packages/coin-bitcoin/src/BtcWallet.ts#L331
-  ECDSA = 2;
+    // BIP340 means the btc_sig will follow the BIP-340 encoding
+    BIP340 = 0;
+    // BIP322 means the btc_sig will follow the BIP-322 encoding
+    BIP322 = 1;
+    // ECDSA means the btc_sig will follow the ECDSA encoding
+    // ref: https://github.com/okx/js-wallet-sdk/blob/a57c2acbe6ce917c0aa4e951d96c4e562ad58444/packages/coin-bitcoin/src/BtcWallet.ts#L331
+    ECDSA = 2;
 }
 ```
 
@@ -276,7 +276,6 @@ crate which provides CosmWasm bindings to custom
 essential for timestamping public randomness commitments.
 
 **Query Interface:**
-
 ```rust
 // Request - no parameters required
 pub struct CurrentEpochRequest {}
@@ -288,7 +287,6 @@ pub struct CurrentEpochResponse {
 ```
 
 **Expected Behaviour:**
-
 - Query the current epoch from the Babylon chain
 - Return the current epoch number as a `u64`
 
@@ -302,7 +300,6 @@ timestamping validation.
 verify that public randomness commitments have been timestamped by Bitcoin.
 
 **Query Interface:**
-
 ```rust
 // Request - no parameters required  
 pub struct LastFinalizedEpochRequest {}
@@ -321,7 +318,6 @@ pub struct EpochInfo {
 ```
 
 **Expected Behaviour:**
-
 - Query the latest finalized epoch information from the Babylon chain
 - Return the epoch number and optional epoch metadata
 
@@ -341,7 +337,6 @@ Finality contracts MUST utilize custom queries provided by the
 interact with Babylon-specific functionality. These custom queries provide
 access to Babylon chain state that is not available through standard CosmWasm
 queries.
-
 ```rust
 pub struct InstantiateMsg {
     pub admin: String,
@@ -353,23 +348,19 @@ pub struct InstantiateMsg {
 parameters must be provided:
 
 **Required Parameters:**
-
 - `admin`: String - The initial admin address for the contract who can update
   settings
 - `bsn_id`: String - The unique identifier for this BSN (e.g.,
   `op-stack-l2-11155420`)
 
 **Validation Requirements:**
-
-1. **Admin Address Validation**: The `admin` parameter MUST be a valid Babylon
-   address
+1. **Admin Address Validation**: The `admin` parameter MUST be a valid Babylon address
 2. **Consumer ID Validation**: The `bsn_id` parameter MUST:
     - Not be empty
     - Contain only alphanumeric characters, hyphens, and underscores
     - Not exceed 100 characters in length
 
 **Instantiation Process:**
-
 1. **Parameter Validation**: Validate the admin address and consumer ID format
 2. **Admin Setup**: Set the provided admin address as the contract administrator
 3. **Configuration Storage**: Save the bsn_id in the contract configuration
@@ -385,7 +376,6 @@ provides a library for signing context.
 
 **Signing Context Format:** The signing context is a hex-encoded SHA256 hash of
 a structured string that includes:
-
 - Protocol name: `btcstaking`
 - Version: `0`
 - Operation type: `fp_rand_commit` or `fp_fin_vote`
@@ -393,7 +383,6 @@ a structured string that includes:
 - Contract address: The address of the finality contract
 
 **Context Generation:**
-
 1. **Public Randomness Commitment Context**:
    ```
    hex(sha256("btcstaking/0/fp_rand_commit/{bsn_id}/{contract_address}"))
@@ -494,7 +483,6 @@ pub enum ExecuteMsg {
 #### 4.6.1. CommitPublicRandomness (MUST)
 
 **Message Structure:**
-
 ```rust
 CommitPublicRandomness {
     fp_pubkey_hex: String,
@@ -514,8 +502,7 @@ following verification logic:
       with the `fp_pubkey_hex` parameters
     - Verify the response contains a valid finality provider
     - Ensure the finality provider is associated with this BSN
-    - Ensure the finality provider has not been
-      slashed (`slashed_babylon_height`
+    - Ensure the finality provider has not been slashed (`slashed_babylon_height`
       and `slashed_btc_height` are both 0)
 
 2. **Signature Verification**: Verify the commitment signature using Schnorr
@@ -532,8 +519,7 @@ following verification logic:
 
 3. **Height Overlap Check**: Ensure no overlap with existing public randomness
    commitments:
-    - Query the last public randomness commitment for this finality provider
-      from
+    - Query the last public randomness commitment for this finality provider from
       public randomness commitment state
     - Use key `(fp_pubkey_hex, _)` to find the highest height commitment
     - Ensure `start_height > last_commit.start_height + last_commit.num_pub_rand
@@ -550,7 +536,6 @@ following verification logic:
 #### 4.6.2. SubmitFinalitySignature (MUST)
 
 **Message Structure:**
-
 ```rust
 SubmitFinalitySignature {
     fp_pubkey_hex: String,
@@ -566,7 +551,6 @@ SubmitFinalitySignature {
 
 **Finality Signature Message Format:** The finality signature is computed over a
 message constructed as follows:
-
 1. Generate signing context:
    `hex(sha256("btcstaking/0/fp_fin_vote/{bsn_id}/{contract_address}"))`
 2. Construct the message: `signing_context || height || block_hash` (where
@@ -584,8 +568,7 @@ following verification logic:
       with the `bsn_id` parameters
     - Verify the response contains a valid finality provider
     - Ensure the finality provider is associated with this BSN
-    - Ensure the finality provider has not been
-      slashed (`slashed_babylon_height`
+    - Ensure the finality provider has not been slashed (`slashed_babylon_height`
       and `slashed_btc_height` are both 0)
 
 2. **Duplicate Vote Check**: Check if an identical vote already exists:
@@ -621,8 +604,7 @@ following verification logic:
    already voted for a different block at this height:
     - If existing signature differs from current block hash:
         - Extract the secret key using EOTS from the two different signatures
-        - Send `BabylonMsg::MsgEquivocationEvidence` to trigger slashing on
-          Babylon
+        - Send `BabylonMsg::MsgEquivocationEvidence` to trigger slashing on Babylon
           Genesis
         - Emit `slashed_finality_provider` event with extracted secret key
 
@@ -633,17 +615,15 @@ following verification logic:
     - This function performs the following operations in sequence:
         - Save finality signature using key `(height, fp_pubkey_hex)` (will
           override existing signature)
-        - Add signatory to the set of signatories for the block using
-          key `(height,
+        - Add signatory to the set of signatories for the block using key `(height,
           block_hash)`
-        - Save public randomness value using key `(fp_pubkey_hex, height)` if
-          this
+        - Save public randomness value using key `(fp_pubkey_hex, height)` if this
           is the first vote for this height
+
 
 #### 4.5.3. UpdateAdmin (SHOULD)
 
 **Message Structure:**
-
 ```rust
 UpdateAdmin {
     admin: String,
@@ -675,13 +655,11 @@ contract implementation.
 #### 4.7.1. Core Configuration
 
 **ADMIN**: Admin controller for contract administration
-
 - Type: `Admin` (from cw-controllers)
 - Storage key: `"admin"`
 - Purpose: Manages contract administrative functions
 
 **CONFIG**: Contract configuration settings
-
 - Type: `Item<Config>`
 - Storage key: `"config"`
 - Structure:
@@ -691,10 +669,11 @@ contract implementation.
   }
   ```
 
+
+
 #### 4.7.2. Finality State Storage
 
 **FINALITY_SIGNATURES**: Finality signatures by height and provider
-
 - Type: `Map<(u64, &[u8]), FinalitySigInfo>`
 - Storage key: `"finality_signatures"`
 - Key format: `(block_height, fp_pubkey_bytes)`
@@ -709,7 +688,6 @@ contract implementation.
   ```
 
 **SIGNATORIES_BY_BLOCK_HASH**: Voting aggregation by height and block hash
-
 - Type: `Map<(u64, &[u8]), HashSet<String>>`
 - Storage key: `"signatories_by_block_hash"`
 - Key format: `(block_height, block_hash_bytes)`
@@ -719,7 +697,6 @@ contract implementation.
 #### 4.7.3. Public Randomness Storage
 
 **PUB_RAND_VALUES**: Individual public randomness values
-
 - Type: `Map<(&[u8], u64), Vec<u8>>`
 - Storage key: `"pub_rand_values"`
 - Key format: `(fp_pubkey_bytes, block_height)`
@@ -727,7 +704,6 @@ contract implementation.
   signature submission
 
 **PUB_RAND_COMMITS**: Public randomness commitments
-
 - Type: `Map<(&[u8], u64), PubRandCommit>`
 - Storage key: `"pub_rand_commits"`
 - Key format: `(fp_pubkey_bytes, start_height)`
@@ -765,7 +741,7 @@ pub struct BlockVoterInfo {
 
 #[cw_serde]
 #[derive(QueryResponses)]
-pub enum QueryMsg {
+pub enum QueryMsg {    
     // MUST: Core finality queries
     #[returns(Option<Vec<BlockVoterInfo>>)]
     BlockVoters { height: u64, hash_hex: String },
@@ -779,19 +755,6 @@ pub enum QueryMsg {
     /// `btc_pk_hex` is the BTC public key of the finality provider, in hex format.
     #[returns(Option<PubRandCommit>)]
     LastPubRandCommit { btc_pk_hex: String },
-    /// `ListPubRandCommit` returns a list of public random commitments for a given FP.
-    ///
-    /// `btc_pk_hex` is the BTC public key of the finality provider, in hex format.
-    /// `start_after` is optional and can be used for pagination.
-    /// `limit` is optional and defaults to 10, max 30.
-    /// `reverse` is optional and defaults to false.
-    #[returns(Vec<PubRandCommit>)]
-    ListPubRandCommit {
-        btc_pk_hex: String,
-        start_after: Option<u64>,
-        limit: Option<u32>,
-        reverse: Option<bool>,
-    },
 
     // SHOULD: Administrative queries
     #[returns(AdminResponse)]
@@ -820,23 +783,23 @@ the finality providers that voted for a specific block along with their complete
 signature information:
 
 1. Decode hash_hex from hex string to bytes
-   - IF decode fails: RETURN error with `QueryBlockVoterError`
+    - IF decode fails: RETURN error with `QueryBlockVoterError`
 
 2. Query signatories storage using key (height, hash_bytes)
-   - Access the stored set of finality provider public keys from
-     `SIGNATORIES_BY_BLOCK_HASH`
+    - Access the stored set of finality provider public keys from
+      `SIGNATORIES_BY_BLOCK_HASH`
 
 3. For each finality provider in the set:
-   - Query the `FINALITY_SIGNATURES` storage using key (height, fp_pubkey_bytes)
-   - IF signature not found: RETURN error with `QueryBlockVoterError`
-   - Query the `PUB_RAND_VALUES` storage using key (fp_pubkey_bytes, height)
-   - IF public randomness not found: RETURN error with `QueryBlockVoterError`
-   - Create BlockVoterInfo with fp_btc_pk_hex, pub_rand, and FinalitySigInfo
+    - Query the `FINALITY_SIGNATURES` storage using key (height, fp_pubkey_bytes)
+    - IF signature not found: RETURN error with `QueryBlockVoterError`
+    - Query the `PUB_RAND_VALUES` storage using key (fp_pubkey_bytes, height)
+    - IF public randomness not found: RETURN error with `QueryBlockVoterError`
+    - Create BlockVoterInfo with fp_btc_pk_hex, pub_rand, and FinalitySigInfo
 
 4. Return the list of BlockVoterInfo
-   - IF no votes found: RETURN `None`
-   - IF votes exist: RETURN `Some(Vec<BlockVoterInfo>)` with all voter
-     information
+    - IF no votes found: RETURN `None`
+    - IF votes exist: RETURN `Some(Vec<BlockVoterInfo>)` with all voter
+      information
 
 WHERE BlockVoterInfo contains:
 - `fp_btc_pk_hex`: `String` - The finality provider's BTC public key in hex
@@ -861,15 +824,15 @@ commitment or None if not found
 the first public randomness commitment for a given finality provider:
 
 1. Query public randomness commitments storage with prefix btc_pk_hex
-   - Search for all commitments belonging to this finality provider
+    - Search for all commitments belonging to this finality provider
 
 2. Sort commitments by start_height in ascending order
-   - Find the commitment with the lowest start_height
+    - Find the commitment with the lowest start_height
 
 3. Return the first commitment
-   - IF no commitments found: RETURN `None`
-   - IF commitments exist: RETURN `Some(first_commitment)`
-   
+    - IF no commitments found: RETURN `None`
+    - IF commitments exist: RETURN `Some(first_commitment)`
+
 WHERE PubRandCommit contains:
 - `start_height`: `u64`
 - `num_pub_rand`: `u64`
@@ -892,55 +855,14 @@ or `None` if not found
 the last public randomness commitment for a given finality provider:
 
 1. Query public randomness commitments storage with prefix btc_pk_hex
-   - Search for all commitments belonging to this finality provider
-
-2. Sort commitments by start_height in descending order
-   - Find the commitment with the highest start_height
-
-3. Return the last commitment
-   - IF no commitments found: RETURN `None`
-   - IF commitments exist: RETURN `Some(last_commitment)`
-   
-WHERE PubRandCommit contains:
-- `start_height`: `u64`
-- `num_pub_rand`: `u64`
-- `babylon_epoch`: `u64`
-- `commitment`: `Vec<u8>`
-
-#### 4.8.4. ListPubRandCommit (SHOULD)
-
-**Query Structure:**
-```rust
-ListPubRandCommit {
-    btc_pk_hex: String,      // BTC public key of the finality provider in hex format
-    start_after: Option<u64>, // Optional pagination parameter
-    limit: Option<u32>,      // Optional limit (default 10, max 30)
-    reverse: Option<bool>,   // Optional reverse ordering (default false)
-}
-```
-
-**Return Type:** `Vec<PubRandCommit>` - A list of public randomness commitments
-or empty vector if none found
-
-**Expected Behaviour:** Finality contracts SHOULD implement this query to return
-a paginated list of public randomness commitments for a given finality provider:
-
-1. Query public randomness commitments storage with prefix btc_pk_hex
-
     - Search for all commitments belonging to this finality provider
 
-2. Apply pagination parameters:
+2. Sort commitments by start_height in descending order
+    - Find the commitment with the highest start_height
 
-    - IF start_after is provided: Filter commitments with start_height >
-      start_after
-    - IF reverse is true: Sort by start_height in descending order
-    - IF reverse is false or None: Sort by start_height in ascending order
-    - IF limit is provided: Limit results to min(limit, 30) entries
-    - IF limit is None: Default to 10 entries
-
-3. Return the list of commitments
-    - IF no commitments found: RETURN empty Vec
-    - IF commitments exist: RETURN Vec<PubRandCommit> with matching commitments
+3. Return the last commitment
+    - IF no commitments found: RETURN `None`
+    - IF commitments exist: RETURN `Some(last_commitment)`
 
 WHERE PubRandCommit contains:
 - `start_height`: `u64`
@@ -948,7 +870,7 @@ WHERE PubRandCommit contains:
 - `babylon_epoch`: `u64`
 - `commitment`: `Vec<u8>`
 
-#### 4.8.5. Admin (SHOULD)
+#### 4.8.4. Admin (SHOULD)
 
 **Query Structure:**
 ```rust
@@ -961,16 +883,16 @@ Admin {}    // No parameters required
 query to return the current admin address:
 
 1. Query admin storage to retrieve current admin address
-   - Access the stored admin address value
+    - Access the stored admin address value
 
 2. Return admin information
-   - Return AdminResponse containing the admin address
-   - IF no admin set: RETURN `None`
-   
+    - Return AdminResponse containing the admin address
+    - IF no admin set: RETURN `None`
+
 WHERE AdminResponse contains:
 - `admin`: `Option<String>`
 
-#### 4.8.6. Config (SHOULD)
+#### 4.8.5. Config (SHOULD)
 
 **Query Structure:**
 ```rust
@@ -983,12 +905,12 @@ Config {}    // No parameters required
 query to return the contract configuration:
 
 1. Query configuration storage to retrieve current settings
-   - Access all stored configuration parameters
+    - Access all stored configuration parameters
 
 2. Return configuration information
-   - Return Config struct with all configuration values
-   - All configuration fields should be populated
-   
+    - Return Config struct with all configuration values
+    - All configuration fields should be populated
+
 WHERE Config contains:
 - `bsn_id`: `String` - The BSN identifier for this finality contract
 
