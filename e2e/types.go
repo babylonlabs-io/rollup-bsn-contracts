@@ -41,7 +41,6 @@ func NewMsgCommitPublicRandomness(fpPubkeyHex string, startHeight uint64, numPub
 	}
 }
 
-// TODO: need to update based on contract implementation
 type CommitPublicRandomnessResponse struct {
 	Result bool `json:"result"`
 }
@@ -51,12 +50,14 @@ type SubmitFinalitySignatureMsg struct {
 }
 
 type SubmitFinalitySignatureMsgParams struct {
-	FpPubkeyHex string `json:"fp_pubkey_hex"`
-	Height      uint64 `json:"height"`
-	PubRand     []byte `json:"pub_rand"`
-	Proof       Proof  `json:"proof"`
-	BlockHash   []byte `json:"block_hash"`
-	Signature   []byte `json:"signature"`
+	FpPubkeyHex    string  `json:"fp_pubkey_hex"`
+	L1BlockNumber  *uint64 `json:"l1_block_number,omitempty"`
+	L1BlockHashHex *string `json:"l1_block_hash_hex,omitempty"`
+	Height         uint64  `json:"height"`
+	PubRand        []byte  `json:"pub_rand"`
+	Proof          Proof   `json:"proof"`
+	BlockHash      []byte  `json:"block_hash"`
+	Signature      []byte  `json:"signature"`
 }
 
 func NewMsgSubmitFinalitySignature(
@@ -84,17 +85,11 @@ func NewMsgSubmitFinalitySignature(
 	}
 }
 
-// TODO: need to update based on contract implementation
-type SubmitFinalitySignatureResponse struct {
-	Result bool `json:"result"`
-}
-
 type QueryMsg struct {
 	Config             *Config        `json:"config,omitempty"`
 	FirstPubRandCommit *PubRandCommit `json:"first_pub_rand_commit,omitempty"`
 	LastPubRandCommit  *PubRandCommit `json:"last_pub_rand_commit,omitempty"`
-	// BlockVoters is used to query the voters for a specific block
-	BlockVoters *BlockVoters `json:"block_voters,omitempty"`
+	BlockVoters        *BlockVoters   `json:"block_voters,omitempty"`
 }
 
 type PubRandCommit struct {
@@ -116,9 +111,6 @@ func NewQueryFirstPubRandCommit(btcPkHex string) QueryMsg {
 	}
 }
 
-// FIXME: Remove this ancillary struct.
-// Only required because the e2e tests are using a zero index, which is removed by the `json:"omitempty"` annotation in
-// the original cmtcrypto Proof
 type Proof struct {
 	Total    uint64   `json:"total"`
 	Index    uint64   `json:"index"`
@@ -127,10 +119,16 @@ type Proof struct {
 }
 
 type BlockVoters struct {
-	Height uint64 `json:"height"`
-	// The block app hash is expected to be in hex format, without the 0x prefix
-	Hash string `json:"hash"`
+	Height  uint64 `json:"height"`
+	HashHex string `json:"hash_hex"`
 }
 
-// List of finality provider public keys who voted for the block
-type BlockVotersResponse []string
+// BlockVoterInfo contains information about a finality provider who voted for a block
+type BlockVoterInfo struct {
+	FpBtcPkHex        string `json:"fp_btc_pk_hex"`
+	PubRand           []byte `json:"pub_rand"`
+	FinalitySignature []byte `json:"finality_signature"`
+}
+
+// BlockVotersResponse is a list of BlockVoterInfo for providers who voted for the block
+type BlockVotersResponse []BlockVoterInfo
