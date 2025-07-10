@@ -46,7 +46,7 @@ pub fn handle_finality_signature(
     let pr_commit = get_timestamped_pub_rand_commit_for_height(&deps.as_ref(), &fp_btc_pk, height)?;
 
     // Verify the finality signature message
-    let context = get_fp_fin_vote_context_v0(deps.as_ref(), &env)?;
+    let context = get_fp_fin_vote_context_v0(deps.as_ref(), env)?;
     verify_finality_signature(
         &fp_btc_pk, height, pub_rand, proof, &pr_commit, block_hash, &context, signature,
     )?;
@@ -76,7 +76,7 @@ pub fn handle_finality_signature(
         // The finality provider has voted for a different block at the same height!
         // send equivocation evidence to Babylon Genesis for slashing
         let msg = get_msg_equivocation_evidence(
-            &env,
+            env,
             &fp_btc_pk,
             height,
             pub_rand,
@@ -101,6 +101,7 @@ pub fn handle_finality_signature(
 /// Verifies the finality signature message w.r.t. the public randomness commitment:
 /// - Public randomness inclusion proof.
 /// - Finality signature
+#[allow(clippy::too_many_arguments)]
 fn verify_finality_signature(
     fp_btc_pk: &[u8],
     block_height: u64,
@@ -251,7 +252,7 @@ pub(crate) mod tests {
             &proof.into(),
             &pr_commit,
             &add_finality_signature.block_app_hash,
-            &context,
+            context,
             &add_finality_signature.finality_sig,
         );
         assert!(res.is_ok());

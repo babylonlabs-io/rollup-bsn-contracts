@@ -8,7 +8,18 @@ use cosmwasm_std::{Deps, StdResult, Storage};
 use cw_storage_plus::{Bound, Map};
 
 /// Map of public randomness values by fp public key and block height
-pub(crate) const PUB_RAND_VALUES: Map<(&[u8], u64), Vec<u8>> = Map::new("pub_rand_values");
+const PUB_RAND_VALUES: Map<(&[u8], u64), Vec<u8>> = Map::new("pub_rand_values");
+
+/// Gets a public randomness value from the PUB_RAND_VALUES map.
+pub(crate) fn get_pub_rand_value(
+    storage: &dyn Storage,
+    fp_btc_pk: &[u8],
+    height: u64,
+) -> Result<Option<Vec<u8>>, ContractError> {
+    PUB_RAND_VALUES
+        .may_load(storage, (fp_btc_pk, height))
+        .map_err(|_| ContractError::FailedToLoadPubRand(hex::encode(fp_btc_pk), height))
+}
 
 /// Map of public randomness commitments by fp public key and block height
 const PUB_RAND_COMMITS: Map<(&[u8], u64), PubRandCommit> = Map::new("pub_rand_commits");
@@ -198,7 +209,7 @@ pub(crate) fn insert_pub_rand_value(
     height: u64,
     pub_rand: &[u8],
 ) -> Result<(), ContractError> {
-    if let Some(existing) = PUB_RAND_VALUES.may_load(storage, (fp_btc_pk, height))? {
+    if let Some(existing) = get_pub_rand_value(storage, fp_btc_pk, height)? {
         if existing == pub_rand {
             return Ok(());
         } else {
@@ -360,8 +371,8 @@ mod tests {
         // Check that all pub_rand values are present
         for (height, pub_rand) in &pub_rands {
             let fp_btc_pk = fp_btc_pk.clone();
-            let stored = PUB_RAND_VALUES
-                .load(deps.as_ref().storage, (&fp_btc_pk, *height))
+            let stored = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk, *height)
+                .unwrap()
                 .unwrap();
             assert_eq!(stored, *pub_rand);
             // Try to insert the same value again and expect Ok(())

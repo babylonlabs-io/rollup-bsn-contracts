@@ -5,7 +5,7 @@ use crate::error::ContractError;
 use crate::state::finality::get_finality_signature;
 use crate::state::finality::get_signatories_by_block_hash;
 use crate::state::finality::FinalitySigInfo;
-use crate::state::public_randomness::PUB_RAND_VALUES;
+use crate::state::public_randomness::get_pub_rand_value;
 use cosmwasm_schema::cw_serde;
 
 #[cw_serde]
@@ -41,9 +41,8 @@ pub fn query_block_voters(
                 ),
             )?;
 
-            let pub_rand = PUB_RAND_VALUES
-                .may_load(deps.storage, (&fp_btc_pk, height))?
-                .ok_or_else(|| {
+            let pub_rand =
+                get_pub_rand_value(deps.storage, &fp_btc_pk, height)?.ok_or_else(|| {
                     ContractError::QueryBlockVoterError(
                         height,
                         hash_hex.clone(),
@@ -69,6 +68,7 @@ mod tests {
     use crate::testutil::datagen::*;
     use crate::{
         contract::tests::mock_deps_babylon, state::finality::insert_finality_sig_and_signatory,
+        state::public_randomness::insert_pub_rand_value,
     };
     use rand::{rng, Rng};
     use std::collections::HashSet;
@@ -97,9 +97,7 @@ mod tests {
                 &sig.finality_sig,
             )
             .unwrap();
-            PUB_RAND_VALUES
-                .save(deps.as_mut().storage, (&fp_btc_pk, height), &pub_rand)
-                .unwrap();
+            insert_pub_rand_value(deps.as_mut().storage, &fp_btc_pk, height, &pub_rand).unwrap();
             expected.push((fp_btc_pk_hex, pub_rand, sig));
         }
         let result = query_block_voters(deps.as_ref(), height, block_hash_hex).unwrap();
