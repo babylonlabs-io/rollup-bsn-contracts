@@ -8,7 +8,7 @@ use cosmwasm_std::{Deps, StdResult, Storage};
 use cw_storage_plus::{Bound, Map};
 
 /// Map of public randomness values by fp public key and block height
-pub(crate) const PUB_RAND_VALUES: Map<(&[u8], u64), Vec<u8>> = Map::new("pub_rand_values");
+const PUB_RAND_VALUES: Map<(&[u8], u64), Vec<u8>> = Map::new("pub_rand_values");
 
 /// Gets a public randomness value from the PUB_RAND_VALUES map.
 pub(crate) fn get_pub_rand_value(
