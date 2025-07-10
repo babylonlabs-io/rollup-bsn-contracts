@@ -49,6 +49,8 @@ pub enum ContractError {
     MerkleError(#[from] MerkleError),
     #[error("Public randomness not found for finality provider {0} at height {1}")]
     MissingPubRandCommit(String, u64),
+    #[error("Failed to load public randomness for finality provider {0} at height {1}")]
+    FailedToLoadPubRand(String, u64),
     #[error("{0}")]
     PubRandCommitNotBTCTimestamped(String),
     #[error("{0}")]

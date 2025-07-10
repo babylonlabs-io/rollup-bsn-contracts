@@ -18,7 +18,7 @@ pub(crate) fn get_pub_rand_value(
 ) -> Result<Option<Vec<u8>>, ContractError> {
     PUB_RAND_VALUES
         .may_load(storage, (fp_btc_pk, height))
-        .map_err(|_| ContractError::PubRandAlreadyExists(hex::encode(fp_btc_pk), height))
+        .map_err(|_| ContractError::FailedToLoadPubRand(hex::encode(fp_btc_pk), height))
 }
 
 /// Map of public randomness commitments by fp public key and block height
