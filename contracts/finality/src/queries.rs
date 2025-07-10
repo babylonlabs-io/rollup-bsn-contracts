@@ -74,7 +74,7 @@ mod tests {
     use std::collections::HashSet;
 
     #[test]
-    fn test_query_block_voters_returns_fp_and_signature() -> Result<(), ContractError> {
+    fn test_query_block_voters_returns_fp_and_signature() {
         let mut deps = mock_deps_babylon();
         let height = 42u64;
         let block_hash: Vec<u8> = get_random_block_hash();
@@ -95,11 +95,12 @@ mod tests {
                 height,
                 &block_hash,
                 &sig.finality_sig,
-            )?;
-            insert_pub_rand_value(deps.as_mut().storage, &fp_btc_pk, height, &pub_rand)?;
+            )
+            .unwrap();
+            insert_pub_rand_value(deps.as_mut().storage, &fp_btc_pk, height, &pub_rand).unwrap();
             expected.push((fp_btc_pk_hex, pub_rand, sig));
         }
-        let result = query_block_voters(deps.as_ref(), height, block_hash_hex)?;
+        let result = query_block_voters(deps.as_ref(), height, block_hash_hex).unwrap();
         let voters = result.expect("should have voters");
         assert_eq!(voters.len(), num_fps);
         // Check all expected FPs and signatures are present
@@ -111,6 +112,5 @@ mod tests {
             assert_eq!(found.finality_signature.finality_sig, sig.finality_sig);
             assert_eq!(found.finality_signature.block_hash, sig.block_hash);
         }
-        Ok(())
     }
 }
