@@ -232,7 +232,12 @@ mod tests {
 
     #[test]
     fn insert_pub_rand_commit_works() {
-        let mut deps = mock_dependencies();
+        use crate::contract::tests::mock_deps_babylon;
+        use crate::contract::query;
+        use crate::msg::QueryMsg;
+        use cosmwasm_std::{from_json, testing::mock_env};
+        
+        let mut deps = mock_deps_babylon();
         let env = mock_env();
         let fp_btc_pk = get_random_fp_pk();
         let start_height = get_random_u64();
@@ -258,28 +263,76 @@ mod tests {
         let last_commit = get_last_pub_rand_commit(deps.as_ref().storage, &fp_btc_pk).unwrap();
         assert_eq!(last_commit.unwrap(), valid_commit);
 
-        // Test the new get_pub_rand_commit function (used by ListPubRandCommit query)
-        let list_result =
-            get_pub_rand_commit(deps.as_ref().storage, &fp_btc_pk, None, None, None).unwrap();
+        // Test the ListPubRandCommit query end-to-end
+        let list_result: Vec<PubRandCommit> = from_json(
+            query(
+                deps.as_ref(),
+                mock_env(),
+                QueryMsg::ListPubRandCommit {
+                    btc_pk_hex: hex::encode(&fp_btc_pk),
+                    start_after: None,
+                    limit: None,
+                    reverse: None,
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
         assert_eq!(list_result.len(), 1);
         assert_eq!(list_result[0], valid_commit);
 
         // Test with different pagination parameters
-        let limited_result =
-            get_pub_rand_commit(deps.as_ref().storage, &fp_btc_pk, None, Some(5), None).unwrap();
+        let limited_result: Vec<PubRandCommit> = from_json(
+            query(
+                deps.as_ref(),
+                mock_env(),
+                QueryMsg::ListPubRandCommit {
+                    btc_pk_hex: hex::encode(&fp_btc_pk),
+                    start_after: None,
+                    limit: Some(5),
+                    reverse: None,
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
         assert_eq!(limited_result.len(), 1);
         assert_eq!(limited_result[0], valid_commit);
 
         // Test with reverse ordering
-        let reverse_result =
-            get_pub_rand_commit(deps.as_ref().storage, &fp_btc_pk, None, None, Some(true)).unwrap();
+        let reverse_result: Vec<PubRandCommit> = from_json(
+            query(
+                deps.as_ref(),
+                mock_env(),
+                QueryMsg::ListPubRandCommit {
+                    btc_pk_hex: hex::encode(&fp_btc_pk),
+                    start_after: None,
+                    limit: None,
+                    reverse: Some(true),
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
         assert_eq!(reverse_result.len(), 1);
         assert_eq!(reverse_result[0], valid_commit);
 
         // Test with non-existent FP (should return empty)
         let other_fp_pk = get_random_fp_pk();
-        let empty_result =
-            get_pub_rand_commit(deps.as_ref().storage, &other_fp_pk, None, None, None).unwrap();
+        let empty_result: Vec<PubRandCommit> = from_json(
+            query(
+                deps.as_ref(),
+                mock_env(),
+                QueryMsg::ListPubRandCommit {
+                    btc_pk_hex: hex::encode(&other_fp_pk),
+                    start_after: None,
+                    limit: None,
+                    reverse: None,
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
         assert_eq!(empty_result.len(), 0);
     }
 
