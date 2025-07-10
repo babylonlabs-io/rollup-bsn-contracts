@@ -1,6 +1,6 @@
 use crate::error::ContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Storage;
+use cosmwasm_std::{StdResult, Storage};
 use cw_storage_plus::Map;
 use std::collections::HashSet;
 
@@ -24,10 +24,8 @@ pub fn insert_finality_signature(
     height: u64,
     fp_btc_pk: &[u8],
     finality_sig_info: FinalitySigInfo,
-) -> Result<(), ContractError> {
-    FINALITY_SIGNATURES
-        .save(storage, (height, fp_btc_pk), &finality_sig_info)
-        .map_err(|_| ContractError::FailedToLoadFinalitySignature(hex::encode(fp_btc_pk), height))
+) -> StdResult<()> {
+    FINALITY_SIGNATURES.save(storage, (height, fp_btc_pk), &finality_sig_info)
 }
 
 /// Map of (block height, block hash) tuples to the list of signatories
@@ -52,10 +50,8 @@ pub fn insert_signatories_by_block_hash(
     height: u64,
     block_hash: &[u8],
     signatories: HashSet<String>,
-) -> Result<(), ContractError> {
-    SIGNATORIES_BY_BLOCK_HASH
-        .save(storage, (height, block_hash), &signatories)
-        .map_err(|_| ContractError::FailedToLoadSignatories(hex::encode(block_hash), height))
+) -> StdResult<()> {
+    SIGNATORIES_BY_BLOCK_HASH.save(storage, (height, block_hash), &signatories)
 }
 
 /// FinalitySigInfo is a struct that contains the finality signature and
