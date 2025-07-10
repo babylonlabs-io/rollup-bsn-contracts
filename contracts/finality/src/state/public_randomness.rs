@@ -232,11 +232,11 @@ mod tests {
 
     #[test]
     fn insert_pub_rand_commit_works() {
-        use crate::contract::tests::mock_deps_babylon;
         use crate::contract::query;
+        use crate::contract::tests::mock_deps_babylon;
         use crate::msg::QueryMsg;
         use cosmwasm_std::{from_json, testing::mock_env};
-        
+
         let mut deps = mock_deps_babylon();
         let env = mock_env();
         let fp_btc_pk = get_random_fp_pk();
@@ -263,7 +263,7 @@ mod tests {
         let last_commit = get_last_pub_rand_commit(deps.as_ref().storage, &fp_btc_pk).unwrap();
         assert_eq!(last_commit.unwrap(), valid_commit);
 
-        // Test the ListPubRandCommit query end-to-end  
+        // Test the ListPubRandCommit query end-to-end
         let list_result: Vec<PubRandCommit> = from_json(
             query(
                 deps.as_ref(),
