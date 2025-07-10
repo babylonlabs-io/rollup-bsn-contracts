@@ -4,8 +4,8 @@ use cosmwasm_std::{Deps, StdResult, Storage};
 use cw_controllers::{Admin, AdminResponse};
 use cw_storage_plus::Item;
 
-pub const ADMIN: Admin = Admin::new("admin");
-pub const CONFIG: Item<Config> = Item::new("config");
+pub(crate) const ADMIN: Admin = Admin::new("admin");
+pub(crate) const CONFIG: Item<Config> = Item::new("config");
 
 /// Config are OP finality gadget's configuration
 #[cw_serde]
