@@ -305,7 +305,7 @@
         "additionalProperties": false
       },
       {
-        "description": "`ListPubRandCommit` returns a list of public random commitments for a given FP.\n\n`btc_pk_hex` is the BTC public key of the finality provider, in hex format. `start_after` is optional and can be used for pagination. `limit` is optional and defaults to 10, max 30. `reverse` is optional and defaults to false.",
+        "description": "`ListPubRandCommit` returns a list of public randomness commitments for a given FP.\n\n`btc_pk_hex` is the BTC public key of the finality provider, in hex format. `start_after` is optional pagination parameter - only return commitments with start_height > start_after. `limit` is optional limit on number of results (default 10, max 30). `reverse` is optional flag to reverse the order (default false = ascending by start_height).",
         "type": "object",
         "required": [
           "list_pub_rand_commit"
