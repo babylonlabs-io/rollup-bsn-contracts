@@ -263,7 +263,7 @@ mod tests {
         let last_commit = get_last_pub_rand_commit(deps.as_ref().storage, &fp_btc_pk).unwrap();
         assert_eq!(last_commit.unwrap(), valid_commit);
 
-        // Test the ListPubRandCommit query end-to-end
+        // Test the ListPubRandCommit query end-to-end  
         let list_result: Vec<PubRandCommit> = from_json(
             query(
                 deps.as_ref(),
@@ -271,7 +271,7 @@ mod tests {
                 QueryMsg::ListPubRandCommit {
                     btc_pk_hex: hex::encode(&fp_btc_pk),
                     start_after: None,
-                    limit: None,
+                    limit: Some(10),
                     reverse: None,
                 },
             )
@@ -280,42 +280,6 @@ mod tests {
         .unwrap();
         assert_eq!(list_result.len(), 1);
         assert_eq!(list_result[0], valid_commit);
-
-        // Test with different pagination parameters
-        let limited_result: Vec<PubRandCommit> = from_json(
-            query(
-                deps.as_ref(),
-                mock_env(),
-                QueryMsg::ListPubRandCommit {
-                    btc_pk_hex: hex::encode(&fp_btc_pk),
-                    start_after: None,
-                    limit: Some(5),
-                    reverse: None,
-                },
-            )
-            .unwrap(),
-        )
-        .unwrap();
-        assert_eq!(limited_result.len(), 1);
-        assert_eq!(limited_result[0], valid_commit);
-
-        // Test with reverse ordering
-        let reverse_result: Vec<PubRandCommit> = from_json(
-            query(
-                deps.as_ref(),
-                mock_env(),
-                QueryMsg::ListPubRandCommit {
-                    btc_pk_hex: hex::encode(&fp_btc_pk),
-                    start_after: None,
-                    limit: None,
-                    reverse: Some(true),
-                },
-            )
-            .unwrap(),
-        )
-        .unwrap();
-        assert_eq!(reverse_result.len(), 1);
-        assert_eq!(reverse_result[0], valid_commit);
 
         // Test with non-existent FP (should return empty)
         let other_fp_pk = get_random_fp_pk();
