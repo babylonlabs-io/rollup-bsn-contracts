@@ -889,28 +889,33 @@ WHERE PubRandCommit contains:
 **Query Structure:**
 ```rust
 ListPubRandCommit {
-    btc_pk_hex: String,         // BTC public key of the finality provider in hex format
-    start_after: Option<u64>,   // Optional pagination parameter - only return commitments with start_height > start_after
-    limit: Option<u32>,         // Optional limit on number of results (default 10, max 30)
-    reverse: Option<bool>,      // Optional flag to reverse the order (default false = ascending by start_height)
+    btc_pk_hex: String,         // BTC public key of the finality provider
+    start_after: Option<u64>,   // Pagination: start_height > start_after
+    limit: Option<u32>,         // Limit results (default 10, max 30)
+    reverse: Option<bool>,      // Reverse order (default false)
 }
 ```
 
-**Return Type:** `Vec<PubRandCommit>` - A paginated list of public randomness commitments, or empty vector if none found
+**Return Type:** `Vec<PubRandCommit>` - A paginated list of public randomness
+commitments, or empty vector if none found
 
-**Expected Behaviour:** Finality contracts MUST implement this query to return a paginated list of public randomness commitments for a given finality provider:
+**Expected Behaviour:** Finality contracts MUST implement this query to return
+a paginated list of public randomness commitments for a given finality
+provider:
 
 1. Query public randomness commitments storage with prefix btc_pk_hex
    - Search for all commitments belonging to this finality provider
    - Apply pagination using start_after as exclusive boundary if provided
 
 2. Apply sorting and limiting
-   - Sort commitments by start_height in ascending order (or descending if reverse=true)
+   - Sort commitments by start_height in ascending order (or descending if
+     reverse=true)
    - Limit results to the specified limit (default 10, max 30)
 
 3. Return the paginated results
    - IF no commitments found: RETURN empty vector
-   - IF commitments exist: RETURN `Vec<PubRandCommit>` with matching commitments
+   - IF commitments exist: RETURN `Vec<PubRandCommit>` with matching
+     commitments
 
 WHERE PubRandCommit contains:
 - `start_height`: `u64`
