@@ -756,12 +756,15 @@ pub enum QueryMsg {
     /// `btc_pk_hex` is the BTC public key of the finality provider, in hex format.
     #[returns(Option<PubRandCommit>)]
     LastPubRandCommit { btc_pk_hex: String },
-    /// `ListPubRandCommit` returns a paginated list of public randomness commitments for a given FP.
+    /// `ListPubRandCommit` returns a paginated list of public randomness 
+    /// commitments for a given FP.
     ///
     /// `btc_pk_hex` is the BTC public key of the finality provider, in hex format.
-    /// `start_after` is optional pagination parameter - only return commitments with start_height > start_after.
+    /// `start_after` is optional pagination parameter - only return commitments 
+    /// with start_height > start_after.
     /// `limit` is optional limit on number of results (default 10, max 30).
-    /// `reverse` is optional flag to reverse the order (default false = ascending by start_height).
+    /// `reverse` is optional flag to reverse the order (default false = 
+    /// ascending by start_height).
     #[returns(Vec<PubRandCommit>)]
     ListPubRandCommit { 
         btc_pk_hex: String, 
@@ -899,9 +902,8 @@ ListPubRandCommit {
 **Return Type:** `Vec<PubRandCommit>` - A paginated list of public randomness
 commitments, or empty vector if none found
 
-**Expected Behaviour:** Finality contracts MUST implement this query to return
-a paginated list of public randomness commitments for a given finality
-provider:
+**Expected Behaviour:** Finality contracts MUST implement this query to return a
+paginated list of public randomness commitments for a given finality provider:
 
 1. Query public randomness commitments storage with prefix btc_pk_hex
    - Search for all commitments belonging to this finality provider
@@ -914,8 +916,7 @@ provider:
 
 3. Return the paginated results
    - IF no commitments found: RETURN empty vector
-   - IF commitments exist: RETURN `Vec<PubRandCommit>` with matching
-     commitments
+   - IF commitments exist: RETURN `Vec<PubRandCommit>` with matching commitments
 
 WHERE PubRandCommit contains:
 - `start_height`: `u64`
