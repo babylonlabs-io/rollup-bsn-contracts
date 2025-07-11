@@ -6,7 +6,7 @@ use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::queries::query_block_voters;
 use crate::state::config::{get_config, set_config, Config, ADMIN};
 use crate::state::public_randomness::{
-    get_first_pub_rand_commit, get_last_pub_rand_commit, get_pub_rand_commit,
+    get_first_pub_rand_commit, get_last_pub_rand_commit, list_pub_rand_commit,
 };
 use crate::utils::validate_bsn_id_format;
 use babylon_bindings::BabylonQuery;
@@ -62,7 +62,7 @@ pub fn query(
             start_after,
             limit,
             reverse,
-        } => Ok(to_json_binary(&get_pub_rand_commit(
+        } => Ok(to_json_binary(&list_pub_rand_commit(
             deps.storage,
             &hex::decode(&btc_pk_hex)?,
             start_after,

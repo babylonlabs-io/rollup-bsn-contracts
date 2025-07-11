@@ -126,7 +126,7 @@ pub fn get_timestamped_pub_rand_commit_for_height(
 const MAX_LIMIT: u32 = 30;
 const DEFAULT_LIMIT: u32 = 10;
 
-pub fn get_pub_rand_commit(
+fn get_pub_rand_commit(
     storage: &dyn Storage,
     fp_btc_pk: &[u8],
     start_after: Option<u64>,
@@ -151,6 +151,17 @@ pub fn get_pub_rand_commit(
         .collect::<StdResult<Vec<_>>>()?;
 
     // Return the results or an empty vector if no results found
+    Ok(res)
+}
+
+pub fn list_pub_rand_commit(
+    storage: &dyn Storage,
+    fp_btc_pk: &[u8],
+    start_after: Option<u64>,
+    limit: Option<u32>,
+    reverse: Option<bool>,
+) -> Result<Vec<PubRandCommit>, ContractError> {
+    let res = get_pub_rand_commit(storage, fp_btc_pk, start_after, limit, reverse)?;
     Ok(res)
 }
 
