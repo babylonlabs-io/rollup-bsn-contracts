@@ -253,4 +253,193 @@ mod tests {
         assert_eq!(signatories.len(), 1);
         // TODO: assert number of finality signatures after resolving #44
     }
+
+    #[test]
+    fn test_prune_finality_signatures() {
+        let mut deps = mock_dependencies();
+        let fp_btc_pk1 = get_random_fp_pk();
+        let fp_btc_pk2 = get_random_fp_pk();
+
+        // Insert several finality signatures at different heights
+        let heights = vec![100, 200, 300, 400, 500];
+        let block_hashes: Vec<Vec<u8>> = heights.iter().map(|_| get_random_block_hash()).collect();
+        let signatures: Vec<Vec<u8>> = heights.iter().map(|_| get_random_block_hash()).collect();
+
+        // Insert signatures for first finality provider
+        for (i, &height) in heights.iter().enumerate() {
+            insert_finality_sig_and_signatory(
+                deps.as_mut().storage,
+                &fp_btc_pk1,
+                height,
+                &block_hashes[i],
+                &signatures[i],
+            )
+            .unwrap();
+        }
+
+        // Insert signatures for second finality provider
+        for (i, &height) in heights.iter().enumerate() {
+            insert_finality_sig_and_signatory(
+                deps.as_mut().storage,
+                &fp_btc_pk2,
+                height,
+                &block_hashes[i],
+                &signatures[i],
+            )
+            .unwrap();
+        }
+
+        // Verify signatures exist before pruning
+        for &height in &heights {
+            let sig1 = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
+            assert!(sig1.is_some());
+            let sig2 = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
+            assert!(sig2.is_some());
+        }
+
+        // Test pruning with rollup_height = 250
+        // This should prune signatures at heights 100, 200 for both finality providers
+        let pruned_count = prune_finality_signatures(deps.as_mut().storage, 250, None).unwrap();
+        assert_eq!(pruned_count, 4); // 2 signatures per FP = 4 total
+
+        // Verify old signatures are gone
+        for &height in &[100, 200] {
+            let sig1 = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
+            assert!(sig1.is_none());
+            let sig2 = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
+            assert!(sig2.is_none());
+        }
+
+        // Verify recent signatures are still there
+        for &height in &[300, 400, 500] {
+            let sig1 = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
+            assert!(sig1.is_some());
+            let sig2 = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
+            assert!(sig2.is_some());
+        }
+
+        // Test pruning with a very low height (should prune nothing)
+        let pruned_count2 = prune_finality_signatures(deps.as_mut().storage, 50, None).unwrap();
+        assert_eq!(pruned_count2, 0);
+
+        // Verify signatures are still there
+        for &height in &[300, 400, 500] {
+            let sig1 = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
+            assert!(sig1.is_some());
+            let sig2 = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
+            assert!(sig2.is_some());
+        }
+    }
+
+    #[test]
+    fn test_prune_finality_signatures_with_limit() {
+        let mut deps = mock_dependencies();
+        let fp_btc_pk = get_random_fp_pk();
+
+        // Insert many signatures
+        let heights: Vec<u64> = (100..150).collect(); // 50 signatures
+        let block_hashes: Vec<Vec<u8>> = heights.iter().map(|_| get_random_block_hash()).collect();
+        let signatures: Vec<Vec<u8>> = heights.iter().map(|_| get_random_block_hash()).collect();
+
+        for (i, &height) in heights.iter().enumerate() {
+            insert_finality_sig_and_signatory(
+                deps.as_mut().storage,
+                &fp_btc_pk,
+                height,
+                &block_hashes[i],
+                &signatures[i],
+            )
+            .unwrap();
+        }
+
+        // Test pruning with a limit of 10 (should only prune 10 signatures)
+        let pruned_count = prune_finality_signatures(deps.as_mut().storage, 200, Some(10)).unwrap();
+        assert_eq!(pruned_count, 10);
+
+        // Verify only first 10 signatures are gone
+        for &height in &[100, 101, 102, 103, 104, 105, 106, 107, 108, 109] {
+            let sig = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
+            assert!(sig.is_none());
+        }
+
+        // Verify remaining signatures are still there
+        for &height in &[110, 111, 112, 113, 114, 115, 116, 117, 118, 119] {
+            let sig = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
+            assert!(sig.is_some());
+        }
+    }
+
+    #[test]
+    fn test_prune_finality_signatures_empty_storage() {
+        let mut deps = mock_dependencies();
+
+        // Test pruning on empty storage
+        let pruned_count = prune_finality_signatures(deps.as_mut().storage, 1000, None).unwrap();
+        assert_eq!(pruned_count, 0);
+    }
+
+    #[test]
+    fn test_prune_finality_signatures_max_limit() {
+        let mut deps = mock_dependencies();
+        let fp_btc_pk = get_random_fp_pk();
+
+        // Insert some signatures
+        for height in 100..110 {
+            let block_hash = get_random_block_hash();
+            let signature = get_random_block_hash();
+            insert_finality_sig_and_signatory(
+                deps.as_mut().storage,
+                &fp_btc_pk,
+                height,
+                &block_hash,
+                &signature,
+            )
+            .unwrap();
+        }
+
+        // Test with max limit (30) - should respect the limit
+        let pruned_count = prune_finality_signatures(deps.as_mut().storage, 200, Some(50)).unwrap();
+        assert_eq!(pruned_count, 10); // Only 10 signatures exist, all should be pruned
+
+        // Verify all signatures are gone
+        for height in 100..110 {
+            let sig = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
+            assert!(sig.is_none());
+        }
+    }
+
+    #[test]
+    fn test_prune_finality_signatures_exact_height() {
+        let mut deps = mock_dependencies();
+        let fp_btc_pk = get_random_fp_pk();
+
+        // Insert signatures at specific heights
+        let heights = vec![100, 200, 300];
+        for &height in &heights {
+            let block_hash = get_random_block_hash();
+            let signature = get_random_block_hash();
+            insert_finality_sig_and_signatory(
+                deps.as_mut().storage,
+                &fp_btc_pk,
+                height,
+                &block_hash,
+                &signature,
+            )
+            .unwrap();
+        }
+
+        // Test pruning at exact height 200 (should include height 200)
+        let pruned_count = prune_finality_signatures(deps.as_mut().storage, 200, None).unwrap();
+        assert_eq!(pruned_count, 2); // Heights 100 and 200
+
+        // Verify heights 100 and 200 are gone
+        for &height in &[100, 200] {
+            let sig = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
+            assert!(sig.is_none());
+        }
+
+        // Verify height 300 is still there
+        let sig = get_finality_signature(deps.as_ref().storage, 300, &fp_btc_pk).unwrap();
+        assert!(sig.is_some());
+    }
 }
