@@ -167,6 +167,8 @@ pub(crate) mod tests {
     use super::*;
     use std::marker::PhantomData;
 
+    use crate::state::finality::{get_finality_signature, insert_finality_sig_and_signatory};
+    use crate::state::public_randomness::{get_pub_rand_value, insert_pub_rand_value};
     use crate::testutil::datagen::*;
     use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage};
     use cosmwasm_std::{
@@ -378,5 +380,140 @@ pub(crate) mod tests {
         let admin_info = message_info(&init_admin, &[]);
         let err = execute(deps.as_mut(), mock_env(), admin_info, update_admin_msg).unwrap_err();
         assert!(matches!(err, ContractError::StdError(_)));
+    }
+
+    #[test]
+    fn test_prune_finality_signatures_execution() {
+        let mut deps = mock_deps_babylon();
+        let admin = deps.api.addr_make(INIT_ADMIN);
+        let non_admin = deps.api.addr_make("non_admin");
+
+        // Set up admin
+        ADMIN.set(deps.as_mut(), Some(admin.clone())).unwrap();
+
+        // Insert some finality signatures
+        let fp_btc_pk = get_random_fp_pk();
+        for height in 100..110 {
+            let block_hash = get_random_block_hash();
+            let signature = get_random_block_hash();
+            insert_finality_sig_and_signatory(
+                deps.as_mut().storage,
+                &fp_btc_pk,
+                height,
+                &block_hash,
+                &signature,
+            )
+            .unwrap();
+        }
+
+        // Verify signatures exist before pruning
+        for height in 100..110 {
+            let sig = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
+            assert!(sig.is_some());
+        }
+
+        // Test successful pruning by admin
+        let msg = ExecuteMsg::PruneFinalitySignatures {
+            rollup_height: 105,
+            max_signatures_to_prune: Some(10),
+        };
+
+        let info = message_info(&admin, &[]);
+        let response = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        assert_eq!(response.attributes.len(), 3);
+        assert_eq!(response.attributes[0].key, "action");
+        assert_eq!(response.attributes[0].value, "prune_finality_signatures");
+        assert_eq!(response.attributes[1].key, "rollup_height");
+        assert_eq!(response.attributes[1].value, "105");
+        assert_eq!(response.attributes[2].key, "pruned_count");
+        assert_eq!(response.attributes[2].value, "6"); // Heights 100-105
+
+        // Verify signatures are pruned
+        for height in 100..106 {
+            let sig = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
+            assert!(sig.is_none());
+        }
+
+        // Verify remaining signatures are still there
+        for height in 106..110 {
+            let sig = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
+            assert!(sig.is_some());
+        }
+
+        // Test that non-admin cannot call pruning
+        let msg = ExecuteMsg::PruneFinalitySignatures {
+            rollup_height: 200,
+            max_signatures_to_prune: None,
+        };
+
+        let info = message_info(&non_admin, &[]);
+        let result = execute(deps.as_mut(), mock_env(), info, msg);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_prune_public_randomness_values_execution() {
+        let mut deps = mock_deps_babylon();
+        let admin = deps.api.addr_make(INIT_ADMIN);
+        let non_admin = deps.api.addr_make("non_admin");
+
+        // Set up admin
+        ADMIN.set(deps.as_mut(), Some(admin.clone())).unwrap();
+
+        // Insert some public randomness values
+        let fp_btc_pk = get_random_fp_pk();
+        for height in 100..110 {
+            let pub_rand = get_random_pub_rand();
+            insert_pub_rand_value(deps.as_mut().storage, &fp_btc_pk, height, &pub_rand).unwrap();
+        }
+
+        // Verify values exist before pruning
+        for height in 100..110 {
+            let val = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk, height).unwrap();
+            assert!(val.is_some());
+        }
+
+        // Test successful pruning by admin
+        let msg = ExecuteMsg::PrunePublicRandomnessValues {
+            rollup_height: 105,
+            max_values_to_prune: Some(10),
+        };
+
+        let info = message_info(&admin, &[]);
+        let response = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        assert_eq!(response.attributes.len(), 3);
+        assert_eq!(response.attributes[0].key, "action");
+        assert_eq!(
+            response.attributes[0].value,
+            "prune_public_randomness_values"
+        );
+        assert_eq!(response.attributes[1].key, "rollup_height");
+        assert_eq!(response.attributes[1].value, "105");
+        assert_eq!(response.attributes[2].key, "pruned_count");
+        assert_eq!(response.attributes[2].value, "6"); // Heights 100-105
+
+        // Verify values are pruned
+        for height in 100..106 {
+            let val = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk, height).unwrap();
+            assert!(val.is_none());
+        }
+
+        // Verify remaining values are still there
+        for height in 106..110 {
+            let val = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk, height).unwrap();
+            assert!(val.is_some());
+        }
+
+        // Test that non-admin cannot call pruning
+        let msg = ExecuteMsg::PrunePublicRandomnessValues {
+            rollup_height: 200,
+            max_values_to_prune: None,
+        };
+
+        let info = message_info(&non_admin, &[]);
+        let result = execute(deps.as_mut(), mock_env(), info, msg);
+        assert!(result.is_err());
     }
 }
