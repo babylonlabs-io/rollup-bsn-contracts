@@ -1,7 +1,7 @@
 use crate::error::ContractError;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{StdResult, Storage};
-use cw_storage_plus::Map;
+use cw_storage_plus::{Bound, Map};
 use std::collections::HashSet;
 
 /// Map of (block height, finality provider public key) tuples to the finality signature for that block.
@@ -137,37 +137,28 @@ pub(crate) fn prune_finality_signatures(
     rollup_height: u64,
     max_signatures_to_prune: Option<u32>,
 ) -> Result<usize, ContractError> {
-    let mut pruned_count = 0;
     let max_to_prune = max_signatures_to_prune
         .unwrap_or(DEFAULT_PRUNING)
         .min(MAX_PRUNING) as usize;
 
-    // Get all finality signatures from storage, ordered by height (ascending)
+    // Get max finality signatures to prune in range from storage, ordered by height (ascending)
     let all_signatures = FINALITY_SIGNATURES
-        .range(storage, None, None, cosmwasm_std::Order::Ascending)
+        .range(
+            storage,
+            None,
+            Some(Bound::inclusive((rollup_height + 1, vec![].as_slice()))),
+            cosmwasm_std::Order::Ascending,
+        )
+        .take(max_to_prune)
         .collect::<cosmwasm_std::StdResult<Vec<_>>>()?;
 
-    for (key, _finality_sig_info) in all_signatures {
-        // Stop if we've reached the maximum number of signatures to prune
-        if pruned_count >= max_to_prune {
-            break;
-        }
-
+    for (key, _finality_sig_info) in &all_signatures {
         let (height, fp_btc_pk) = key;
-
-        // Check if this signature's height is old enough to be pruned
-        if height <= rollup_height {
-            // Remove the signature from storage
-            FINALITY_SIGNATURES.remove(storage, (height, fp_btc_pk.as_slice()));
-            pruned_count += 1;
-        } else {
-            // Since signatures are ordered by height, if this one is too recent,
-            // all subsequent ones will also be too recent
-            break;
-        }
+        // Remove the signature from storage
+        FINALITY_SIGNATURES.remove(storage, (*height, fp_btc_pk.as_slice()));
     }
 
-    Ok(pruned_count)
+    Ok(all_signatures.len())
 }
 
 #[cfg(test)]
