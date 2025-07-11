@@ -1,5 +1,4 @@
 use crate::error::ContractError;
-use crate::state::config::get_config;
 use anybuf::{Anybuf, Bufany};
 use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{Binary, Deps, Env, StdResult};
@@ -112,14 +111,14 @@ fn fp_fin_vote_context_v0(chain_id: &str, address: &str) -> String {
     hashed_hex_context(&btc_staking_v0_context(FP_FIN_VOTE, chain_id, address))
 }
 
-pub fn get_fp_rand_commit_context_v0(deps: Deps<BabylonQuery>, env: &Env) -> StdResult<String> {
-    let bsn_id = get_config(deps)?.bsn_id;
+pub fn get_fp_rand_commit_context_v0(env: &Env) -> StdResult<String> {
+    let chain_id = &env.block.chain_id;
     let address = env.contract.address.to_string();
-    Ok(fp_rand_commit_context_v0(&bsn_id, &address))
+    Ok(fp_rand_commit_context_v0(chain_id, &address))
 }
 
-pub fn get_fp_fin_vote_context_v0(deps: Deps<BabylonQuery>, env: &Env) -> StdResult<String> {
-    let bsn_id = get_config(deps)?.bsn_id;
+pub fn get_fp_fin_vote_context_v0(env: &Env) -> StdResult<String> {
+    let chain_id = &env.block.chain_id;
     let address = env.contract.address.to_string();
-    Ok(fp_fin_vote_context_v0(&bsn_id, &address))
+    Ok(fp_fin_vote_context_v0(chain_id, &address))
 }

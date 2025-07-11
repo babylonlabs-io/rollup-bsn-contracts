@@ -123,7 +123,7 @@ func (s *FinalityContractTestSuite) Test3CommitAndTimestampPubRand() {
 	numPubRand := uint64(100)
 	commitStartHeight := uint64(1)
 	var msg *ftypes.MsgCommitPubRandList
-	signingCtx := signingcontext.FpRandCommitContextV0(s.contractCfg.BsnID, s.contractAddr.String())
+	signingCtx := signingcontext.FpRandCommitContextV0(s.ctx.ChainID(), s.contractAddr.String())
 	randListInfo, msg, err = datagen.GenRandomMsgCommitPubRandList(r, fpSK, signingCtx, commitStartHeight, numPubRand)
 	s.NoError(err)
 
@@ -182,7 +182,7 @@ func (s *FinalityContractTestSuite) Test4SubmitFinalitySignature() {
 
 	idx := 0
 
-	signingCtx := signingcontext.FpFinVoteContextV0(s.contractCfg.BsnID, s.contractAddr.String())
+	signingCtx := signingcontext.FpFinVoteContextV0(s.ctx.ChainID(), s.contractAddr.String())
 	msgToSign := append([]byte(signingCtx), sdk.Uint64ToBigEndian(startHeight)...)
 	msgToSign = append(msgToSign, appHash...)
 
@@ -220,7 +220,7 @@ func (s *FinalityContractTestSuite) Test5Slash() {
 
 	idx := 0
 
-	signingCtx := signingcontext.FpFinVoteContextV0(s.contractCfg.BsnID, s.contractAddr.String())
+	signingCtx := signingcontext.FpFinVoteContextV0(s.ctx.ChainID(), s.contractAddr.String())
 	msgToSign := append([]byte(signingCtx), sdk.Uint64ToBigEndian(startHeight)...)
 	msgToSign = append(msgToSign, appHash...)
 

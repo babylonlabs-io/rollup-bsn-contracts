@@ -55,6 +55,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Improvements
 
+* [#71](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/71) chore: fix signing context
 * [#69](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/69) Define state setter functions
 * [#64](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/64) chore: clean up metadata
 * [#62](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/62) Add consumer ID format validation and admin address validation during contract instantiation and admin updates

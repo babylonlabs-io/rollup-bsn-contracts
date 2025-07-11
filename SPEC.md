@@ -369,8 +369,8 @@ parameters must be provided:
 ### 4.5. Signing Context
 
 Finality contracts MUST implement signing context to ensure message signatures
-are bound to the specific contract and BSN. The signing context prevents
-signature replay attacks across different contracts or BSNs.
+are bound to the specific contract and chain. The signing context prevents
+signature replay attacks across different contracts or chains.
 [Babylon](https://github.com/babylonlabs-io/babylon/tree/main/app/signingcontext)
 provides a library for signing context.
 
@@ -379,26 +379,26 @@ a structured string that includes:
 - Protocol name: `btcstaking`
 - Version: `0`
 - Operation type: `fp_rand_commit` or `fp_fin_vote`
-- BSN ID: The unique identifier for the BSN
+- Chain ID: The chain ID of the blockchain where the contract is deployed
 - Contract address: The address of the finality contract
 
 **Context Generation:**
 1. **Public Randomness Commitment Context**: 
    ```
-   hex(sha256("btcstaking/0/fp_rand_commit/{bsn_id}/{contract_address}"))
+   hex(sha256("btcstaking/0/fp_rand_commit/{chain_id}/{contract_address}"))
    ```
    Used for verifying signatures on public randomness commitments.
 
 2. **Finality Vote Context**:
    ```
-   hex(sha256("btcstaking/0/fp_fin_vote/{bsn_id}/{contract_address}"))
+   hex(sha256("btcstaking/0/fp_fin_vote/{chain_id}/{contract_address}"))
    ```
    Used for verifying EOTS signatures on finality votes.
 
 **Usage in Message Construction:** The signing context is prepended to the
 message being signed as raw bytes from the hex string. This ensures that
 signatures are cryptographically bound to the specific contract instance and
-cannot be replayed across different contracts or BSNs.
+cannot be replayed across different contracts or chains.
 
 ### 4.6. Finality Contract message handlers
 
@@ -510,7 +510,7 @@ following verification logic:
    - Decode the finality provider's BTC public key from `fp_pubkey_hex`
      parameter
    - Generate signing context:
-     `hex(sha256("btcstaking/0/fp_rand_commit/{bsn_id}/{contract_address}"))`
+     `hex(sha256("btcstaking/0/fp_rand_commit/{chain_id}/{contract_address}"))`
    - Construct message: `signing_context || start_height || num_pub_rand ||
      commitment` (where
      signing_context is the hex string as bytes, start_height and num_pub_rand
@@ -552,7 +552,7 @@ SubmitFinalitySignature {
 **Finality Signature Message Format:** The finality signature is computed over a
 message constructed as follows:
 1. Generate signing context:
-   `hex(sha256("btcstaking/0/fp_fin_vote/{bsn_id}/{contract_address}"))`
+   `hex(sha256("btcstaking/0/fp_fin_vote/{chain_id}/{contract_address}"))`
 2. Construct the message: `signing_context || height || block_hash` (where
 signing_context is the hex string as bytes, height is encoded as 8 bytes in
 big-endian format) 3. Apply SHA256 hash to the message: `message_hash =
@@ -594,7 +594,7 @@ following verification logic:
      `pr_commit.commitment`
    - Verify the EOTS signature using:
      - Generate signing context:
-       `hex(sha256("btcstaking/0/fp_fin_vote/{bsn_id}/{contract_address}"))`
+       `hex(sha256("btcstaking/0/fp_fin_vote/{chain_id}/{contract_address}"))`
      - Message: `SHA256(signing_context || height || block_hash)` (where
        signing_context is the hex string as bytes, height is in big-endian
        format)

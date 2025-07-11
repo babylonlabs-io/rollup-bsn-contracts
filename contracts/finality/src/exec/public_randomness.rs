@@ -49,7 +49,7 @@ pub fn handle_public_randomness_commit(
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
 
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
-    let context = get_fp_rand_commit_context_v0(deps.as_ref(), env)?;
+    let context = get_fp_rand_commit_context_v0(env)?;
     // Verify signature over the list
     verify_commitment_signature(
         &fp_btc_pk,

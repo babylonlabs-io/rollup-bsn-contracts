@@ -46,7 +46,7 @@ pub fn handle_finality_signature(
     let pr_commit = get_timestamped_pub_rand_commit_for_height(&deps.as_ref(), &fp_btc_pk, height)?;
 
     // Verify the finality signature message
-    let context = get_fp_fin_vote_context_v0(deps.as_ref(), env)?;
+    let context = get_fp_fin_vote_context_v0(env)?;
     verify_finality_signature(
         &fp_btc_pk, height, pub_rand, proof, &pr_commit, block_hash, &context, signature,
     )?;
