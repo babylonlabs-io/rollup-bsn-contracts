@@ -121,6 +121,24 @@ pub fn execute(
             // Validate and set the new admin address
             Ok(ADMIN.execute_update_admin(deps, info, Some(api.addr_validate(&admin)?))?)
         }
+        ExecuteMsg::PruneFinalitySignatures {
+            rollup_height,
+            max_signatures_to_prune,
+        } => {
+            // Ensure only admin can call this
+            ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
+
+            let pruned_count = crate::state::finality::prune_finality_signatures(
+                deps.storage,
+                rollup_height,
+                max_signatures_to_prune,
+            )?;
+
+            Ok(Response::new()
+                .add_attribute("action", "prune_finality_signatures")
+                .add_attribute("rollup_height", rollup_height.to_string())
+                .add_attribute("pruned_count", pruned_count.to_string()))
+        }
     }
 }
 

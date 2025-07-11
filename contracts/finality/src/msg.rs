@@ -115,6 +115,24 @@ pub enum ExecuteMsg {
     /// This message can be called by the admin only.
     /// The new admin address must be a valid Cosmos address.
     UpdateAdmin { admin: String },
+    /// Prune old finality signatures.
+    ///
+    /// This message can be called by the admin only.
+    /// It removes all finality signatures for rollup blocks with height <= rollup_height.
+    ///
+    /// WARNING: This operation is irreversible. The admin is responsible for ensuring
+    /// that the pruning height is safe and that no finality signatures are still
+    /// being submitted for the affected height range.
+    PruneFinalitySignatures {
+        /// Remove all signatures for rollup blocks with height <= this value.
+        /// The admin should ensure this height provides sufficient safety margin
+        /// for chain reorganizations and finality signature submission delays.
+        rollup_height: u64,
+        /// Maximum number of signatures to prune in a single operation.
+        /// This prevents gas exhaustion when there are many old signatures.
+        /// If more signatures need pruning, multiple calls may be required.
+        max_signatures_to_prune: Option<u32>,
+    },
 }
 
 #[cw_serde]

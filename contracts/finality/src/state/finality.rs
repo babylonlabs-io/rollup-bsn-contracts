@@ -110,6 +110,66 @@ pub fn insert_finality_sig_and_signatory(
     Ok(())
 }
 
+const MAX_PRUNING: u32 = 30;
+const DEFAULT_PRUNING: u32 = 10;
+
+/// Prunes old finality signatures for all finality providers.
+///
+/// This function removes all finality signatures for rollup blocks with height <= rollup_height.
+/// It's designed to be called manually by the admin to prevent indefinite storage growth.
+///
+/// The function prunes up to `max_signatures_to_prune` old signatures per call
+/// to prevent gas exhaustion when there are many old signatures to clean up.
+///
+/// # Arguments
+///
+/// * `storage` - The storage instance to operate on
+/// * `rollup_height` - Remove all signatures for rollup blocks with height <= this value
+/// * `max_signatures_to_prune` - Maximum number of signatures to prune in this operation
+///     - If not provided, the default value is 10.
+///     - If provided, the value must be between 1 and 30.
+///
+/// # Returns
+///
+/// Returns the number of signatures that were pruned, or an error if the operation failed.
+pub(crate) fn prune_finality_signatures(
+    storage: &mut dyn Storage,
+    rollup_height: u64,
+    max_signatures_to_prune: Option<u32>,
+) -> Result<usize, ContractError> {
+    let mut pruned_count = 0;
+    let max_to_prune = max_signatures_to_prune
+        .unwrap_or(DEFAULT_PRUNING)
+        .min(MAX_PRUNING) as usize;
+
+    // Get all finality signatures from storage, ordered by height (ascending)
+    let all_signatures = FINALITY_SIGNATURES
+        .range(storage, None, None, cosmwasm_std::Order::Ascending)
+        .collect::<cosmwasm_std::StdResult<Vec<_>>>()?;
+
+    for (key, _finality_sig_info) in all_signatures {
+        // Stop if we've reached the maximum number of signatures to prune
+        if pruned_count >= max_to_prune {
+            break;
+        }
+
+        let (height, fp_btc_pk) = key;
+
+        // Check if this signature's height is old enough to be pruned
+        if height <= rollup_height {
+            // Remove the signature from storage
+            FINALITY_SIGNATURES.remove(storage, (height, fp_btc_pk.as_slice()));
+            pruned_count += 1;
+        } else {
+            // Since signatures are ordered by height, if this one is too recent,
+            // all subsequent ones will also be too recent
+            break;
+        }
+    }
+
+    Ok(pruned_count)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
