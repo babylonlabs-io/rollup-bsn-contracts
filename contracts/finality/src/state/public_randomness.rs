@@ -154,6 +154,17 @@ fn get_pub_rand_commit(
     Ok(res)
 }
 
+pub fn list_pub_rand_commit(
+    storage: &dyn Storage,
+    fp_btc_pk: &[u8],
+    start_after: Option<u64>,
+    limit: Option<u32>,
+    reverse: Option<bool>,
+) -> Result<Vec<PubRandCommit>, ContractError> {
+    let res = get_pub_rand_commit(storage, fp_btc_pk, start_after, limit, reverse)?;
+    Ok(res)
+}
+
 pub fn get_first_pub_rand_commit(
     storage: &dyn Storage,
     fp_btc_pk: &[u8],
@@ -232,7 +243,12 @@ mod tests {
 
     #[test]
     fn insert_pub_rand_commit_works() {
-        let mut deps = mock_dependencies();
+        use crate::contract::query;
+        use crate::contract::tests::mock_deps_babylon;
+        use crate::msg::QueryMsg;
+        use cosmwasm_std::{from_json, testing::mock_env};
+
+        let mut deps = mock_deps_babylon();
         let env = mock_env();
         let fp_btc_pk = get_random_fp_pk();
         let start_height = get_random_u64();
@@ -257,6 +273,42 @@ mod tests {
         assert_eq!(first_commit.unwrap(), valid_commit);
         let last_commit = get_last_pub_rand_commit(deps.as_ref().storage, &fp_btc_pk).unwrap();
         assert_eq!(last_commit.unwrap(), valid_commit);
+
+        // Test the ListPubRandCommit query end-to-end
+        let list_result: Vec<PubRandCommit> = from_json(
+            query(
+                deps.as_ref(),
+                mock_env(),
+                QueryMsg::ListPubRandCommit {
+                    btc_pk_hex: hex::encode(&fp_btc_pk),
+                    start_after: None,
+                    limit: Some(10),
+                    reverse: None,
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(list_result.len(), 1);
+        assert_eq!(list_result[0], valid_commit);
+
+        // Test with non-existent FP (should return empty)
+        let other_fp_pk = get_random_fp_pk();
+        let empty_result: Vec<PubRandCommit> = from_json(
+            query(
+                deps.as_ref(),
+                mock_env(),
+                QueryMsg::ListPubRandCommit {
+                    btc_pk_hex: hex::encode(&other_fp_pk),
+                    start_after: None,
+                    limit: None,
+                    reverse: None,
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(empty_result.len(), 0);
     }
 
     #[test]

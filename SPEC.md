@@ -27,8 +27,9 @@
     - [4.8.1. BlockVoters (MUST)](#481-blockvoters-must)
     - [4.8.2. FirstPubRandCommit (MUST)](#482-firstpubrandcommit-must)
     - [4.8.3. LastPubRandCommit (MUST)](#483-lastpubrandcommit-must)
-    - [4.8.4. Admin (SHOULD)](#484-admin-should)
-    - [4.8.5. Config (SHOULD)](#485-config-should)
+    - [4.8.4. ListPubRandCommit (MUST)](#484-listpubrandcommit-must)
+    - [4.8.5. Admin (SHOULD)](#485-admin-should)
+    - [4.8.6. Config (SHOULD)](#486-config-should)
 - [5. Implementation status](#5-implementation-status)
   - [5.1. Babylon implementation status](#51-babylon-implementation-status)
   - [5.2. Finality contract implementation status](#52-finality-contract-implementation-status)
@@ -383,7 +384,7 @@ a structured string that includes:
 - Contract address: The address of the finality contract
 
 **Context Generation:**
-1. **Public Randomness Commitment Context**: 
+1. **Public Randomness Commitment Context**:
    ```
    hex(sha256("btcstaking/0/fp_rand_commit/{chain_id}/{contract_address}"))
    ```
@@ -755,6 +756,22 @@ pub enum QueryMsg {
     /// `btc_pk_hex` is the BTC public key of the finality provider, in hex format.
     #[returns(Option<PubRandCommit>)]
     LastPubRandCommit { btc_pk_hex: String },
+    /// `ListPubRandCommit` returns a paginated list of public randomness 
+    /// commitments for a given FP.
+    ///
+    /// `btc_pk_hex` is the BTC public key of the finality provider, in hex format.
+    /// `start_after` is optional pagination parameter - only return commitments 
+    /// with start_height > start_after.
+    /// `limit` is optional limit on number of results (default 10, max 30).
+    /// `reverse` is optional flag to reverse the order (default false = 
+    /// ascending by start_height).
+    #[returns(Vec<PubRandCommit>)]
+    ListPubRandCommit { 
+        btc_pk_hex: String, 
+        start_after: Option<u64>, 
+        limit: Option<u32>, 
+        reverse: Option<bool> 
+    },
 
     // SHOULD: Administrative queries
     #[returns(AdminResponse)]
@@ -832,7 +849,7 @@ the first public randomness commitment for a given finality provider:
 3. Return the first commitment
    - IF no commitments found: RETURN `None`
    - IF commitments exist: RETURN `Some(first_commitment)`
-   
+
 WHERE PubRandCommit contains:
 - `start_height`: `u64`
 - `num_pub_rand`: `u64`
@@ -863,14 +880,51 @@ the last public randomness commitment for a given finality provider:
 3. Return the last commitment
    - IF no commitments found: RETURN `None`
    - IF commitments exist: RETURN `Some(last_commitment)`
-   
+
 WHERE PubRandCommit contains:
 - `start_height`: `u64`
 - `num_pub_rand`: `u64`
 - `babylon_epoch`: `u64`
 - `commitment`: `Vec<u8>`
 
-#### 4.8.4. Admin (SHOULD)
+#### 4.8.4. ListPubRandCommit (MUST)
+
+**Query Structure:**
+```rust
+ListPubRandCommit {
+    btc_pk_hex: String,         // BTC public key of the finality provider
+    start_after: Option<u64>,   // Pagination: start_height > start_after
+    limit: Option<u32>,         // Limit results (default 10, max 30)
+    reverse: Option<bool>,      // Reverse order (default false)
+}
+```
+
+**Return Type:** `Vec<PubRandCommit>` - A paginated list of public randomness
+commitments, or empty vector if none found
+
+**Expected Behaviour:** Finality contracts MUST implement this query to return a
+paginated list of public randomness commitments for a given finality provider:
+
+1. Query public randomness commitments storage with prefix btc_pk_hex
+   - Search for all commitments belonging to this finality provider
+   - Apply pagination using start_after as exclusive boundary if provided
+
+2. Apply sorting and limiting
+   - Sort commitments by start_height in ascending order (or descending if
+     reverse=true)
+   - Limit results to the specified limit (default 10, max 30)
+
+3. Return the paginated results
+   - IF no commitments found: RETURN empty vector
+   - IF commitments exist: RETURN `Vec<PubRandCommit>` with matching commitments
+
+WHERE PubRandCommit contains:
+- `start_height`: `u64`
+- `num_pub_rand`: `u64`
+- `babylon_epoch`: `u64`
+- `commitment`: `Vec<u8>`
+
+#### 4.8.5. Admin (SHOULD)
 
 **Query Structure:**
 ```rust
@@ -888,11 +942,11 @@ query to return the current admin address:
 2. Return admin information
    - Return AdminResponse containing the admin address
    - IF no admin set: RETURN `None`
-   
+
 WHERE AdminResponse contains:
 - `admin`: `Option<String>`
 
-#### 4.8.5. Config (SHOULD)
+#### 4.8.6. Config (SHOULD)
 
 **Query Structure:**
 ```rust
@@ -910,7 +964,7 @@ query to return the contract configuration:
 2. Return configuration information
    - Return Config struct with all configuration values
    - All configuration fields should be populated
-   
+
 WHERE Config contains:
 - `bsn_id`: `String` - The BSN identifier for this finality contract
 
