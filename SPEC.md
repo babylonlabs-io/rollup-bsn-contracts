@@ -748,9 +748,6 @@ PruneData {
 **Breaking Change Note:**
 - The key structure for `PUB_RAND_VALUES` is now `(u64, &[u8])` (was `(&[u8], u64)`), enabling efficient range queries and unified pruning. This is a breaking change for on-chain state, but improves performance and consistency.
 
-**Deprecated:**
-- The separate `PruneFinalitySignatures` and `PrunePublicRandomnessValues` messages are replaced by `PruneData`.
-
 ### 4.8. Finality contract queries
 
 The finality contract query requirements are divided into core finality
