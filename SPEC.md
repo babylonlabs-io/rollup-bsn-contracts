@@ -709,33 +709,41 @@ contract implementation.
 ```rust
 PruneData {
     rollup_height: u64,
-    prune_finality_signatures: Option<bool>,
-    prune_public_randomness_values: Option<bool>,
     max_signatures_to_prune: Option<u32>,
-    max_values_to_prune: Option<u32>,
+    max_pub_rand_values_to_prune: Option<u32>,
 }
 ```
 
+**Parameter Semantics:**
+- `rollup_height`: Remove all data for rollup blocks with height ≤ this value.
+- `max_signatures_to_prune`: Maximum number of finality signatures to prune in a single operation.
+  - If `None`, the default value is 50.
+  - If `Some(0)`, disables pruning of finality signatures for this call.
+- `max_pub_rand_values_to_prune`: Maximum number of public randomness values to prune in a single operation.
+  - If `None`, the default value is 20.
+  - If `Some(0)`, disables pruning of public randomness values for this call.
+
 **Expected Behaviour:**
 - This message can be called by the admin only.
-- It removes old data for rollup blocks with height <= `rollup_height`.
-- The admin can choose to prune finality signatures, public randomness values, or both, in a single call.
+- It removes old data for rollup blocks with height ≤ `rollup_height`.
 - The operation is irreversible. The admin is responsible for ensuring that the pruning height is safe and that no data is still being used for the affected height range.
-- Per-type limits (`max_signatures_to_prune`, `max_values_to_prune`) prevent gas exhaustion; multiple calls may be required for large amounts of data.
-- The response includes attributes indicating how many items of each type were pruned.
+- Per-type limits (`max_signatures_to_prune`, `max_pub_rand_values_to_prune`) prevent gas exhaustion; multiple calls may be required for large amounts of data.
+- The response includes attributes indicating how many items of each type were pruned:
+  - `pruned_signatures`
+  - `pruned_pub_rand_values`
 
 **Example:**
 ```json
 {
   "prune_data": {
     "rollup_height": 1000,
-    "prune_finality_signatures": true,
-    "prune_public_randomness_values": true,
     "max_signatures_to_prune": 50,
-    "max_values_to_prune": 20
+    "max_pub_rand_values_to_prune": 20
   }
 }
 ```
+- To prune only finality signatures, set `"max_pub_rand_values_to_prune": 0`.
+- To prune only public randomness values, set `"max_signatures_to_prune": 0`.
 
 **Breaking Change Note:**
 - The key structure for `PUB_RAND_VALUES` is now `(u64, &[u8])` (was `(&[u8], u64)`), enabling efficient range queries and unified pruning. This is a breaking change for on-chain state, but improves performance and consistency.
