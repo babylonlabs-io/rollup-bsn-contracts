@@ -383,7 +383,7 @@ a structured string that includes:
 - Contract address: The address of the finality contract
 
 **Context Generation:**
-1. **Public Randomness Commitment Context**: 
+1. **Public Randomness Commitment Context**:
    ```
    hex(sha256("btcstaking/0/fp_rand_commit/{bsn_id}/{contract_address}"))
    ```
@@ -832,7 +832,7 @@ the first public randomness commitment for a given finality provider:
 3. Return the first commitment
    - IF no commitments found: RETURN `None`
    - IF commitments exist: RETURN `Some(first_commitment)`
-   
+
 WHERE PubRandCommit contains:
 - `start_height`: `u64`
 - `num_pub_rand`: `u64`
@@ -863,7 +863,7 @@ the last public randomness commitment for a given finality provider:
 3. Return the last commitment
    - IF no commitments found: RETURN `None`
    - IF commitments exist: RETURN `Some(last_commitment)`
-   
+
 WHERE PubRandCommit contains:
 - `start_height`: `u64`
 - `num_pub_rand`: `u64`
@@ -888,7 +888,7 @@ query to return the current admin address:
 2. Return admin information
    - Return AdminResponse containing the admin address
    - IF no admin set: RETURN `None`
-   
+
 WHERE AdminResponse contains:
 - `admin`: `Option<String>`
 
@@ -910,7 +910,7 @@ query to return the contract configuration:
 2. Return configuration information
    - Return Config struct with all configuration values
    - All configuration fields should be populated
-   
+
 WHERE Config contains:
 - `bsn_id`: `String` - The BSN identifier for this finality contract
 
