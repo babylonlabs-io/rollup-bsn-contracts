@@ -115,40 +115,30 @@ pub enum ExecuteMsg {
     /// This message can be called by the admin only.
     /// The new admin address must be a valid Cosmos address.
     UpdateAdmin { admin: String },
-    /// Prune old finality signatures.
+    /// Prune old data (finality signatures and/or public randomness values).
     ///
     /// This message can be called by the admin only.
-    /// It removes all finality signatures for rollup blocks with height <= rollup_height.
+    /// It removes old data for rollup blocks with height <= rollup_height.
     ///
     /// WARNING: This operation is irreversible. The admin is responsible for ensuring
-    /// that the pruning height is safe and that no finality signatures are still
-    /// being submitted for the affected height range.
-    PruneFinalitySignatures {
-        /// Remove all signatures for rollup blocks with height <= this value.
+    /// that the pruning height is safe and that no data is still being used
+    /// for the affected height range.
+    PruneData {
+        /// Remove all data for rollup blocks with height <= this value.
         /// The admin should ensure this height provides sufficient safety margin
-        /// for chain reorganizations and finality signature submission delays.
+        /// for chain reorganizations and data submission delays.
         rollup_height: u64,
-        /// Maximum number of signatures to prune in a single operation.
+        /// Whether to prune finality signatures.
+        prune_finality_signatures: Option<bool>,
+        /// Whether to prune public randomness values.
+        prune_public_randomness_values: Option<bool>,
+        /// Maximum number of finality signatures to prune in a single operation.
         /// This prevents gas exhaustion when there are many old signatures.
-        /// If more signatures need pruning, multiple calls may be required.
+        /// If not provided, the default value is 50.
         max_signatures_to_prune: Option<u32>,
-    },
-    /// Prune old public randomness values.
-    ///
-    /// This message can be called by the admin only.
-    /// It removes all public randomness values for rollup blocks with height <= rollup_height.
-    ///
-    /// WARNING: This operation is irreversible. The admin is responsible for ensuring
-    /// that the pruning height is safe and that no public randomness values are still
-    /// being used for the affected height range.
-    PrunePublicRandomnessValues {
-        /// Remove all values for rollup blocks with height <= this value.
-        /// The admin should ensure this height provides sufficient safety margin
-        /// for chain reorganizations and finality signature submission delays.
-        rollup_height: u64,
-        /// Maximum number of values to prune in a single operation.
+        /// Maximum number of public randomness values to prune in a single operation.
         /// This prevents gas exhaustion when there are many old values.
-        /// If more values need pruning, multiple calls may be required.
+        /// If not provided, the default value is 20.
         max_values_to_prune: Option<u32>,
     },
 }
