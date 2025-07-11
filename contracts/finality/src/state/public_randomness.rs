@@ -7,8 +7,8 @@ use cosmwasm_std::Order::{Ascending, Descending};
 use cosmwasm_std::{Deps, StdResult, Storage};
 use cw_storage_plus::{Bound, Map};
 
-/// Map of public randomness values by fp public key and block height
-const PUB_RAND_VALUES: Map<(&[u8], u64), Vec<u8>> = Map::new("pub_rand_values");
+/// Map of public randomness values by block height and fp public key
+const PUB_RAND_VALUES: Map<(u64, &[u8]), Vec<u8>> = Map::new("pub_rand_values");
 
 /// Gets a public randomness value from the PUB_RAND_VALUES map.
 pub(crate) fn get_pub_rand_value(
@@ -17,7 +17,7 @@ pub(crate) fn get_pub_rand_value(
     height: u64,
 ) -> Result<Option<Vec<u8>>, ContractError> {
     PUB_RAND_VALUES
-        .may_load(storage, (fp_btc_pk, height))
+        .may_load(storage, (height, fp_btc_pk))
         .map_err(|_| ContractError::FailedToLoadPubRand(hex::encode(fp_btc_pk), height))
 }
 
@@ -230,7 +230,7 @@ pub(crate) fn insert_pub_rand_value(
             ));
         }
     }
-    PUB_RAND_VALUES.save(storage, (fp_btc_pk, height), &pub_rand.to_vec())?;
+    PUB_RAND_VALUES.save(storage, (height, fp_btc_pk), &pub_rand.to_vec())?;
     Ok(())
 }
 
@@ -267,22 +267,19 @@ pub(crate) fn prune_public_randomness_values(
 
     // Get max public randomness values to prune in range from storage, ordered by height (ascending)
     let all_values = PUB_RAND_VALUES
-        .range(storage, None, None, cosmwasm_std::Order::Ascending)
-        .filter(|item| {
-            if let Ok((key, _)) = item {
-                let (_, height) = key;
-                *height <= rollup_height
-            } else {
-                false
-            }
-        })
+        .range(
+            storage,
+            None,
+            Some(Bound::exclusive((rollup_height + 1, &[] as &[u8]))),
+            cosmwasm_std::Order::Ascending,
+        )
         .take(max_to_prune)
         .collect::<cosmwasm_std::StdResult<Vec<_>>>()?;
 
     for (key, _pub_rand_value) in &all_values {
-        let (fp_btc_pk, height) = key;
+        let (height, fp_btc_pk) = key;
         // Remove the value from storage
-        PUB_RAND_VALUES.remove(storage, (fp_btc_pk.as_slice(), *height));
+        PUB_RAND_VALUES.remove(storage, (*height, fp_btc_pk.as_slice()));
     }
 
     Ok(all_values.len())
