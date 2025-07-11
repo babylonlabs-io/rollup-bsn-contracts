@@ -234,6 +234,60 @@ pub(crate) fn insert_pub_rand_value(
     Ok(())
 }
 
+const MAX_PUB_RAND_PRUNING: u32 = 50;
+const DEFAULT_PUB_RAND_PRUNING: u32 = 20;
+
+/// Prunes old public randomness values for all finality providers.
+///
+/// This function removes all public randomness values for rollup blocks with height <= rollup_height.
+/// It's designed to be called manually by the admin to prevent indefinite storage growth.
+///
+/// The function prunes up to `max_values_to_prune` old values per call
+/// to prevent gas exhaustion when there are many old values to clean up.
+///
+/// # Arguments
+///
+/// * `storage` - The storage instance to operate on
+/// * `rollup_height` - Remove all values for rollup blocks with height <= this value
+/// * `max_values_to_prune` - Maximum number of values to prune in this operation
+///     - If not provided, the default value is 20.
+///     - If provided, the value must be between 1 and 50.
+///
+/// # Returns
+///
+/// Returns the number of values that were pruned, or an error if the operation failed.
+pub(crate) fn prune_public_randomness_values(
+    storage: &mut dyn Storage,
+    rollup_height: u64,
+    max_values_to_prune: Option<u32>,
+) -> Result<usize, ContractError> {
+    let max_to_prune = max_values_to_prune
+        .unwrap_or(DEFAULT_PUB_RAND_PRUNING)
+        .min(MAX_PUB_RAND_PRUNING) as usize;
+
+    // Get max public randomness values to prune in range from storage, ordered by height (ascending)
+    let all_values = PUB_RAND_VALUES
+        .range(storage, None, None, cosmwasm_std::Order::Ascending)
+        .filter(|item| {
+            if let Ok((key, _)) = item {
+                let (_, height) = key;
+                *height <= rollup_height
+            } else {
+                false
+            }
+        })
+        .take(max_to_prune)
+        .collect::<cosmwasm_std::StdResult<Vec<_>>>()?;
+
+    for (key, _pub_rand_value) in &all_values {
+        let (fp_btc_pk, height) = key;
+        // Remove the value from storage
+        PUB_RAND_VALUES.remove(storage, (fp_btc_pk.as_slice(), *height));
+    }
+
+    Ok(all_values.len())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -452,5 +506,164 @@ mod tests {
                 _ => panic!("Expected PubRandAlreadyExists error, got {err:?}"),
             }
         }
+    }
+
+    #[test]
+    fn test_prune_public_randomness_values() {
+        let mut deps = mock_dependencies();
+        let fp_btc_pk1 = get_random_fp_pk();
+        let fp_btc_pk2 = get_random_fp_pk();
+
+        // Insert several public randomness values at different heights
+        let heights = vec![100, 200, 300, 400, 500];
+        let pub_rands: Vec<Vec<u8>> = heights.iter().map(|_| get_random_pub_rand()).collect();
+
+        // Insert values for first finality provider
+        for (i, &height) in heights.iter().enumerate() {
+            insert_pub_rand_value(deps.as_mut().storage, &fp_btc_pk1, height, &pub_rands[i])
+                .unwrap();
+        }
+
+        // Insert values for second finality provider
+        for (i, &height) in heights.iter().enumerate() {
+            insert_pub_rand_value(deps.as_mut().storage, &fp_btc_pk2, height, &pub_rands[i])
+                .unwrap();
+        }
+
+        // Verify values exist before pruning
+        for &height in &heights {
+            let val1 = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk1, height).unwrap();
+            assert!(val1.is_some());
+            let val2 = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk2, height).unwrap();
+            assert!(val2.is_some());
+        }
+
+        // Test pruning with rollup_height = 250
+        // This should prune values at heights 100, 200 for both finality providers
+        let pruned_count =
+            prune_public_randomness_values(deps.as_mut().storage, 250, None).unwrap();
+        assert_eq!(pruned_count, 4); // 2 values per FP = 4 total
+
+        // Verify old values are gone
+        for &height in &[100, 200] {
+            let val1 = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk1, height).unwrap();
+            assert!(val1.is_none());
+            let val2 = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk2, height).unwrap();
+            assert!(val2.is_none());
+        }
+
+        // Verify recent values are still there
+        for &height in &[300, 400, 500] {
+            let val1 = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk1, height).unwrap();
+            assert!(val1.is_some());
+            let val2 = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk2, height).unwrap();
+            assert!(val2.is_some());
+        }
+
+        // Test pruning with a very low height (should prune nothing)
+        let pruned_count2 =
+            prune_public_randomness_values(deps.as_mut().storage, 50, None).unwrap();
+        assert_eq!(pruned_count2, 0);
+
+        // Verify values are still there
+        for &height in &[300, 400, 500] {
+            let val1 = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk1, height).unwrap();
+            assert!(val1.is_some());
+            let val2 = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk2, height).unwrap();
+            assert!(val2.is_some());
+        }
+    }
+
+    #[test]
+    fn test_prune_public_randomness_values_with_limit() {
+        let mut deps = mock_dependencies();
+        let fp_btc_pk = get_random_fp_pk();
+
+        // Insert many values
+        let heights: Vec<u64> = (100..150).collect(); // 50 values
+        let pub_rands: Vec<Vec<u8>> = heights.iter().map(|_| get_random_pub_rand()).collect();
+
+        for (i, &height) in heights.iter().enumerate() {
+            insert_pub_rand_value(deps.as_mut().storage, &fp_btc_pk, height, &pub_rands[i])
+                .unwrap();
+        }
+
+        // Test pruning with a limit of 10 (should only prune 10 values)
+        let pruned_count =
+            prune_public_randomness_values(deps.as_mut().storage, 200, Some(10)).unwrap();
+        assert_eq!(pruned_count, 10);
+
+        // Verify only first 10 values are gone
+        for &height in &[100, 101, 102, 103, 104, 105, 106, 107, 108, 109] {
+            let val = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk, height).unwrap();
+            assert!(val.is_none());
+        }
+
+        // Verify remaining values are still there
+        for &height in &[110, 111, 112, 113, 114, 115, 116, 117, 118, 119] {
+            let val = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk, height).unwrap();
+            assert!(val.is_some());
+        }
+    }
+
+    #[test]
+    fn test_prune_public_randomness_values_empty_storage() {
+        let mut deps = mock_dependencies();
+
+        // Test pruning on empty storage
+        let pruned_count =
+            prune_public_randomness_values(deps.as_mut().storage, 1000, None).unwrap();
+        assert_eq!(pruned_count, 0);
+    }
+
+    #[test]
+    fn test_prune_public_randomness_values_max_limit() {
+        let mut deps = mock_dependencies();
+        let fp_btc_pk = get_random_fp_pk();
+
+        // Insert some values
+        for height in 100..110 {
+            let pub_rand = get_random_pub_rand();
+            insert_pub_rand_value(deps.as_mut().storage, &fp_btc_pk, height, &pub_rand).unwrap();
+        }
+
+        // Test with max limit (50) - should respect the limit
+        let pruned_count =
+            prune_public_randomness_values(deps.as_mut().storage, 200, Some(100)).unwrap();
+        assert_eq!(pruned_count, 10); // Only 10 values exist, all should be pruned
+
+        // Verify all values are gone
+        for height in 100..110 {
+            let val = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk, height).unwrap();
+            assert!(val.is_none());
+        }
+    }
+
+    #[test]
+    fn test_prune_public_randomness_values_exact_height() {
+        let mut deps = mock_dependencies();
+        let fp_btc_pk = get_random_fp_pk();
+
+        // Insert values at specific heights
+        let heights = vec![100, 200, 300];
+        for &height in &heights {
+            let pub_rand = get_random_pub_rand();
+            insert_pub_rand_value(deps.as_mut().storage, &fp_btc_pk, height, &pub_rand).unwrap();
+        }
+
+        // Test pruning at exact height 200 (should include height 200)
+        let pruned_count =
+            prune_public_randomness_values(deps.as_mut().storage, 200, None).unwrap();
+        assert_eq!(pruned_count, 2); // Heights 100 and 200
+
+        // Verify heights 100 and 200 are gone
+        for &height in &[100, 200] {
+            let val = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk, height).unwrap();
+            assert!(val.is_none());
+        }
+
+        // Verify height 300 is still there
+        let val = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk, 300).unwrap();
+        assert!(val.is_some());
     }
 }

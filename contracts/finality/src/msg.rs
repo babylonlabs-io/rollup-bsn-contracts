@@ -133,6 +133,24 @@ pub enum ExecuteMsg {
         /// If more signatures need pruning, multiple calls may be required.
         max_signatures_to_prune: Option<u32>,
     },
+    /// Prune old public randomness values.
+    ///
+    /// This message can be called by the admin only.
+    /// It removes all public randomness values for rollup blocks with height <= rollup_height.
+    ///
+    /// WARNING: This operation is irreversible. The admin is responsible for ensuring
+    /// that the pruning height is safe and that no public randomness values are still
+    /// being used for the affected height range.
+    PrunePublicRandomnessValues {
+        /// Remove all values for rollup blocks with height <= this value.
+        /// The admin should ensure this height provides sufficient safety margin
+        /// for chain reorganizations and finality signature submission delays.
+        rollup_height: u64,
+        /// Maximum number of values to prune in a single operation.
+        /// This prevents gas exhaustion when there are many old values.
+        /// If more values need pruning, multiple calls may be required.
+        max_values_to_prune: Option<u32>,
+    },
 }
 
 #[cw_serde]

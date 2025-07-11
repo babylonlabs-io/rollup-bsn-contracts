@@ -1,3 +1,7 @@
+use cosmwasm_std::{to_json_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response};
+
+use babylon_bindings::BabylonQuery;
+
 use crate::error::ContractError;
 use crate::exec::finality::handle_finality_signature;
 use crate::exec::public_randomness::handle_public_randomness_commit;
@@ -9,8 +13,6 @@ use crate::state::public_randomness::{
     get_first_pub_rand_commit, get_last_pub_rand_commit, list_pub_rand_commit,
 };
 use crate::utils::validate_bsn_id_format;
-use babylon_bindings::BabylonQuery;
-use cosmwasm_std::{to_json_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response};
 
 pub fn instantiate(
     mut deps: DepsMut<BabylonQuery>,
@@ -136,6 +138,24 @@ pub fn execute(
 
             Ok(Response::new()
                 .add_attribute("action", "prune_finality_signatures")
+                .add_attribute("rollup_height", rollup_height.to_string())
+                .add_attribute("pruned_count", pruned_count.to_string()))
+        }
+        ExecuteMsg::PrunePublicRandomnessValues {
+            rollup_height,
+            max_values_to_prune,
+        } => {
+            // Ensure only admin can call this
+            ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
+
+            let pruned_count = crate::state::public_randomness::prune_public_randomness_values(
+                deps.storage,
+                rollup_height,
+                max_values_to_prune,
+            )?;
+
+            Ok(Response::new()
+                .add_attribute("action", "prune_public_randomness_values")
                 .add_attribute("rollup_height", rollup_height.to_string())
                 .add_attribute("pruned_count", pruned_count.to_string()))
         }
