@@ -102,6 +102,28 @@ pub enum ExecuteMsg {
     /// This message can be called by the admin only.
     /// The new admin address must be a valid Cosmos address.
     UpdateAdmin { admin: String },
+    /// Prune old data (finality signatures and public randomness values).
+    ///
+    /// This message can be called by the admin only.
+    /// It removes old data for rollup blocks with height <= rollup_height.
+    ///
+    /// WARNING: This operation is irreversible. The admin is responsible for ensuring
+    /// that the pruning height is safe and that no data is still being used
+    /// for the affected height range.
+    PruneData {
+        /// Remove all data for rollup blocks with height <= this value.
+        /// The admin should ensure this height provides sufficient safety margin
+        /// for chain reorganizations and data submission delays.
+        rollup_height: u64,
+        /// Maximum number of finality signatures to prune in a single operation.
+        /// This prevents gas exhaustion when there are many old signatures.
+        /// If not provided, the default value is 50.
+        max_signatures_to_prune: Option<u32>,
+        /// Maximum number of public randomness values to prune in a single operation.
+        /// This prevents gas exhaustion when there are many old values.
+        /// If not provided, the default value is 20.
+        max_pub_rand_values_to_prune: Option<u32>,
+    },
 }
 
 #[cw_serde]
