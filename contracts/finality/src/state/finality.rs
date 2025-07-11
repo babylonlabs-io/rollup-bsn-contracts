@@ -146,7 +146,7 @@ pub(crate) fn prune_finality_signatures(
         .range(
             storage,
             None,
-            Some(Bound::exclusive((rollup_height + 1, vec![].as_slice()))),
+            Some(Bound::exclusive((rollup_height + 1, &[] as &[u8]))),
             cosmwasm_std::Order::Ascending,
         )
         .take(max_to_prune)
