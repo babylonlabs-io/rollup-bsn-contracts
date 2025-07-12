@@ -1,7 +1,9 @@
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::state::config::get_config;
-use crate::state::finality::{insert_finality_sig_and_signatory, list_finality_signatures};
+use crate::state::finality::{
+    insert_finality_sig_and_signatory, list_finality_signatures, FinalitySigInfo,
+};
 use crate::state::public_randomness::{
     get_timestamped_pub_rand_commit_for_height, insert_pub_rand_value, PubRandCommit,
 };
@@ -34,15 +36,18 @@ pub fn handle_finality_signature(
 
     // check if the finality signature submission is the same as an existing one
     if let Some(existing_sigs) = &existing_finality_sigs {
-        for existing_sig in existing_sigs {
-            if existing_sig.finality_sig == signature {
-                deps.api.debug(&format!("Received duplicated finality vote. Height: {height}, Finality Provider: {fp_btc_pk_hex}"));
-                // Exactly the same vote already exists, return error
-                return Err(ContractError::DuplicatedFinalitySig(
-                    fp_btc_pk_hex.to_string(),
-                    height,
-                ));
-            }
+        let new_sig_info = FinalitySigInfo {
+            finality_sig: signature.to_vec(),
+            block_hash: block_hash.to_vec(),
+        };
+
+        if existing_sigs.contains(&new_sig_info) {
+            deps.api.debug(&format!("Received duplicated finality vote. Height: {height}, Finality Provider: {fp_btc_pk_hex}"));
+            // Exactly the same vote already exists, return error
+            return Err(ContractError::DuplicatedFinalitySig(
+                fp_btc_pk_hex.to_string(),
+                height,
+            ));
         }
     }
 
