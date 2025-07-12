@@ -75,6 +75,8 @@ pub enum ContractError {
     PubRandAlreadyExists(String, u64),
     #[error("Duplicate signatory {0}")]
     DuplicateSignatory(String),
+    #[error("Duplicated finality signature for finality provider {0} at height {1}")]
+    DuplicatedFinalitySig(String, u64),
     #[error("Too few public randomness values: given {given}, required minimum {required}")]
     TooFewPubRand { given: u64, required: u64 },
     #[error("Block height overflow: start height {start_height} is equal or higher than (start height + num pub rand) {end_height}")]

@@ -1,7 +1,9 @@
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::state::config::get_config;
-use crate::state::finality::{get_finality_signature, insert_finality_sig_and_signatory};
+use crate::state::finality::{
+    insert_finality_sig_and_signatory, list_finality_signatures, FinalitySigInfo,
+};
 use crate::state::public_randomness::{
     get_timestamped_pub_rand_commit_for_height, insert_pub_rand_value, PubRandCommit,
 };
@@ -29,15 +31,23 @@ pub fn handle_finality_signature(
 
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
 
-    // Load any type of existing finality signature by the finality provider at the same height
-    let existing_finality_sig = get_finality_signature(deps.storage, height, &fp_btc_pk)?;
+    // Load any existing finality signature by the finality provider at the same height
+    let existing_finality_sigs = list_finality_signatures(deps.storage, height, &fp_btc_pk)?;
 
-    // check if the finality signature submission is the same as the existing one
-    if let Some(existing_sig) = &existing_finality_sig {
-        if existing_sig.finality_sig == signature {
+    // check if the finality signature submission is the same as an existing one
+    if let Some(existing_sigs) = &existing_finality_sigs {
+        let new_sig_info = FinalitySigInfo {
+            finality_sig: signature.to_vec(),
+            block_hash: block_hash.to_vec(),
+        };
+
+        if existing_sigs.contains(&new_sig_info) {
             deps.api.debug(&format!("Received duplicated finality vote. Height: {height}, Finality Provider: {fp_btc_pk_hex}"));
-            // Exactly the same vote already exists, return success to the provider
-            return Ok(Response::new());
+            // Exactly the same vote already exists, return error
+            return Err(ContractError::DuplicatedFinalitySig(
+                fp_btc_pk_hex.to_string(),
+                height,
+            ));
         }
     }
 
@@ -72,16 +82,20 @@ pub fn handle_finality_signature(
     }
     res = res.add_event(event);
 
-    if let Some(existing_finality_sig) = existing_finality_sig {
-        // The finality provider has voted for a different block at the same height!
+    // Check for equivocation - if there are existing signatures, this is equivocation
+    if let Some(existing_sigs) = existing_finality_sigs {
+        // Take the first existing signature for equivocation evidence
+        let existing_sig = existing_sigs.iter().next().unwrap();
+
+        // The finality provider has voted for a different signature at the same height!
         // send equivocation evidence to Babylon Genesis for slashing
         let msg = get_msg_equivocation_evidence(
             env,
             &fp_btc_pk,
             height,
             pub_rand,
-            &existing_finality_sig.block_hash,
-            &existing_finality_sig.finality_sig,
+            &existing_sig.block_hash,
+            &existing_sig.finality_sig,
             block_hash,
             signature,
             &context,
