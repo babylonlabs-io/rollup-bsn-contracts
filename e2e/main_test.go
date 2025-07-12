@@ -179,7 +179,7 @@ func (s *FinalityContractTestSuite) Test3CommitAndTimestampPubRand() {
 	s.Equal(queryRes.BabylonEpoch, lastFinalizedEpoch)
 }
 
-func (s *FinalityContractTestSuite) Test4SubmitFinalitySignature() {
+func (s *FinalityContractTestSuite) Test4_SubmitFinalitySig() {
 	// get FP
 	fpBTCPK := bbn.NewBIP340PubKeyFromBTCPK(fpPK)
 	fp, err := s.babylonApp.BTCStakingKeeper.GetFinalityProvider(s.ctx, fpBTCPK.MustMarshal())
@@ -191,7 +191,7 @@ func (s *FinalityContractTestSuite) Test4SubmitFinalitySignature() {
 	appHash := blockToVote.AppHash
 	idx := 0
 
-	// Store shared test data for duplicate test
+	// Store shared test data for Test4_SubmitFinalitySigDuplicate
 	sharedTestData = &TestSignatureData{
 		StartHeight: startHeight,
 		BlockToVote: blockToVote,
@@ -240,14 +240,14 @@ func (s *FinalityContractTestSuite) Test4SubmitFinalitySignature() {
 	s.Equal(fpBTCPK.MarshalHex(), votersRes[0].FpBtcPkHex)
 }
 
-func (s *FinalityContractTestSuite) Test4_5SubmitDuplicateFinalitySignature() {
+func (s *FinalityContractTestSuite) Test4_SubmitFinalitySigDuplicate() {
 	// get FP
 	fpBTCPK := bbn.NewBIP340PubKeyFromBTCPK(fpPK)
 	fp, err := s.babylonApp.BTCStakingKeeper.GetFinalityProvider(s.ctx, fpBTCPK.MustMarshal())
 	s.NoError(err)
 
-	// Use the same exact parameters as Test4
-	s.Require().NotNil(sharedTestData, "sharedTestData should be set by Test4")
+	// Use the same exact parameters as Test4_SubmitFinalitySig
+	s.Require().NotNil(sharedTestData, "sharedTestData should be set by Test4_SubmitFinalitySig")
 
 	startHeight := sharedTestData.StartHeight
 	blockToVote := sharedTestData.BlockToVote
