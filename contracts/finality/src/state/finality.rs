@@ -5,34 +5,43 @@ use cw_storage_plus::Map;
 use std::collections::HashSet;
 
 /// Map of (block height, finality provider public key) tuples to the finality signatures for that height.
-const FINALITY_SIGNATURES: Map<(u64, &[u8]), Vec<FinalitySigInfo>> =
+const FINALITY_SIGNATURES: Map<(u64, &[u8]), HashSet<FinalitySigInfo>> =
     Map::new("finality_signatures");
 
 pub fn list_finality_signatures(
     storage: &dyn Storage,
     height: u64,
     fp_btc_pk: &[u8],
-) -> Result<Option<Vec<FinalitySigInfo>>, ContractError> {
+) -> Result<Option<HashSet<FinalitySigInfo>>, ContractError> {
     FINALITY_SIGNATURES
         .may_load(storage, (height, fp_btc_pk))
         .map_err(|_| ContractError::FailedToLoadFinalitySignature(hex::encode(fp_btc_pk), height))
 }
 
 /// Inserts a finality signature into the FINALITY_SIGNATURES map.
-/// Adds the new signature to the vector for the given height and finality provider.
+/// Adds the new signature to the set for the given height and finality provider.
+/// Returns an error if the signature already exists.
 pub fn insert_finality_signature(
     storage: &mut dyn Storage,
     height: u64,
     fp_btc_pk: &[u8],
     finality_sig_info: FinalitySigInfo,
-) -> StdResult<()> {
+) -> Result<(), ContractError> {
     let mut signatures = FINALITY_SIGNATURES
-        .may_load(storage, (height, fp_btc_pk))?
+        .may_load(storage, (height, fp_btc_pk))
+        .map_err(|_| ContractError::FailedToLoadFinalitySignature(hex::encode(fp_btc_pk), height))?
         .unwrap_or_default();
 
-    signatures.push(finality_sig_info);
+    if !signatures.insert(finality_sig_info) {
+        return Err(ContractError::DuplicatedFinalitySig(
+            hex::encode(fp_btc_pk),
+            height,
+        ));
+    }
 
-    FINALITY_SIGNATURES.save(storage, (height, fp_btc_pk), &signatures)
+    FINALITY_SIGNATURES
+        .save(storage, (height, fp_btc_pk), &signatures)
+        .map_err(|e| ContractError::StdError(e))
 }
 
 /// Map of (block height, block hash) tuples to the list of signatories
@@ -64,6 +73,7 @@ pub fn insert_signatories_by_block_hash(
 /// FinalitySigInfo is a struct that contains the finality signature and
 /// block hash for a given block height and fp
 #[cw_serde]
+#[derive(Hash, Eq)]
 pub struct FinalitySigInfo {
     /// the finality signature
     pub finality_sig: Vec<u8>,
@@ -144,8 +154,9 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(finality_sig_info.len(), 1);
-        assert_eq!(finality_sig_info[0].finality_sig, signature);
-        assert_eq!(finality_sig_info[0].block_hash, block_hash);
+        assert!(finality_sig_info
+            .iter()
+            .any(|sig| sig.finality_sig == signature && sig.block_hash == block_hash));
 
         // Verify signatory was added to the set
         let signatories = get_signatories_by_block_hash(deps.as_ref().storage, height, &block_hash)

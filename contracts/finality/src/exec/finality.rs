@@ -80,7 +80,7 @@ pub fn handle_finality_signature(
     // Check for equivocation - if there are existing signatures, this is equivocation
     if let Some(existing_sigs) = existing_finality_sigs {
         // Take the first existing signature for equivocation evidence
-        let existing_sig = &existing_sigs[0];
+        let existing_sig = existing_sigs.iter().next().unwrap();
 
         // The finality provider has voted for a different signature at the same height!
         // send equivocation evidence to Babylon Genesis for slashing
