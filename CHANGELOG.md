@@ -45,7 +45,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
   Timestamped public randomness commitments. Breaks `PubRandCommit` struct that
   is being used for both storage and queries.
 * [#75](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/75) chore:
-  store conflictings finality sigs in storage
+  store conflicting finality sigs in storage
 
 ### API breaking
 
