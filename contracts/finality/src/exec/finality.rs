@@ -1,7 +1,7 @@
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::state::config::get_config;
-use crate::state::finality::{list_finality_signatures, insert_finality_sig_and_signatory};
+use crate::state::finality::{insert_finality_sig_and_signatory, list_finality_signatures};
 use crate::state::public_randomness::{
     get_timestamped_pub_rand_commit_for_height, insert_pub_rand_value, PubRandCommit,
 };
@@ -78,7 +78,7 @@ pub fn handle_finality_signature(
     if let Some(existing_sigs) = existing_finality_sigs {
         // Take the first existing signature for equivocation evidence
         let existing_sig = &existing_sigs[0];
-        
+
         // The finality provider has voted for a different signature at the same height!
         // send equivocation evidence to Babylon Genesis for slashing
         let msg = get_msg_equivocation_evidence(

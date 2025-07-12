@@ -2,8 +2,8 @@ use babylon_bindings::BabylonQuery;
 use cosmwasm_std::Deps;
 
 use crate::error::ContractError;
-use crate::state::finality::list_finality_signatures;
 use crate::state::finality::get_signatories_by_block_hash;
+use crate::state::finality::list_finality_signatures;
 use crate::state::finality::FinalitySigInfo;
 use crate::state::public_randomness::get_pub_rand_value;
 use cosmwasm_schema::cw_serde;
@@ -42,13 +42,14 @@ pub fn query_block_voters(
             )?;
 
             // Find the signature for this specific block hash
-            let sig = sigs.iter().find(|s| s.block_hash == block_hash_bytes).ok_or(
-                ContractError::QueryBlockVoterError(
+            let sig = sigs
+                .iter()
+                .find(|s| s.block_hash == block_hash_bytes)
+                .ok_or(ContractError::QueryBlockVoterError(
                     height,
                     hash_hex.clone(),
                     format!("No signature found for block hash {hash_hex} by FP {fp_btc_pk_hex}"),
-                ),
-            )?;
+                ))?;
 
             let pub_rand =
                 get_pub_rand_value(deps.storage, &fp_btc_pk, height)?.ok_or_else(|| {

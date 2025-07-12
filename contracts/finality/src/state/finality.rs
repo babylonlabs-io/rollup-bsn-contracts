@@ -5,7 +5,8 @@ use cw_storage_plus::Map;
 use std::collections::HashSet;
 
 /// Map of (block height, finality provider public key) tuples to the finality signatures for that height.
-const FINALITY_SIGNATURES: Map<(u64, &[u8]), Vec<FinalitySigInfo>> = Map::new("finality_signatures");
+const FINALITY_SIGNATURES: Map<(u64, &[u8]), Vec<FinalitySigInfo>> =
+    Map::new("finality_signatures");
 
 pub fn list_finality_signatures(
     storage: &dyn Storage,
@@ -28,9 +29,9 @@ pub fn insert_finality_signature(
     let mut signatures = FINALITY_SIGNATURES
         .may_load(storage, (height, fp_btc_pk))?
         .unwrap_or_default();
-    
+
     signatures.push(finality_sig_info);
-    
+
     FINALITY_SIGNATURES.save(storage, (height, fp_btc_pk), &signatures)
 }
 
@@ -187,8 +188,13 @@ mod tests {
             .unwrap();
         assert_eq!(finality_sig_info.len(), 2);
         // Should contain both signatures
-        assert!(finality_sig_info.iter().any(|sig| sig.finality_sig == signature && sig.block_hash == block_hash));
-        assert!(finality_sig_info.iter().any(|sig| sig.finality_sig == different_signature && sig.block_hash == different_block_hash));
+        assert!(finality_sig_info
+            .iter()
+            .any(|sig| sig.finality_sig == signature && sig.block_hash == block_hash));
+        assert!(finality_sig_info
+            .iter()
+            .any(|sig| sig.finality_sig == different_signature
+                && sig.block_hash == different_block_hash));
 
         // Verify signatory was added to the set for the new block hash
         let signatories =
