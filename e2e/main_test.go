@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -29,7 +30,16 @@ var (
 	r             = rand.New(rand.NewSource(time.Now().UnixNano()))
 	fpSK, fpPK, _ = datagen.GenRandomBTCKeyPair(r)
 	randListInfo  *datagen.RandListInfo
+	// Shared test data for ensuring duplicate signature test works
+	sharedTestData *TestSignatureData
 )
+
+type TestSignatureData struct {
+	StartHeight uint64
+	BlockToVote *ftypes.IndexedBlock
+	AppHash     []byte
+	Idx         int
+}
 
 func TestFinalityContractTestSuite(t *testing.T) {
 	suite.Run(t, new(FinalityContractTestSuite))
@@ -175,12 +185,19 @@ func (s *FinalityContractTestSuite) Test4SubmitFinalitySignature() {
 	fp, err := s.babylonApp.BTCStakingKeeper.GetFinalityProvider(s.ctx, fpBTCPK.MustMarshal())
 	s.NoError(err)
 
-	// Mock a block with start height 1
+	// Mock a block with start height 1 - store in shared data for duplicate test
 	startHeight := uint64(1)
 	blockToVote := datagen.GenRandomBlockWithHeight(r, startHeight)
 	appHash := blockToVote.AppHash
-
 	idx := 0
+
+	// Store shared test data for duplicate test
+	sharedTestData = &TestSignatureData{
+		StartHeight: startHeight,
+		BlockToVote: blockToVote,
+		AppHash:     appHash,
+		Idx:         idx,
+	}
 
 	signingCtx := signingcontext.FpFinVoteContextV0(s.ctx.ChainID(), s.contractAddr.String())
 	msgToSign := append([]byte(signingCtx), sdk.Uint64ToBigEndian(startHeight)...)
@@ -205,6 +222,62 @@ func (s *FinalityContractTestSuite) Test4SubmitFinalitySignature() {
 	// submit finality signature
 	err = s.ExecuteContract(s.contractAddr, fp.Address(), contractMsgJson)
 	s.NoError(err)
+
+	// query to confirm signature is stored
+	queryVoters := QueryMsg{
+		BlockVoters: &BlockVoters{
+			Height:  startHeight,
+			HashHex: fmt.Sprintf("%x", blockToVote.AppHash),
+		},
+	}
+	queryVotersJson, err := json.Marshal(queryVoters)
+	s.NoError(err)
+	votersResBz := s.QueryContract(s.contractAddr, string(queryVotersJson))
+	var votersRes BlockVotersResponse
+	err = json.Unmarshal(votersResBz, &votersRes)
+	s.NoError(err)
+	s.Equal(1, len(votersRes))
+	s.Equal(fpBTCPK.MarshalHex(), votersRes[0].FpBtcPkHex)
+}
+
+func (s *FinalityContractTestSuite) Test4_5SubmitDuplicateFinalitySignature() {
+	// get FP
+	fpBTCPK := bbn.NewBIP340PubKeyFromBTCPK(fpPK)
+	fp, err := s.babylonApp.BTCStakingKeeper.GetFinalityProvider(s.ctx, fpBTCPK.MustMarshal())
+	s.NoError(err)
+
+	// Use the same exact parameters as Test4
+	s.Require().NotNil(sharedTestData, "sharedTestData should be set by Test4")
+
+	startHeight := sharedTestData.StartHeight
+	blockToVote := sharedTestData.BlockToVote
+	appHash := sharedTestData.AppHash
+	idx := sharedTestData.Idx
+
+	signingCtx := signingcontext.FpFinVoteContextV0(s.ctx.ChainID(), s.contractAddr.String())
+	msgToSign := append([]byte(signingCtx), sdk.Uint64ToBigEndian(startHeight)...)
+	msgToSign = append(msgToSign, appHash...)
+
+	// Generate the same EOTS signature as Test4
+	sig, err := eots.Sign(fpSK, randListInfo.SRList[idx], msgToSign)
+	s.NoError(err)
+	eotsSig := bbn.NewSchnorrEOTSSigFromModNScalar(sig)
+
+	contractMsg := NewMsgSubmitFinalitySignature(
+		fpBTCPK,
+		startHeight,
+		&randListInfo.PRList[idx],
+		randListInfo.ProofList[idx],
+		blockToVote.AppHash,
+		eotsSig,
+	)
+	contractMsgJson, err := json.Marshal(contractMsg)
+	s.NoError(err)
+
+	// submit duplicate finality signature - this should fail
+	err = s.ExecuteContract(s.contractAddr, fp.Address(), contractMsgJson)
+	s.Error(err)
+	s.Contains(err.Error(), "Duplicated finality signature")
 }
 
 func (s *FinalityContractTestSuite) Test5Slash() {
@@ -213,7 +286,7 @@ func (s *FinalityContractTestSuite) Test5Slash() {
 	fp, err := s.babylonApp.BTCStakingKeeper.GetFinalityProvider(s.ctx, fpBTCPK.MustMarshal())
 	s.NoError(err)
 
-	// Mock another block with start height 1
+	// Mock another block with start height 1 (different from Test4)
 	startHeight := uint64(1)
 	blockToVote := datagen.GenRandomBlockWithHeight(r, startHeight)
 	appHash := blockToVote.AppHash
@@ -243,6 +316,24 @@ func (s *FinalityContractTestSuite) Test5Slash() {
 	// submit equivocating finality signature
 	err = s.ExecuteContract(s.contractAddr, fp.Address(), contractMsgJson)
 	s.NoError(err)
+
+	// query to confirm both signatures are stored (original + equivocating)
+	queryVoters := QueryMsg{
+		BlockVoters: &BlockVoters{
+			Height:  startHeight,
+			HashHex: fmt.Sprintf("%x", blockToVote.AppHash),
+		},
+	}
+	queryVotersJson, err := json.Marshal(queryVoters)
+	s.NoError(err)
+	votersResBz := s.QueryContract(s.contractAddr, string(queryVotersJson))
+	var votersRes BlockVotersResponse
+	err = json.Unmarshal(votersResBz, &votersRes)
+	s.NoError(err)
+
+	// Should have the same FP recorded for this new block as well
+	s.Equal(1, len(votersRes))
+	s.Equal(fpBTCPK.MarshalHex(), votersRes[0].FpBtcPkHex)
 
 	// there should be an evidence on Babylon
 	evidence := s.babylonApp.FinalityKeeper.GetFirstSlashableEvidence(s.ctx, fpBTCPK)
