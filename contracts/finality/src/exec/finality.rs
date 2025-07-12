@@ -37,8 +37,11 @@ pub fn handle_finality_signature(
         for existing_sig in existing_sigs {
             if existing_sig.finality_sig == signature {
                 deps.api.debug(&format!("Received duplicated finality vote. Height: {height}, Finality Provider: {fp_btc_pk_hex}"));
-                // Exactly the same vote already exists, return success to the provider
-                return Ok(Response::new());
+                // Exactly the same vote already exists, return error
+                return Err(ContractError::DuplicatedFinalitySig(
+                    fp_btc_pk_hex.to_string(),
+                    height,
+                ));
             }
         }
     }
