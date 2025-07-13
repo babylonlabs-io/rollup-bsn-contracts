@@ -170,7 +170,11 @@ pub(crate) mod tests {
             min_pub_rand,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        // Assert that no messages were sent
+        assert_eq!(0, res.messages.len());
+        // Use assert_admin to verify that the admin was set correctly
+        ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
 
         // Test 1: Only admin can update admin
         let update_admin_msg = ExecuteMsg::UpdateAdmin {
@@ -330,13 +334,17 @@ pub(crate) mod tests {
             min_pub_rand,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        // Assert that no messages were sent
+        assert_eq!(0, res.messages.len());
+        // Use assert_admin to verify that the admin was set correctly
+        ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
 
         let admin_info = message_info(&init_admin, &[]);
 
         // Test various invalid address formats
         let invalid_addresses = vec![
-            "",                                                                             // Empty string
+            "",                                                // Empty string
             "a",                                               // Too short
             "invalid",                                         // No prefix
             "cosmos1",                                         // Incomplete
@@ -395,7 +403,11 @@ pub(crate) mod tests {
             min_pub_rand,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        // Assert that no messages were sent
+        assert_eq!(0, res.messages.len());
+        // Use assert_admin to verify that the admin was set correctly
+        ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
 
         // Test 1: Initial admin query
         let admin_query = query(deps.as_ref(), mock_env(), QueryMsg::Admin {}).unwrap();
@@ -449,7 +461,11 @@ pub(crate) mod tests {
             min_pub_rand,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        // Assert that no messages were sent
+        assert_eq!(0, res.messages.len());
+        // Use assert_admin to verify that the admin was set correctly
+        ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
 
         // Test 1: Setting admin to same value should work
         let update_admin_msg = ExecuteMsg::UpdateAdmin {
@@ -501,7 +517,11 @@ pub(crate) mod tests {
             min_pub_rand,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        // Assert that no messages were sent
+        assert_eq!(0, res.messages.len());
+        // Use assert_admin to verify that the admin was set correctly
+        ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
 
         // Test 1: Admin can update to themselves (idempotent)
         let update_admin_msg = ExecuteMsg::UpdateAdmin {
@@ -562,7 +582,11 @@ pub(crate) mod tests {
             min_pub_rand,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        // Assert that no messages were sent
+        assert_eq!(0, res.messages.len());
+        // Use assert_admin to verify that the admin was set correctly
+        ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
 
         // Test 1: Admin state persists across queries
         for _ in 0..5 {
