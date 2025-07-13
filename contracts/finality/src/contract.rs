@@ -344,7 +344,7 @@ pub(crate) mod tests {
 
         // Test various invalid address formats
         let invalid_addresses = vec![
-            "",                                                // Empty string
+            "",                                                                             // Empty string
             "a",                                               // Too short
             "invalid",                                         // No prefix
             "cosmos1",                                         // Incomplete
