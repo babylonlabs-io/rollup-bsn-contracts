@@ -176,22 +176,34 @@ pub(crate) mod tests {
         let update_admin_msg = ExecuteMsg::UpdateAdmin {
             admin: new_admin.to_string(),
         };
-        
+
         // Random user should fail
         let random_info = message_info(&random_user, &[]);
-        let err = execute(deps.as_mut(), mock_env(), random_info, update_admin_msg.clone()).unwrap_err();
+        let err = execute(
+            deps.as_mut(),
+            mock_env(),
+            random_info,
+            update_admin_msg.clone(),
+        )
+        .unwrap_err();
         assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
-        
+
         // Creator should fail (not admin)
         let creator_info = message_info(&deps.api.addr_make(CREATOR), &[]);
-        let err = execute(deps.as_mut(), mock_env(), creator_info, update_admin_msg.clone()).unwrap_err();
+        let err = execute(
+            deps.as_mut(),
+            mock_env(),
+            creator_info,
+            update_admin_msg.clone(),
+        )
+        .unwrap_err();
         assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
-        
+
         // Current admin should succeed
         let admin_info = message_info(&init_admin, &[]);
         let res = execute(deps.as_mut(), mock_env(), admin_info, update_admin_msg).unwrap();
         assert_eq!(0, res.messages.len());
-        
+
         // Verify admin was updated
         ADMIN.assert_admin(deps.as_ref(), &new_admin).unwrap();
     }
@@ -324,28 +336,37 @@ pub(crate) mod tests {
 
         // Test various invalid address formats
         let invalid_addresses = vec![
-            "",                           // Empty string
-            "a",                         // Too short
-            "invalid",                   // No prefix
-            "cosmos1",                   // Incomplete
-            "cosmos1invalid",            // Invalid format
+            "",                                                                             // Empty string
+            "a",                                               // Too short
+            "invalid",                                         // No prefix
+            "cosmos1",                                         // Incomplete
+            "cosmos1invalid",                                  // Invalid format
             "invalid1234567890123456789012345678901234567890", // Invalid prefix
             "cosmos1234567890123456789012345678901234567890123456789012345678901234567890", // Too long
-            "COSMOS1INVALIDUPPERCASE",   // Uppercase (should be lowercase)
-            "cosmos1!@#$%^&*()",        // Special characters
-            "cosmos1\n\t\r",            // Control characters
-            "cosmos1 space",            // Contains space
-            "cosmos1-dash",             // Contains dash
-            "cosmos1.dot",              // Contains dot
+            "COSMOS1INVALIDUPPERCASE", // Uppercase (should be lowercase)
+            "cosmos1!@#$%^&*()",       // Special characters
+            "cosmos1\n\t\r",           // Control characters
+            "cosmos1 space",           // Contains space
+            "cosmos1-dash",            // Contains dash
+            "cosmos1.dot",             // Contains dot
         ];
 
         for invalid_addr in invalid_addresses {
             let update_admin_msg = ExecuteMsg::UpdateAdmin {
                 admin: invalid_addr.to_string(),
             };
-            let err = execute(deps.as_mut(), mock_env(), admin_info.clone(), update_admin_msg).unwrap_err();
-            assert!(matches!(err, ContractError::StdError(_)), 
-                    "Expected StdError for invalid address: {}", invalid_addr);
+            let err = execute(
+                deps.as_mut(),
+                mock_env(),
+                admin_info.clone(),
+                update_admin_msg,
+            )
+            .unwrap_err();
+            assert!(
+                matches!(err, ContractError::StdError(_)),
+                "Expected StdError for invalid address: {}",
+                invalid_addr
+            );
         }
 
         // Test valid addresses should work
@@ -357,8 +378,6 @@ pub(crate) mod tests {
         assert_eq!(0, res.messages.len());
         ADMIN.assert_admin(deps.as_ref(), &valid_new_admin).unwrap();
     }
-
-
 
     #[test]
     fn test_admin_query_returns_correct_admin_after_updates() {
@@ -437,9 +456,15 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
         };
         let admin_info = message_info(&init_admin, &[]);
-        let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), update_admin_msg).unwrap();
+        let res = execute(
+            deps.as_mut(),
+            mock_env(),
+            admin_info.clone(),
+            update_admin_msg,
+        )
+        .unwrap();
         assert_eq!(0, res.messages.len());
-        
+
         // Admin should still be the same
         ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
 
@@ -483,23 +508,35 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
         };
         let admin_info = message_info(&init_admin, &[]);
-        let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), update_admin_msg).unwrap();
+        let res = execute(
+            deps.as_mut(),
+            mock_env(),
+            admin_info.clone(),
+            update_admin_msg,
+        )
+        .unwrap();
         assert_eq!(0, res.messages.len());
-        
+
         // Test 2: Admin transfers to new admin
         let update_admin_msg = ExecuteMsg::UpdateAdmin {
             admin: new_admin.to_string(),
         };
-        let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), update_admin_msg).unwrap();
+        let res = execute(
+            deps.as_mut(),
+            mock_env(),
+            admin_info.clone(),
+            update_admin_msg,
+        )
+        .unwrap();
         assert_eq!(0, res.messages.len());
-        
+
         // Test 3: Old admin loses permissions immediately
         let update_admin_msg = ExecuteMsg::UpdateAdmin {
             admin: init_admin.to_string(),
         };
         let err = execute(deps.as_mut(), mock_env(), admin_info, update_admin_msg).unwrap_err();
         assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
-        
+
         // Test 4: New admin has full permissions
         let update_admin_msg = ExecuteMsg::UpdateAdmin {
             admin: init_admin.to_string(),
