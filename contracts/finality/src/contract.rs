@@ -344,13 +344,15 @@ pub(crate) mod tests {
 
         // Test various invalid address formats
         let invalid_addresses = vec![
-            "",                                                                             // Empty string
-            "a",                                               // Too short
-            "invalid",                                         // No prefix
-            "cosmos1",                                         // Incomplete
-            "cosmos1invalid",                                  // Invalid format
-            "invalid1234567890123456789012345678901234567890", // Invalid prefix
-            "cosmos1234567890123456789012345678901234567890123456789012345678901234567890", // Too long
+            "",               // Empty string
+            "a",              // Too short
+            "invalid",        // No prefix
+            "cosmos1",        // Incomplete
+            "cosmos1invalid", // Invalid format
+            // Invalid prefix
+            "invalid1234567890123456789012345678901234567890",
+            // Too long
+            "cosmos1234567890123456789012345678901234567890123456789012345678901234567890",
             "COSMOS1INVALIDUPPERCASE", // Uppercase (should be lowercase)
             "cosmos1!@#$%^&*()",       // Special characters
             "cosmos1\n\t\r",           // Control characters
