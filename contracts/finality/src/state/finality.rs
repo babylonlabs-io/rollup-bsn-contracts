@@ -352,9 +352,11 @@ mod tests {
 
         // Verify signatures exist before pruning
         for &height in &heights {
-            let sig1 = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
+            let sig1 =
+                list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
             assert!(sig1.is_some());
-            let sig2 = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
+            let sig2 =
+                list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
             assert!(sig2.is_some());
         }
 
@@ -365,17 +367,21 @@ mod tests {
 
         // Verify old signatures are gone
         for &height in &[100, 200] {
-            let sig1 = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
+            let sig1 =
+                list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
             assert!(sig1.is_none());
-            let sig2 = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
+            let sig2 =
+                list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
             assert!(sig2.is_none());
         }
 
         // Verify recent signatures are still there
         for &height in &[300, 400, 500] {
-            let sig1 = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
+            let sig1 =
+                list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
             assert!(sig1.is_some());
-            let sig2 = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
+            let sig2 =
+                list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
             assert!(sig2.is_some());
         }
 
@@ -385,9 +391,11 @@ mod tests {
 
         // Verify signatures are still there
         for &height in &[300, 400, 500] {
-            let sig1 = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
+            let sig1 =
+                list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
             assert!(sig1.is_some());
-            let sig2 = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
+            let sig2 =
+                list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
             assert!(sig2.is_some());
         }
     }

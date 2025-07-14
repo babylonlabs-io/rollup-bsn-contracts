@@ -143,7 +143,7 @@ pub(crate) mod tests {
     use super::*;
     use std::marker::PhantomData;
 
-    use crate::state::finality::{list_finality_signatures, insert_finality_sig_and_signatory};
+    use crate::state::finality::{insert_finality_sig_and_signatory, list_finality_signatures};
     use crate::state::public_randomness::{get_pub_rand_value, insert_pub_rand_value};
     use crate::testutil::datagen::*;
     use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage};
