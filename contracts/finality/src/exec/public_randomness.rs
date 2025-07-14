@@ -41,7 +41,7 @@ pub fn handle_public_randomness_commit(
         });
     }
 
-    let config = get_config(deps.as_ref())?;
+    let config = get_config(deps.storage)?;
 
     // Validate the commitment parameters
     validate_pub_rand_commit(start_height, num_pub_rand, commitment, config.min_pub_rand)?;

@@ -47,7 +47,7 @@ pub fn query(
     msg: QueryMsg,
 ) -> Result<QueryResponse, ContractError> {
     match msg {
-        QueryMsg::Config {} => Ok(to_json_binary(&get_config(deps)?)?),
+        QueryMsg::Config {} => Ok(to_json_binary(&get_config(deps.storage)?)?),
         QueryMsg::Admin {} => Ok(to_json_binary(&ADMIN.query_admin(deps)?)?),
         QueryMsg::BlockVoters { height, hash_hex } => Ok(to_json_binary(&query_block_voters(
             deps, height, hash_hex,

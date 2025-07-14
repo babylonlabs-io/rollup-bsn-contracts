@@ -1,15 +1,12 @@
 use cosmwasm_std::{Storage, Timestamp};
 use cw_storage_plus::Map;
 
-use crate::error::ContractError;
+use crate::{error::ContractError, state::config::get_config};
 
 /// Stores the number of messages processed for each finality provider within the last hour
 /// Key: Finality Provider's BTC public key
 /// Value: Tuple of (hour number, message count)
 const NUM_MSGS_LAST_HOUR: Map<&[u8], (u64, u32)> = Map::new("num_msgs_last_hour");
-
-/// Maximum number of messages allowed per hour per finality provider
-const MAX_MSGS_PER_HOUR: u32 = 100;
 
 /// Increments the message counter for a finality provider and enforces rate limiting.
 ///
@@ -48,10 +45,11 @@ pub fn accumulate_rate_limiter(
     };
 
     // Check if adding one more would exceed the limit
-    if new_count > MAX_MSGS_PER_HOUR {
+    let max_msgs_per_hour = get_config(storage)?.max_msgs_per_hour;
+    if new_count > max_msgs_per_hour {
         return Err(ContractError::RateLimitExceeded {
             fp_btc_pk: hex::encode(fp_btc_pk),
-            limit: MAX_MSGS_PER_HOUR,
+            limit: max_msgs_per_hour,
         });
     }
 

@@ -15,8 +15,8 @@ pub struct Config {
     pub max_msgs_per_hour: u32,
 }
 
-pub fn get_config(deps: Deps<BabylonQuery>) -> StdResult<Config> {
-    CONFIG.load(deps.storage)
+pub fn get_config(storage: &dyn Storage) -> StdResult<Config> {
+    CONFIG.load(storage)
 }
 
 pub fn set_config(storage: &mut dyn Storage, config: &Config) -> StdResult<()> {

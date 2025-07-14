@@ -155,7 +155,7 @@ fn ensure_fp_exists_and_not_slashed(
     deps: Deps<BabylonQuery>,
     fp_pubkey_hex: &str,
 ) -> Result<(), ContractError> {
-    let config = get_config(deps)?;
+    let config = get_config(deps.storage)?;
     let fp = query_finality_provider(deps, fp_pubkey_hex.to_string());
     match fp {
         // the finality provider is found but is associated with other BSNs
