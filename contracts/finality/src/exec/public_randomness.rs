@@ -3,6 +3,7 @@ use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::state::config::get_config;
 use crate::state::public_randomness::{insert_pub_rand_commit, PubRandCommit};
+use crate::state::rate_limiting::accumulate_rate_limiter;
 use crate::utils::get_fp_rand_commit_context_v0;
 use crate::utils::query_finality_provider;
 use babylon_bindings::BabylonQuery;
@@ -49,6 +50,10 @@ pub fn handle_public_randomness_commit(
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
 
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
+
+    // Ensure rate limiting; this step will fail if the rate limit is exceeded
+    accumulate_rate_limiter(deps.storage, &fp_btc_pk, env.block.time)?;
+
     let context = get_fp_rand_commit_context_v0(env)?;
     // Verify signature over the list
     verify_commitment_signature(

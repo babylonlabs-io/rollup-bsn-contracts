@@ -87,4 +87,6 @@ pub enum ContractError {
     EmptyFpBtcPubKey,
     #[error("Invalid consumer ID: {0}")]
     InvalidBsnId(String),
+    #[error("Rate limit exceeded for finality provider {fp_btc_pk} with limit {limit}")]
+    RateLimitExceeded { fp_btc_pk: String, limit: u32 },
 }

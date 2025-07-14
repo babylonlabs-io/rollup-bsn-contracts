@@ -5,6 +5,7 @@ use crate::state::finality::{get_finality_signature, insert_finality_sig_and_sig
 use crate::state::public_randomness::{
     get_timestamped_pub_rand_commit_for_height, insert_pub_rand_value, PubRandCommit,
 };
+use crate::state::rate_limiting::accumulate_rate_limiter;
 use crate::utils::{get_fp_fin_vote_context_v0, query_finality_provider};
 use babylon_bindings::BabylonQuery;
 use babylon_merkle::Proof;
@@ -28,6 +29,9 @@ pub fn handle_finality_signature(
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
 
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
+
+    // Ensure rate limiting; this step will fail if the rate limit is exceeded
+    accumulate_rate_limiter(deps.storage, &fp_btc_pk, env.block.time)?;
 
     // Load any type of existing finality signature by the finality provider at the same height
     let existing_finality_sig = get_finality_signature(deps.storage, height, &fp_btc_pk)?;
