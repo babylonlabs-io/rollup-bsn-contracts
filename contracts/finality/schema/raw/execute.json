@@ -160,6 +160,49 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "description": "Prune old data (finality signatures, signatories by block hash, and public randomness values).\n\nThis message can be called by the admin only. It removes old data for rollup blocks with height <= rollup_height.\n\nWARNING: This operation is irreversible. The admin is responsible for ensuring that the pruning height is safe and that no data is still being used for the affected height range.",
+      "type": "object",
+      "required": [
+        "prune_data"
+      ],
+      "properties": {
+        "prune_data": {
+          "type": "object",
+          "required": [
+            "rollup_height"
+          ],
+          "properties": {
+            "max_pub_rand_values_to_prune": {
+              "description": "Maximum number of public randomness values to prune in a single operation. This prevents gas exhaustion when there are many old values. If not provided, the default value is 50.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "max_signatures_to_prune": {
+              "description": "Maximum number of finality signatures and signatories to prune in a single operation. Since every signature has a corresponding signatory record, this limit applies to both. This prevents gas exhaustion when there are many old entries. If not provided, the default value is 50.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "rollup_height": {
+              "description": "Remove all data for rollup blocks with height <= this value. The admin should ensure this height provides sufficient safety margin for chain reorganizations and data submission delays.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   ],
   "definitions": {
