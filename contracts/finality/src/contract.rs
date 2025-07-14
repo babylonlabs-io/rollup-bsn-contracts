@@ -9,6 +9,7 @@ use crate::msg::BabylonMsg;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::queries::query_block_voters;
 use crate::state::config::{get_config, set_config, Config, ADMIN};
+use crate::state::pruning::handle_prune_data;
 use crate::state::public_randomness::{
     get_first_pub_rand_commit, get_last_pub_rand_commit, list_pub_rand_commit,
 };
@@ -127,32 +128,13 @@ pub fn execute(
             rollup_height,
             max_signatures_to_prune,
             max_pub_rand_values_to_prune,
-        } => {
-            // Ensure only admin can call this
-            ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
-
-            let mut response = Response::new()
-                .add_attribute("action", "prune_data")
-                .add_attribute("rollup_height", rollup_height.to_string());
-
-            // Prune finality signatures
-            let pruned_signatures = crate::state::finality::prune_finality_signatures(
-                deps.storage,
-                rollup_height,
-                max_signatures_to_prune,
-            )?;
-            response = response.add_attribute("pruned_signatures", pruned_signatures.to_string());
-
-            // Prune public randomness values
-            let pruned_values = crate::state::public_randomness::prune_public_randomness_values(
-                deps.storage,
-                rollup_height,
-                max_pub_rand_values_to_prune,
-            )?;
-            response = response.add_attribute("pruned_pub_rand_values", pruned_values.to_string());
-
-            Ok(response)
-        }
+        } => handle_prune_data(
+            deps,
+            info,
+            rollup_height,
+            max_signatures_to_prune,
+            max_pub_rand_values_to_prune,
+        ),
     }
 }
 
