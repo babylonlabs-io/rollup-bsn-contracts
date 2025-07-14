@@ -44,8 +44,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 * [#40](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/40)
   Timestamped public randomness commitments. Breaks `PubRandCommit` struct that
   is being used for both storage and queries.
-* [#75](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/75) chore:
-  store conflicting finality sigs in storage
 
 ### API breaking
 
@@ -54,12 +52,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### State breaking
 
+* [#73](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/73) Add data
+  pruning handler for finality signatures, signatories and public randomness
+  values
 * [#55](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/55)
   evidence: remove evidence DB
 * [#35](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/35) chore:
   use consistent naming for state maps
 * [#40](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/40) Refactor
   votes storage.
+* [#75](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/75) chore:
+  store conflicting finality sigs in storage
 
 ### Improvements
 
