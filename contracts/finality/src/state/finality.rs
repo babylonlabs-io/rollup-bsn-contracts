@@ -7,28 +7,44 @@ use cosmwasm_std::{StdResult, Storage};
 use cw_storage_plus::{Bound, Map};
 use std::collections::HashSet;
 
-/// Map of (block height, finality provider public key) tuples to the finality signature for that block.
-const FINALITY_SIGNATURES: Map<(u64, &[u8]), FinalitySigInfo> = Map::new("finality_signatures");
+/// Map of (block height, finality provider public key) tuples to the finality signatures for that height.
+const FINALITY_SIGNATURES: Map<(u64, &[u8]), HashSet<FinalitySigInfo>> =
+    Map::new("finality_signatures");
 
-pub fn get_finality_signature(
+pub fn list_finality_signatures(
     storage: &dyn Storage,
     height: u64,
     fp_btc_pk: &[u8],
-) -> Result<Option<FinalitySigInfo>, ContractError> {
+) -> Result<Option<HashSet<FinalitySigInfo>>, ContractError> {
     FINALITY_SIGNATURES
         .may_load(storage, (height, fp_btc_pk))
         .map_err(|_| ContractError::FailedToLoadFinalitySignature(hex::encode(fp_btc_pk), height))
 }
 
 /// Inserts a finality signature into the FINALITY_SIGNATURES map.
-/// If a signature already exists for the same height and finality provider, it will be overridden.
+/// Adds the new signature to the set for the given height and finality provider.
+/// Returns an error if the signature already exists.
 pub fn insert_finality_signature(
     storage: &mut dyn Storage,
     height: u64,
     fp_btc_pk: &[u8],
     finality_sig_info: FinalitySigInfo,
-) -> StdResult<()> {
-    FINALITY_SIGNATURES.save(storage, (height, fp_btc_pk), &finality_sig_info)
+) -> Result<(), ContractError> {
+    let mut signatures = FINALITY_SIGNATURES
+        .may_load(storage, (height, fp_btc_pk))
+        .map_err(|_| ContractError::FailedToLoadFinalitySignature(hex::encode(fp_btc_pk), height))?
+        .unwrap_or_default();
+
+    if !signatures.insert(finality_sig_info) {
+        return Err(ContractError::DuplicatedFinalitySig(
+            hex::encode(fp_btc_pk),
+            height,
+        ));
+    }
+
+    FINALITY_SIGNATURES
+        .save(storage, (height, fp_btc_pk), &signatures)
+        .map_err(|e| ContractError::StdError(e))
 }
 
 /// Map of (block height, block hash) tuples to the list of signatories
@@ -60,6 +76,7 @@ pub fn insert_signatories_by_block_hash(
 /// FinalitySigInfo is a struct that contains the finality signature and
 /// block hash for a given block height and fp
 #[cw_serde]
+#[derive(Hash, Eq)]
 pub struct FinalitySigInfo {
     /// the finality signature
     pub finality_sig: Vec<u8>,
@@ -98,9 +115,6 @@ pub fn insert_finality_sig_and_signatory(
     signature: &[u8],
 ) -> Result<(), ContractError> {
     // Save the finality signature
-    // TODO: in the case of an existing finality signature,
-    // we are overriding the existing finality signature.
-    // https://github.com/babylonlabs-io/rollup-bsn-contracts/issues/44
     let finality_sig_info = FinalitySigInfo {
         finality_sig: signature.to_vec(),
         block_hash: block_hash.to_vec(),
@@ -235,11 +249,13 @@ mod tests {
         .unwrap();
 
         // Verify finality signature was stored correctly
-        let finality_sig_info = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk)
+        let finality_sig_info = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk)
             .unwrap()
             .unwrap();
-        assert_eq!(finality_sig_info.finality_sig, signature);
-        assert_eq!(finality_sig_info.block_hash, block_hash);
+        assert_eq!(finality_sig_info.len(), 1);
+        assert!(finality_sig_info
+            .iter()
+            .any(|sig| sig.finality_sig == signature && sig.block_hash == block_hash));
 
         // Verify signatory was added to the set
         let signatories = get_signatories_by_block_hash(deps.as_ref().storage, height, &block_hash)
@@ -276,12 +292,19 @@ mod tests {
         // This should succeed
         assert!(result.is_ok());
 
-        // Verify the new finality signature was stored correctly
-        let finality_sig_info = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk)
+        // Verify both finality signatures are stored correctly
+        let finality_sig_info = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk)
             .unwrap()
             .unwrap();
-        assert_eq!(finality_sig_info.finality_sig, different_signature);
-        assert_eq!(finality_sig_info.block_hash, different_block_hash);
+        assert_eq!(finality_sig_info.len(), 2);
+        // Should contain both signatures
+        assert!(finality_sig_info
+            .iter()
+            .any(|sig| sig.finality_sig == signature && sig.block_hash == block_hash));
+        assert!(finality_sig_info
+            .iter()
+            .any(|sig| sig.finality_sig == different_signature
+                && sig.block_hash == different_block_hash));
 
         // Verify signatory was added to the set for the new block hash
         let signatories =
@@ -290,7 +313,6 @@ mod tests {
                 .unwrap();
         assert!(signatories.contains(&fp_btc_pk_hex));
         assert_eq!(signatories.len(), 1);
-        // TODO: assert number of finality signatures after resolving #44
     }
 
     #[test]
@@ -330,9 +352,11 @@ mod tests {
 
         // Verify signatures exist before pruning
         for &height in &heights {
-            let sig1 = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
+            let sig1 =
+                list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
             assert!(sig1.is_some());
-            let sig2 = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
+            let sig2 =
+                list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
             assert!(sig2.is_some());
         }
 
@@ -343,17 +367,21 @@ mod tests {
 
         // Verify old signatures are gone
         for &height in &[100, 200] {
-            let sig1 = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
+            let sig1 =
+                list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
             assert!(sig1.is_none());
-            let sig2 = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
+            let sig2 =
+                list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
             assert!(sig2.is_none());
         }
 
         // Verify recent signatures are still there
         for &height in &[300, 400, 500] {
-            let sig1 = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
+            let sig1 =
+                list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
             assert!(sig1.is_some());
-            let sig2 = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
+            let sig2 =
+                list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
             assert!(sig2.is_some());
         }
 
@@ -363,9 +391,11 @@ mod tests {
 
         // Verify signatures are still there
         for &height in &[300, 400, 500] {
-            let sig1 = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
+            let sig1 =
+                list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk1).unwrap();
             assert!(sig1.is_some());
-            let sig2 = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
+            let sig2 =
+                list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk2).unwrap();
             assert!(sig2.is_some());
         }
     }
@@ -397,13 +427,13 @@ mod tests {
 
         // Verify only first 10 signatures are gone
         for &height in &[100, 101, 102, 103, 104, 105, 106, 107, 108, 109] {
-            let sig = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
+            let sig = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
             assert!(sig.is_none());
         }
 
         // Verify remaining signatures are still there
         for &height in &[110, 111, 112, 113, 114, 115, 116, 117, 118, 119] {
-            let sig = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
+            let sig = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
             assert!(sig.is_some());
         }
     }
@@ -442,7 +472,7 @@ mod tests {
 
         // Verify all signatures are gone
         for height in 100..110 {
-            let sig = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
+            let sig = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
             assert!(sig.is_none());
         }
     }
@@ -473,12 +503,12 @@ mod tests {
 
         // Verify heights 100 and 200 are gone
         for &height in &[100, 200] {
-            let sig = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
+            let sig = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
             assert!(sig.is_none());
         }
 
         // Verify height 300 is still there
-        let sig = get_finality_signature(deps.as_ref().storage, 300, &fp_btc_pk).unwrap();
+        let sig = list_finality_signatures(deps.as_ref().storage, 300, &fp_btc_pk).unwrap();
         assert!(sig.is_some());
     }
 
