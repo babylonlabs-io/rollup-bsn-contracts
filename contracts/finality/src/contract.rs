@@ -127,14 +127,12 @@ pub fn execute(
         ExecuteMsg::PruneData {
             rollup_height,
             max_signatures_to_prune,
-            max_signatories_to_prune,
             max_pub_rand_values_to_prune,
         } => handle_prune_data(
             deps,
             info,
             rollup_height,
             max_signatures_to_prune,
-            max_signatories_to_prune,
             max_pub_rand_values_to_prune,
         ),
     }
@@ -394,7 +392,6 @@ pub(crate) mod tests {
         let msg = ExecuteMsg::PruneData {
             rollup_height: 105,
             max_signatures_to_prune: Some(10),
-            max_signatories_to_prune: None,
             max_pub_rand_values_to_prune: None,
         };
 
@@ -427,7 +424,6 @@ pub(crate) mod tests {
         let msg = ExecuteMsg::PruneData {
             rollup_height: 200,
             max_signatures_to_prune: None,
-            max_signatories_to_prune: None,
             max_pub_rand_values_to_prune: None,
         };
 
@@ -475,8 +471,7 @@ pub(crate) mod tests {
         // Test successful pruning by admin
         let msg = ExecuteMsg::PruneData {
             rollup_height: 105,
-            max_signatures_to_prune: Some(0),
-            max_signatories_to_prune: Some(10),
+            max_signatures_to_prune: Some(10),
             max_pub_rand_values_to_prune: None,
         };
 
@@ -489,7 +484,7 @@ pub(crate) mod tests {
         assert_eq!(response.attributes[1].key, "rollup_height");
         assert_eq!(response.attributes[1].value, "105");
         assert_eq!(response.attributes[2].key, "pruned_signatures");
-        assert_eq!(response.attributes[2].value, "0");
+        assert_eq!(response.attributes[2].value, "6"); // Heights 100-105
         assert_eq!(response.attributes[3].key, "pruned_signatories");
         assert_eq!(response.attributes[3].value, "6"); // Heights 100-105
         assert_eq!(response.attributes[4].key, "pruned_pub_rand_values");
@@ -499,7 +494,6 @@ pub(crate) mod tests {
         let msg = ExecuteMsg::PruneData {
             rollup_height: 200,
             max_signatures_to_prune: None,
-            max_signatories_to_prune: None,
             max_pub_rand_values_to_prune: None,
         };
 
@@ -534,7 +528,6 @@ pub(crate) mod tests {
         let msg = ExecuteMsg::PruneData {
             rollup_height: 105,
             max_signatures_to_prune: None,
-            max_signatories_to_prune: None,
             max_pub_rand_values_to_prune: Some(10),
         };
 
@@ -569,7 +562,6 @@ pub(crate) mod tests {
         let msg = ExecuteMsg::PruneData {
             rollup_height: 200,
             max_signatures_to_prune: None,
-            max_signatories_to_prune: None,
             max_pub_rand_values_to_prune: None,
         };
 
@@ -620,7 +612,6 @@ pub(crate) mod tests {
         let msg = ExecuteMsg::PruneData {
             rollup_height: 105,
             max_signatures_to_prune: Some(10),
-            max_signatories_to_prune: None,
             max_pub_rand_values_to_prune: Some(10),
         };
 
@@ -659,7 +650,6 @@ pub(crate) mod tests {
         let msg = ExecuteMsg::PruneData {
             rollup_height: 108,
             max_signatures_to_prune: Some(5),
-            max_signatories_to_prune: None,
             max_pub_rand_values_to_prune: Some(0),
         };
 
@@ -678,7 +668,6 @@ pub(crate) mod tests {
         let msg = ExecuteMsg::PruneData {
             rollup_height: 108,
             max_signatures_to_prune: Some(0),
-            max_signatories_to_prune: None,
             max_pub_rand_values_to_prune: Some(5),
         };
 
@@ -698,7 +687,6 @@ pub(crate) mod tests {
         let msg = ExecuteMsg::PruneData {
             rollup_height: 200,
             max_signatures_to_prune: Some(0),
-            max_signatories_to_prune: None,
             max_pub_rand_values_to_prune: Some(0),
         };
 

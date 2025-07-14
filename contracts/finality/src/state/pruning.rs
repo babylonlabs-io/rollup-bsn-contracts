@@ -21,7 +21,6 @@ pub(crate) fn handle_prune_data(
     info: MessageInfo,
     rollup_height: u64,
     max_signatures_to_prune: Option<u32>,
-    max_signatories_to_prune: Option<u32>,
     max_pub_rand_values_to_prune: Option<u32>,
 ) -> Result<Response<BabylonMsg>, ContractError> {
     // Ensure only admin can call this
@@ -39,11 +38,11 @@ pub(crate) fn handle_prune_data(
     )?;
     response = response.add_attribute("pruned_signatures", pruned_signatures.to_string());
 
-    // Prune signatories by block hash
+    // Prune signatories by block hash (using the same limit as signatures)
     let pruned_signatories = crate::state::finality::prune_signatories_by_block_hash(
         deps.storage,
         rollup_height,
-        max_signatories_to_prune,
+        max_signatures_to_prune,
     )?;
     response = response.add_attribute("pruned_signatories", pruned_signatories.to_string());
 

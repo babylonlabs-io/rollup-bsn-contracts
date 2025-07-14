@@ -128,14 +128,11 @@ pub enum ExecuteMsg {
         /// The admin should ensure this height provides sufficient safety margin
         /// for chain reorganizations and data submission delays.
         rollup_height: u64,
-        /// Maximum number of finality signatures to prune in a single operation.
-        /// This prevents gas exhaustion when there are many old signatures.
-        /// If not provided, the default value is 50.
-        max_signatures_to_prune: Option<u32>,
-        /// Maximum number of signatories by block hash entries to prune in a single operation.
+        /// Maximum number of finality signatures and signatories to prune in a single operation.
+        /// Since every signature has a corresponding signatory record, this limit applies to both.
         /// This prevents gas exhaustion when there are many old entries.
         /// If not provided, the default value is 50.
-        max_signatories_to_prune: Option<u32>,
+        max_signatures_to_prune: Option<u32>,
         /// Maximum number of public randomness values to prune in a single operation.
         /// This prevents gas exhaustion when there are many old values.
         /// If not provided, the default value is 50.
