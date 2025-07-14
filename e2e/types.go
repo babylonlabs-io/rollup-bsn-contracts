@@ -84,15 +84,48 @@ func NewMsgSubmitFinalitySignature(
 	}
 }
 
+type AddToAllowlistMsg struct {
+	AddToAllowlist AddToAllowlistMsgParams `json:"add_to_allowlist"`
+}
+
+type AddToAllowlistMsgParams struct {
+	FpPubkeyHex string `json:"fp_pubkey_hex"`
+}
+
+func NewMsgAddToAllowlist(fpPubkeyHex string) AddToAllowlistMsg {
+	return AddToAllowlistMsg{
+		AddToAllowlist: AddToAllowlistMsgParams{
+			FpPubkeyHex: fpPubkeyHex,
+		},
+	}
+}
+
+type RemoveFromAllowlistMsg struct {
+	RemoveFromAllowlist RemoveFromAllowlistMsgParams `json:"remove_from_allowlist"`
+}
+
+type RemoveFromAllowlistMsgParams struct {
+	FpPubkeyHex string `json:"fp_pubkey_hex"`
+}
+
+func NewMsgRemoveFromAllowlist(fpPubkeyHex string) RemoveFromAllowlistMsg {
+	return RemoveFromAllowlistMsg{
+		RemoveFromAllowlist: RemoveFromAllowlistMsgParams{
+			FpPubkeyHex: fpPubkeyHex,
+		},
+	}
+}
+
 // TODO: need to update based on contract implementation
 type SubmitFinalitySignatureResponse struct {
 	Result bool `json:"result"`
 }
 
 type QueryMsg struct {
-	Config             *Config        `json:"config,omitempty"`
-	FirstPubRandCommit *PubRandCommit `json:"first_pub_rand_commit,omitempty"`
-	LastPubRandCommit  *PubRandCommit `json:"last_pub_rand_commit,omitempty"`
+	Config                    *Config        `json:"config,omitempty"`
+	FirstPubRandCommit        *PubRandCommit `json:"first_pub_rand_commit,omitempty"`
+	LastPubRandCommit         *PubRandCommit `json:"last_pub_rand_commit,omitempty"`
+	AllowedFinalityProviders  *struct{}      `json:"allowed_finality_providers,omitempty"`
 	// BlockVoters is used to query the voters for a specific block
 	BlockVoters *BlockVoters `json:"block_voters,omitempty"`
 }
@@ -113,6 +146,12 @@ func NewQueryFirstPubRandCommit(btcPkHex string) QueryMsg {
 		FirstPubRandCommit: &PubRandCommit{
 			BtcPkHex: btcPkHex,
 		},
+	}
+}
+
+func NewQueryAllowedFinalityProviders() QueryMsg {
+	return QueryMsg{
+		AllowedFinalityProviders: &struct{}{},
 	}
 }
 
