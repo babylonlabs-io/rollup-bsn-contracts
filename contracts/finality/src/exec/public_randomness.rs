@@ -27,7 +27,10 @@ pub fn handle_public_randomness_commit(
 
     // Public randomness commits are not allowed before system activation
     if start_height < config.bsn_activation_height {
-        return Err(ContractError::BeforeSystemActivation(start_height, config.bsn_activation_height));
+        return Err(ContractError::BeforeSystemActivation(
+            start_height,
+            config.bsn_activation_height,
+        ));
     }
 
     // Check if FP BTC PubKey is empty

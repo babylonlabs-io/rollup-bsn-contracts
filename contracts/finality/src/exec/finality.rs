@@ -28,17 +28,20 @@ pub fn handle_finality_signature(
 ) -> Result<Response<BabylonMsg>, ContractError> {
     // Load config first
     let config = get_config(deps.as_ref())?;
-    
+
     // Ensure system is activated
     if height < config.bsn_activation_height {
-        return Err(ContractError::BeforeSystemActivation(height, config.bsn_activation_height));
+        return Err(ContractError::BeforeSystemActivation(
+            height,
+            config.bsn_activation_height,
+        ));
     }
-    
+
     // Ensure finality signature interval is respected
     if (height - config.bsn_activation_height) % config.finality_signature_interval != 0 {
         return Err(ContractError::FinalitySignatureRateLimitExceeded(
-            height, 
-            config.finality_signature_interval
+            height,
+            config.finality_signature_interval,
         ));
     }
 

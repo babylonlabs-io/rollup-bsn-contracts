@@ -28,12 +28,16 @@ pub fn instantiate(
 
     // Validate bsn_activation_height to be at least 1
     if msg.bsn_activation_height == 0 {
-        return Err(ContractError::InvalidBsnActivationHeight(msg.bsn_activation_height));
+        return Err(ContractError::InvalidBsnActivationHeight(
+            msg.bsn_activation_height,
+        ));
     }
 
     // Validate finality_signature_interval to be at least 1
     if msg.finality_signature_interval == 0 {
-        return Err(ContractError::InvalidFinalitySignatureInterval(msg.finality_signature_interval));
+        return Err(ContractError::InvalidFinalitySignatureInterval(
+            msg.finality_signature_interval,
+        ));
     }
 
     let api = deps.api;
@@ -280,7 +284,10 @@ pub(crate) mod tests {
             assert_eq!(config.bsn_id, bsn_id);
             assert_eq!(config.min_pub_rand, min_pub_rand);
             assert_eq!(config.bsn_activation_height, bsn_activation_height);
-            assert_eq!(config.finality_signature_interval, finality_signature_interval);
+            assert_eq!(
+                config.finality_signature_interval,
+                finality_signature_interval
+            );
         } else {
             // Should fail with specific error
             assert!(result.is_err(), "Expected error for min_pub_rand = 0");
