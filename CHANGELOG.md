@@ -65,6 +65,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
   store conflicting finality sigs in storage
 
 ### Improvements
+
 * [#71](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/71) chore:
   fix signing context
 * [#69](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/69) Define
