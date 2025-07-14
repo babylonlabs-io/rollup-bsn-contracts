@@ -13,7 +13,7 @@ pub struct InstantiateMsg {
     pub admin: String,
     pub bsn_id: String,
     pub min_pub_rand: u64,
-    pub max_msgs_per_hour: u32,
+    pub max_msgs_per_interval: u32,
 }
 
 #[cw_serde]

@@ -34,7 +34,7 @@ pub fn instantiate(
     let config = Config {
         bsn_id: msg.bsn_id,
         min_pub_rand: msg.min_pub_rand,
-        max_msgs_per_hour: msg.max_msgs_per_hour,
+        max_msgs_per_interval: msg.max_msgs_per_interval,
     };
     set_config(deps.storage, &config)?;
 
@@ -143,7 +143,7 @@ pub(crate) mod tests {
     pub(crate) const INIT_ADMIN: &str = "initial_admin";
     const NEW_ADMIN: &str = "new_admin";
 
-    const MAX_MSGS_PER_HOUR: u32 = 100;
+    const MAX_MSGS_PER_INTERVAL: u32 = 100;
 
     // Define a type alias for OwnedDeps with BabylonQuery
     pub type BabylonDeps = OwnedDeps<MockStorage, MockApi, MockQuerier, BabylonQuery>;
@@ -167,7 +167,7 @@ pub(crate) mod tests {
             admin: init_admin.to_string(), // Admin provided
             bsn_id: "op-stack-l2-11155420".to_string(),
             min_pub_rand: 100,
-            max_msgs_per_hour: MAX_MSGS_PER_HOUR,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -220,7 +220,7 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
             bsn_id: bsn_id.clone(),
             min_pub_rand,
-            max_msgs_per_hour: MAX_MSGS_PER_HOUR,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -268,7 +268,7 @@ pub(crate) mod tests {
             admin: invalid_admin.to_string(),
             bsn_id,
             min_pub_rand,
-            max_msgs_per_hour: MAX_MSGS_PER_HOUR,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -289,7 +289,7 @@ pub(crate) mod tests {
             admin: valid_admin.to_string(),
             bsn_id: invalid_bsn_id.to_string(),
             min_pub_rand,
-            max_msgs_per_hour: MAX_MSGS_PER_HOUR,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -310,7 +310,7 @@ pub(crate) mod tests {
             admin: valid_admin.to_string(),
             bsn_id: empty_bsn_id.to_string(),
             min_pub_rand,
-            max_msgs_per_hour: MAX_MSGS_PER_HOUR,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -332,7 +332,7 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
             bsn_id,
             min_pub_rand,
-            max_msgs_per_hour: MAX_MSGS_PER_HOUR,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);

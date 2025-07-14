@@ -7,8 +7,8 @@ import (
 	"github.com/cometbft/cometbft/crypto/merkle"
 )
 
-func NewInitMsg(admin string, bsnID string, minPubRand uint64, maxMsgsPerHour uint32) string {
-	initMsg := fmt.Sprintf(`{"admin":"%s","bsn_id":"%s","min_pub_rand":%d,"max_msgs_per_hour":%d}`, admin, bsnID, minPubRand, maxMsgsPerHour)
+func NewInitMsg(admin string, bsnID string, minPubRand uint64, maxMsgsPerInterval uint32) string {
+	initMsg := fmt.Sprintf(`{"admin":"%s","bsn_id":"%s","min_pub_rand":%d,"max_msgs_per_interval":%d}`, admin, bsnID, minPubRand, maxMsgsPerInterval)
 	return initMsg
 }
 

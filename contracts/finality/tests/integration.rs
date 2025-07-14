@@ -38,7 +38,7 @@ fn instantiate_works() {
         admin: mock_api.addr_make(CREATOR),
         bsn_id: "op-stack-l2-11155420".to_string(),
         min_pub_rand: 100,
-        max_msgs_per_hour: 100,
+        max_msgs_per_interval: 100,
     };
     let info = mock_info(CREATOR, &[]);
     let res: ContractResult<Response> = instantiate(&mut deps, mock_env(), info, msg.clone());

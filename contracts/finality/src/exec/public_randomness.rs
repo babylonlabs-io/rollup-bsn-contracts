@@ -52,7 +52,7 @@ pub fn handle_public_randomness_commit(
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
 
     // Ensure rate limiting; this step will fail if the rate limit is exceeded
-    accumulate_rate_limiter(deps.storage, &fp_btc_pk, env.block.time)?;
+    accumulate_rate_limiter(deps.storage, env, &fp_btc_pk)?;
 
     let context = get_fp_rand_commit_context_v0(env)?;
     // Verify signature over the list
@@ -178,7 +178,7 @@ pub(crate) mod tests {
     use babylon_test_utils::get_public_randomness_commitment;
     use cosmwasm_std::testing::mock_env;
 
-    const MAX_MSGS_PER_HOUR: u32 = 100;
+    const MAX_MSGS_PER_INTERVAL: u32 = 100;
 
     #[test]
     fn verify_commitment_signature_works() {
@@ -213,7 +213,7 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
-            max_msgs_per_hour: MAX_MSGS_PER_HOUR,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -247,7 +247,7 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
-            max_msgs_per_hour: MAX_MSGS_PER_HOUR,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -316,7 +316,7 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
-            max_msgs_per_hour: MAX_MSGS_PER_HOUR,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -344,7 +344,7 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
-            max_msgs_per_hour: MAX_MSGS_PER_HOUR,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -411,7 +411,7 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
-            max_msgs_per_hour: MAX_MSGS_PER_HOUR,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -452,7 +452,7 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand,
-            max_msgs_per_hour: MAX_MSGS_PER_HOUR,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 

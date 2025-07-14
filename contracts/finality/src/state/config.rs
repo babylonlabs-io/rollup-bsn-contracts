@@ -12,7 +12,7 @@ pub(crate) const CONFIG: Item<Config> = Item::new("config");
 pub struct Config {
     pub bsn_id: String,
     pub min_pub_rand: u64,
-    pub max_msgs_per_hour: u32,
+    pub max_msgs_per_interval: u32,
 }
 
 pub fn get_config(storage: &dyn Storage) -> StdResult<Config> {

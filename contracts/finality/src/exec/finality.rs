@@ -31,7 +31,7 @@ pub fn handle_finality_signature(
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
 
     // Ensure rate limiting; this step will fail if the rate limit is exceeded
-    accumulate_rate_limiter(deps.storage, &fp_btc_pk, env.block.time)?;
+    accumulate_rate_limiter(deps.storage, env, &fp_btc_pk)?;
 
     // Load any type of existing finality signature by the finality provider at the same height
     let existing_finality_sig = get_finality_signature(deps.storage, height, &fp_btc_pk)?;
