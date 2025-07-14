@@ -22,6 +22,14 @@ pub fn handle_public_randomness_commit(
     commitment: &[u8],
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
+    // Load config first
+    let config = get_config(deps.as_ref())?;
+
+    // Public randomness commits are not allowed before system activation
+    if start_height < config.bsn_activation_height {
+        return Err(ContractError::BeforeSystemActivation(start_height, config.bsn_activation_height));
+    }
+
     // Check if FP BTC PubKey is empty
     if fp_btc_pk_hex.is_empty() {
         return Err(ContractError::EmptyFpBtcPubKey);
@@ -39,8 +47,6 @@ pub fn handle_public_randomness_commit(
             actual: signature.len(),
         });
     }
-
-    let config = get_config(deps.as_ref())?;
 
     // Validate the commitment parameters
     validate_pub_rand_commit(start_height, num_pub_rand, commitment, config.min_pub_rand)?;
@@ -206,6 +212,8 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
+            bsn_activation_height: 1,
+            finality_signature_interval: 1,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -239,6 +247,8 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
+            bsn_activation_height: 1,
+            finality_signature_interval: 1,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -307,6 +317,8 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
+            bsn_activation_height: 1,
+            finality_signature_interval: 1,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -334,6 +346,8 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
+            bsn_activation_height: 1,
+            finality_signature_interval: 1,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -400,6 +414,8 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
+            bsn_activation_height: 1,
+            finality_signature_interval: 1,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -440,6 +456,8 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand,
+            bsn_activation_height: 1,
+            finality_signature_interval: 1,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 

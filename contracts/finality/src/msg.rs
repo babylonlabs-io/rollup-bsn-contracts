@@ -13,6 +13,8 @@ pub struct InstantiateMsg {
     pub admin: String,
     pub bsn_id: String,
     pub min_pub_rand: u64,
+    pub bsn_activation_height: u64,
+    pub finality_signature_interval: u64,
 }
 
 #[cw_serde]

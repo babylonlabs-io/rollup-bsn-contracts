@@ -12,6 +12,8 @@ pub(crate) const CONFIG: Item<Config> = Item::new("config");
 pub struct Config {
     pub bsn_id: String,
     pub min_pub_rand: u64,
+    pub bsn_activation_height: u64,
+    pub finality_signature_interval: u64,
 }
 
 pub fn get_config(deps: Deps<BabylonQuery>) -> StdResult<Config> {
