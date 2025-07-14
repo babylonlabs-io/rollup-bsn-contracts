@@ -50,6 +50,12 @@ pub enum QueryMsg {
     Admin {},
     #[returns(Config)]
     Config {},
+    /// Get the list of all allowed finality providers.
+    ///
+    /// Returns a list of BTC public keys (in hex format) of finality providers
+    /// that are allowed to submit finality signatures and public randomness commitments.
+    #[returns(Vec<String>)]
+    AllowedFinalityProviders {},
 }
 
 // Note: Adapted from packages/apis/src/btc_staking_api.rs / packages/apis/src/finality_api.rs
@@ -137,6 +143,23 @@ pub enum ExecuteMsg {
         /// This prevents gas exhaustion when there are many old values.
         /// If not provided, the default value is 50.
         max_pub_rand_values_to_prune: Option<u32>,
+    },
+    /// Add a finality provider to the allowlist.
+    ///
+    /// This message can be called by the admin only.
+    /// Only finality providers in the allowlist can submit finality signatures and public randomness commitments.
+    AddToAllowlist {
+        /// The BTC public key of the finality provider to add to the allowlist (in hex format)
+        fp_pubkey_hex: String,
+    },
+    /// Remove a finality provider from the allowlist.
+    ///
+    /// This message can be called by the admin only.
+    /// Removing a finality provider from the allowlist will prevent them from submitting
+    /// new finality signatures and public randomness commitments.
+    RemoveFromAllowlist {
+        /// The BTC public key of the finality provider to remove from the allowlist (in hex format)
+        fp_pubkey_hex: String,
     },
 }
 

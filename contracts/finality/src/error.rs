@@ -89,4 +89,6 @@ pub enum ContractError {
     EmptyFpBtcPubKey,
     #[error("Invalid consumer ID: {0}")]
     InvalidBsnId(String),
+    #[error("Finality provider {0} is not in the allowlist")]
+    FinalityProviderNotAllowed(String),
 }

@@ -72,6 +72,9 @@ pub fn query(
             limit,
             reverse,
         )?)?),
+        QueryMsg::AllowedFinalityProviders {} => Ok(to_json_binary(
+            &crate::state::config::get_allowed_finality_providers(deps.storage)?,
+        )?),
     }
 }
 
@@ -135,6 +138,29 @@ pub fn execute(
             max_signatures_to_prune,
             max_pub_rand_values_to_prune,
         ),
+        ExecuteMsg::AddToAllowlist { fp_pubkey_hex } => {
+            if fp_pubkey_hex.is_empty() {
+                return Err(ContractError::EmptyFpBtcPubKey);
+            }
+            ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
+            crate::state::config::add_finality_provider_to_allowlist(deps.storage, &fp_pubkey_hex)?;
+            Ok(Response::new()
+                .add_attribute("action", "add_to_allowlist")
+                .add_attribute("fp_pubkey_hex", fp_pubkey_hex))
+        }
+        ExecuteMsg::RemoveFromAllowlist { fp_pubkey_hex } => {
+            if fp_pubkey_hex.is_empty() {
+                return Err(ContractError::EmptyFpBtcPubKey);
+            }
+            ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
+            crate::state::config::remove_finality_provider_from_allowlist(
+                deps.storage,
+                &fp_pubkey_hex,
+            )?;
+            Ok(Response::new()
+                .add_attribute("action", "remove_from_allowlist")
+                .add_attribute("fp_pubkey_hex", fp_pubkey_hex))
+        }
     }
 }
 
@@ -693,5 +719,85 @@ pub(crate) mod tests {
         let info = message_info(&non_admin, &[]);
         let result = execute(deps.as_mut(), mock_env(), info, msg);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_allowlist_management() {
+        let mut deps = mock_deps_babylon();
+        let admin = deps.api.addr_make(INIT_ADMIN);
+
+        // Setup contract
+        let instantiate_msg = InstantiateMsg {
+            admin: admin.to_string(),
+            bsn_id: "op-stack-l2-11155420".to_string(),
+            min_pub_rand: 100,
+        };
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+
+        let fp_pubkey_hex = "02a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7";
+
+        // Test adding to allowlist with admin
+        let add_msg = ExecuteMsg::AddToAllowlist {
+            fp_pubkey_hex: fp_pubkey_hex.to_string(),
+        };
+        let admin_info = message_info(&admin, &[]);
+        let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), add_msg).unwrap();
+        assert_eq!(res.attributes[0].key, "action");
+        assert_eq!(res.attributes[0].value, "add_to_allowlist");
+        assert_eq!(res.attributes[1].key, "fp_pubkey_hex");
+        assert_eq!(res.attributes[1].value, fp_pubkey_hex);
+
+        // Verify FP is in allowlist
+        let query_res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::AllowedFinalityProviders {},
+        )
+        .unwrap();
+        let allowed_fps: Vec<String> = from_json(query_res).unwrap();
+        assert!(allowed_fps.contains(&fp_pubkey_hex.to_string()));
+
+        // Test adding to allowlist with non-admin should fail
+        let non_admin_info = message_info(&deps.api.addr_make("non_admin"), &[]);
+        let add_msg_2 = ExecuteMsg::AddToAllowlist {
+            fp_pubkey_hex: fp_pubkey_hex.to_string(),
+        };
+        let err = execute(deps.as_mut(), mock_env(), non_admin_info, add_msg_2).unwrap_err();
+        assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
+
+        // Test adding empty pubkey should fail
+        let empty_msg = ExecuteMsg::AddToAllowlist {
+            fp_pubkey_hex: "".to_string(),
+        };
+        let err = execute(deps.as_mut(), mock_env(), admin_info.clone(), empty_msg).unwrap_err();
+        assert_eq!(err, ContractError::EmptyFpBtcPubKey);
+
+        // Test removing from allowlist with admin
+        let remove_msg = ExecuteMsg::RemoveFromAllowlist {
+            fp_pubkey_hex: fp_pubkey_hex.to_string(),
+        };
+        let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), remove_msg).unwrap();
+        assert_eq!(res.attributes[0].key, "action");
+        assert_eq!(res.attributes[0].value, "remove_from_allowlist");
+        assert_eq!(res.attributes[1].key, "fp_pubkey_hex");
+        assert_eq!(res.attributes[1].value, fp_pubkey_hex);
+
+        // Verify FP is not in allowlist
+        let query_res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::AllowedFinalityProviders {},
+        )
+        .unwrap();
+        let allowed_fps: Vec<String> = from_json(query_res).unwrap();
+        assert!(!allowed_fps.contains(&fp_pubkey_hex.to_string()));
+
+        // Test removing empty pubkey should fail
+        let empty_msg = ExecuteMsg::RemoveFromAllowlist {
+            fp_pubkey_hex: "".to_string(),
+        };
+        let err = execute(deps.as_mut(), mock_env(), admin_info, empty_msg).unwrap_err();
+        assert_eq!(err, ContractError::EmptyFpBtcPubKey);
     }
 }
