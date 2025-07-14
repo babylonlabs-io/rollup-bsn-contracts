@@ -178,6 +178,8 @@ pub(crate) mod tests {
     use babylon_test_utils::get_public_randomness_commitment;
     use cosmwasm_std::testing::mock_env;
 
+    const MAX_MSGS_PER_HOUR: u32 = 100;
+
     #[test]
     fn verify_commitment_signature_works() {
         // Define test values
@@ -211,6 +213,7 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
+            max_msgs_per_hour: MAX_MSGS_PER_HOUR,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -244,6 +247,7 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
+            max_msgs_per_hour: MAX_MSGS_PER_HOUR,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -312,6 +316,7 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
+            max_msgs_per_hour: MAX_MSGS_PER_HOUR,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -339,6 +344,7 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
+            max_msgs_per_hour: MAX_MSGS_PER_HOUR,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -405,6 +411,7 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
+            max_msgs_per_hour: MAX_MSGS_PER_HOUR,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -445,6 +452,7 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand,
+            max_msgs_per_hour: MAX_MSGS_PER_HOUR,
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
