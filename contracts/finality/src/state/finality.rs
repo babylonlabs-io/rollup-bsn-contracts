@@ -1,4 +1,4 @@
-use crate::error::ContractError;
+use crate::{error::ContractError, state::pruning::{DEFAULT_PRUNING, MAX_PRUNING}};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{StdResult, Storage};
 use cw_storage_plus::{Bound, Map};
@@ -109,9 +109,6 @@ pub fn insert_finality_sig_and_signatory(
 
     Ok(())
 }
-
-const MAX_PRUNING: u32 = 30;
-const DEFAULT_PRUNING: u32 = 10;
 
 /// Prunes old finality signatures for all finality providers.
 ///

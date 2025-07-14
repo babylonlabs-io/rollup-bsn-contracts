@@ -1,5 +1,6 @@
 use crate::custom_queries::get_last_finalized_epoch;
 use crate::error::ContractError;
+use crate::state::pruning::{DEFAULT_PRUNING, MAX_PRUNING};
 use crate::state::Bytes;
 use babylon_bindings::BabylonQuery;
 use cosmwasm_schema::cw_serde;
@@ -234,9 +235,6 @@ pub(crate) fn insert_pub_rand_value(
     Ok(())
 }
 
-const MAX_PUB_RAND_PRUNING: u32 = 50;
-const DEFAULT_PUB_RAND_PRUNING: u32 = 20;
-
 /// Prunes old public randomness values for all finality providers.
 ///
 /// This function removes all public randomness values for rollup blocks with height <= rollup_height.
@@ -262,8 +260,8 @@ pub(crate) fn prune_public_randomness_values(
     max_values_to_prune: Option<u32>,
 ) -> Result<usize, ContractError> {
     let max_to_prune = max_values_to_prune
-        .unwrap_or(DEFAULT_PUB_RAND_PRUNING)
-        .min(MAX_PUB_RAND_PRUNING) as usize;
+        .unwrap_or(DEFAULT_PRUNING)
+        .min(MAX_PRUNING) as usize;
 
     // Get max public randomness values to prune in range from storage, ordered by height (ascending)
     let all_values = PUB_RAND_VALUES

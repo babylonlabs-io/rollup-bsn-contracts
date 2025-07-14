@@ -6,6 +6,16 @@ use crate::state::config::ADMIN;
 use crate::BabylonMsg;
 use crate::ContractError;
 
+/// The maximum number of items to prune in a single operation.
+pub(crate) const MAX_PRUNING: u32 = 100;
+
+/// The default number of items to prune in a single operation.
+pub(crate) const DEFAULT_PRUNING: u32 = 50;
+
+/// Handles the pruning of data from the contract.
+///
+/// This function prunes finality signatures and public randomness values for rollup blocks with height <= rollup_height.
+/// It's designed to be called manually by the admin to prevent indefinite storage growth.
 pub(crate) fn handle_prune_data(
     deps: DepsMut<BabylonQuery>,
     info: MessageInfo,
