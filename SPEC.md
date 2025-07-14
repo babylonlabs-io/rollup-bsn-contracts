@@ -710,19 +710,16 @@ contract implementation.
 PruneData {
     rollup_height: u64,
     max_signatures_to_prune: Option<u32>,
-    max_signatories_to_prune: Option<u32>,
     max_pub_rand_values_to_prune: Option<u32>,
 }
 ```
 
 **Parameter Semantics:**
 - `rollup_height`: Remove all data for rollup blocks with height ≤ this value.
-- `max_signatures_to_prune`: Maximum number of finality signatures to prune in a single operation.
+- `max_signatures_to_prune`: Maximum number of finality signatures and signatories to prune in a single operation.
+  - Since every signature has a corresponding signatory record, this limit applies to both.
   - If `None`, the default value is 50.
-  - If `Some(0)`, disables pruning of finality signatures for this call.
-- `max_signatories_to_prune`: Maximum number of signatories by block hash entries to prune in a single operation.
-  - If `None`, the default value is 50.
-  - If `Some(0)`, disables pruning of signatories for this call.
+  - If `Some(0)`, disables pruning of finality signatures and signatories for this call.
 - `max_pub_rand_values_to_prune`: Maximum number of public randomness values to prune in a single operation.
   - If `None`, the default value is 50.
   - If `Some(0)`, disables pruning of public randomness values for this call.
@@ -731,7 +728,7 @@ PruneData {
 - This message can be called by the admin only.
 - It removes old data for rollup blocks with height ≤ `rollup_height`.
 - The operation is irreversible. The admin is responsible for ensuring that the pruning height is safe and that no data is still being used for the affected height range.
-- Per-type limits (`max_signatures_to_prune`, `max_signatories_to_prune`, `max_pub_rand_values_to_prune`) prevent gas exhaustion; multiple calls may be required for large amounts of data.
+- Per-type limits (`max_signatures_to_prune`, `max_pub_rand_values_to_prune`) prevent gas exhaustion; multiple calls may be required for large amounts of data.
 - The response includes attributes indicating how many items of each type were pruned:
   - `pruned_signatures`
   - `pruned_signatories`
@@ -743,14 +740,12 @@ PruneData {
   "prune_data": {
     "rollup_height": 1000,
     "max_signatures_to_prune": 50,
-    "max_signatories_to_prune": 50,
     "max_pub_rand_values_to_prune": 20
   }
 }
 ```
-- To prune only finality signatures, set `"max_signatories_to_prune": 0` and `"max_pub_rand_values_to_prune": 0`.
-- To prune only signatories, set `"max_signatures_to_prune": 0` and `"max_pub_rand_values_to_prune": 0`.
-- To prune only public randomness values, set `"max_signatures_to_prune": 0` and `"max_signatories_to_prune": 0`.
+- To prune only finality signatures and signatories, set `"max_pub_rand_values_to_prune": 0`.
+- To prune only public randomness values, set `"max_signatures_to_prune": 0`.
 
 **Breaking Change Note:**
 - The key structure for `PUB_RAND_VALUES` is now `(u64, &[u8])` (was `(&[u8], u64)`), enabling efficient range queries and unified pruning. This is a breaking change for on-chain state, but improves performance and consistency.
