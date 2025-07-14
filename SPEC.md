@@ -478,6 +478,23 @@ pub enum ExecuteMsg {
     UpdateAdmin {
         admin: String,
     },
+    /// Add a finality provider to the allowlist.
+    ///
+    /// This message can be called by the admin only.
+    /// Only finality providers in the allowlist can submit finality signatures and public randomness commitments.
+    AddToAllowlist {
+        /// The BTC public key of the finality provider to add to the allowlist (in hex format)
+        fp_pubkey_hex: String,
+    },
+    /// Remove a finality provider from the allowlist.
+    ///
+    /// This message can be called by the admin only.
+    /// Removing a finality provider from the allowlist will prevent them from submitting
+    /// new finality signatures and public randomness commitments.
+    RemoveFromAllowlist {
+        /// The BTC public key of the finality provider to remove from the allowlist (in hex format)
+        fp_pubkey_hex: String,
+    },
 }
 ```
 
@@ -505,6 +522,10 @@ following verification logic:
    - Ensure the finality provider is associated with this BSN
    - Ensure the finality provider has not been slashed (`slashed_babylon_height`
      and `slashed_btc_height` are both 0)
+
+2. **Allowlist Check**: Verify that the finality provider is in the allowlist:
+   - Query the allowlist storage to check if the finality provider's BTC public key is allowed
+   - If the finality provider is not in the allowlist, return `FinalityProviderNotAllowed` error
 
 2. **Signature Verification**: Verify the commitment signature using Schnorr
    signature verification:
@@ -571,6 +592,10 @@ following verification logic:
    - Ensure the finality provider is associated with this BSN
    - Ensure the finality provider has not been slashed (`slashed_babylon_height`
      and `slashed_btc_height` are both 0)
+
+2. **Allowlist Check**: Verify that the finality provider is in the allowlist:
+   - Query the allowlist storage to check if the finality provider's BTC public key is allowed
+   - If the finality provider is not in the allowlist, return `FinalityProviderNotAllowed` error
 
 2. **Duplicate Vote Check**: Check if an identical vote already exists:
    - Query finality signature state using key `(height, fp_pubkey_hex)`
@@ -648,6 +673,56 @@ handler with the following verification logic:
    - The new admin address from `admin` parameter replaces the current admin
    - Return success response
 
+#### 4.5.4. AddToAllowlist (SHOULD)
+
+**Message Structure:**
+```rust
+AddToAllowlist {
+    fp_pubkey_hex: String,
+}
+```
+
+**Expected Behaviour:** Finality contracts SHOULD implement this administrative
+handler with the following verification logic:
+
+1. **Admin Authorization**: Verify that the caller is the current contract
+   admin:
+   - Query the current admin address
+   - Verify that the message sender matches the current admin address
+
+2. **Parameter Validation**: Validate the finality provider public key:
+   - Ensure the `fp_pubkey_hex` parameter is not empty
+   - If empty, return `EmptyFpBtcPubKey` error
+
+3. **Storage Operations**: Add the finality provider to the allowlist:
+   - Add the finality provider's BTC public key to the allowlist storage
+   - Return success response with action attributes
+
+#### 4.5.5. RemoveFromAllowlist (SHOULD)
+
+**Message Structure:**
+```rust
+RemoveFromAllowlist {
+    fp_pubkey_hex: String,
+}
+```
+
+**Expected Behaviour:** Finality contracts SHOULD implement this administrative
+handler with the following verification logic:
+
+1. **Admin Authorization**: Verify that the caller is the current contract
+   admin:
+   - Query the current admin address
+   - Verify that the message sender matches the current admin address
+
+2. **Parameter Validation**: Validate the finality provider public key:
+   - Ensure the `fp_pubkey_hex` parameter is not empty
+   - If empty, return `EmptyFpBtcPubKey` error
+
+3. **Storage Operations**: Remove the finality provider from the allowlist:
+   - Remove the finality provider's BTC public key from the allowlist storage
+   - Return success response with action attributes
+
 ### 4.7. Contract State Storage
 
 This section documents the actual state storage structure used by the finality
@@ -667,8 +742,16 @@ contract implementation.
   ```rust
   pub struct Config {
       pub bsn_id: String,
+      pub min_pub_rand: u64,
   }
   ```
+
+**ALLOWED_FINALITY_PROVIDERS**: Allowlist of finality providers
+- Type: `Map<String, bool>`
+- Storage key: `"allowed_finality_providers"`
+- Key format: `fp_pubkey_hex` (BTC public key in hex format)
+- Purpose: Stores the set of finality providers that are allowed to submit finality signatures and public randomness commitments
+- Value: `true` for all entries (boolean flag for consistency)
 
 
 
@@ -805,6 +888,12 @@ pub enum QueryMsg {
     Admin {},
     #[returns(Config)]
     Config {},
+    /// Get the list of all allowed finality providers.
+    ///
+    /// Returns a list of BTC public keys (in hex format) of finality providers
+    /// that are allowed to submit finality signatures and public randomness commitments.
+    #[returns(Vec<String>)]
+    AllowedFinalityProviders {},
 
 }
 ```
@@ -994,6 +1083,29 @@ query to return the contract configuration:
 
 WHERE Config contains:
 - `bsn_id`: `String` - The BSN identifier for this finality contract
+- `min_pub_rand`: `u64` - The minimum number of public randomness values required for commitments
+
+#### 4.8.7. AllowedFinalityProviders (SHOULD)
+
+**Query Structure:**
+```rust
+AllowedFinalityProviders {}    // No parameters required
+```
+
+**Return Type:** `Vec<String>` - List of BTC public keys (in hex format) of allowed finality providers
+
+**Expected Behaviour:** Finality contracts SHOULD implement this administrative
+query to return the list of all allowed finality providers:
+
+1. Query allowlist storage to retrieve all allowed finality providers
+   - Access all entries in the `ALLOWED_FINALITY_PROVIDERS` storage
+
+2. Return allowlist information
+   - Return a vector of BTC public keys (in hex format) for all allowed finality providers
+   - If no finality providers are in the allowlist, return an empty vector
+
+WHERE the return value contains:
+- `Vec<String>` - List of BTC public keys in hex format for all allowed finality providers
 
 ## 5. Implementation status
 
