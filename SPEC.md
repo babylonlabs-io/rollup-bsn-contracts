@@ -698,30 +698,50 @@ contract implementation.
 #### 4.7.3. Public Randomness Storage
 
 **PUB_RAND_VALUES**: Individual public randomness values
-- Type: `Map<(&[u8], u64), Vec<u8>>`
+- Type: `Map<(u64, &[u8]), Vec<u8>>`
 - Storage key: `"pub_rand_values"`
-- Key format: `(fp_pubkey_bytes, block_height)`
-- Purpose: Stores individual public randomness values revealed during finality
-  signature submission
+- Key format: `(block_height, fp_pubkey_bytes)`
+- Purpose: Stores individual public randomness values revealed during finality signature submission
 
-**PUB_RAND_COMMITS**: Public randomness commitments
-- Type: `Map<(&[u8], u64), PubRandCommit>`
-- Storage key: `"pub_rand_commits"`
-- Key format: `(fp_pubkey_bytes, start_height)`
-- Structure:
-  ```rust
-  pub struct PubRandCommit {
-    /// The height of the first commitment
-    pub start_height: u64,
-    /// The amount of committed public randomness
-    pub num_pub_rand: u64,
-    /// The epoch number of Babylon when the commit was submitted
-    pub babylon_epoch: u64,
-    /// Value of the commitment.
-    /// Currently, it's the root of the Merkle tree constructed by the public randomness
-    pub commitment: Vec<u8>,
+### 4.6.x. PruneData (SHOULD)
+
+**Message Structure:**
+```rust
+PruneData {
+    rollup_height: u64,
+    prune_finality_signatures: Option<bool>,
+    prune_public_randomness_values: Option<bool>,
+    max_signatures_to_prune: Option<u32>,
+    max_values_to_prune: Option<u32>,
+}
+```
+
+**Expected Behaviour:**
+- This message can be called by the admin only.
+- It removes old data for rollup blocks with height <= `rollup_height`.
+- The admin can choose to prune finality signatures, public randomness values, or both, in a single call.
+- The operation is irreversible. The admin is responsible for ensuring that the pruning height is safe and that no data is still being used for the affected height range.
+- Per-type limits (`max_signatures_to_prune`, `max_values_to_prune`) prevent gas exhaustion; multiple calls may be required for large amounts of data.
+- The response includes attributes indicating how many items of each type were pruned.
+
+**Example:**
+```json
+{
+  "prune_data": {
+    "rollup_height": 1000,
+    "prune_finality_signatures": true,
+    "prune_public_randomness_values": true,
+    "max_signatures_to_prune": 50,
+    "max_values_to_prune": 20
   }
-  ```
+}
+```
+
+**Breaking Change Note:**
+- The key structure for `PUB_RAND_VALUES` is now `(u64, &[u8])` (was `(&[u8], u64)`), enabling efficient range queries and unified pruning. This is a breaking change for on-chain state, but improves performance and consistency.
+
+**Deprecated:**
+- The separate `PruneFinalitySignatures` and `PrunePublicRandomnessValues` messages are replaced by `PruneData`.
 
 ### 4.8. Finality contract queries
 
