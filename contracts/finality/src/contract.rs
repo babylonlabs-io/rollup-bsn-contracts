@@ -127,12 +127,14 @@ pub fn execute(
         ExecuteMsg::PruneData {
             rollup_height,
             max_signatures_to_prune,
+            max_signatories_to_prune,
             max_pub_rand_values_to_prune,
         } => handle_prune_data(
             deps,
             info,
             rollup_height,
             max_signatures_to_prune,
+            max_signatories_to_prune,
             max_pub_rand_values_to_prune,
         ),
     }
@@ -392,19 +394,22 @@ pub(crate) mod tests {
         let msg = ExecuteMsg::PruneData {
             rollup_height: 105,
             max_signatures_to_prune: Some(10),
+            max_signatories_to_prune: None,
             max_pub_rand_values_to_prune: None,
         };
 
         let info = message_info(&admin, &[]);
         let response = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        assert_eq!(response.attributes.len(), 4);
+        assert_eq!(response.attributes.len(), 5);
         assert_eq!(response.attributes[0].key, "action");
         assert_eq!(response.attributes[0].value, "prune_data");
         assert_eq!(response.attributes[1].key, "rollup_height");
         assert_eq!(response.attributes[1].value, "105");
         assert_eq!(response.attributes[2].key, "pruned_signatures");
         assert_eq!(response.attributes[2].value, "6"); // Heights 100-105
+        assert_eq!(response.attributes[3].key, "pruned_signatories");
+        assert_eq!(response.attributes[3].value, "6"); // Heights 100-105
 
         // Verify signatures are pruned
         for height in 100..106 {
@@ -422,6 +427,79 @@ pub(crate) mod tests {
         let msg = ExecuteMsg::PruneData {
             rollup_height: 200,
             max_signatures_to_prune: None,
+            max_signatories_to_prune: None,
+            max_pub_rand_values_to_prune: None,
+        };
+
+        let info = message_info(&non_admin, &[]);
+        let result = execute(deps.as_mut(), mock_env(), info, msg);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_prune_signatories_execution() {
+        let mut deps = mock_deps_babylon();
+        let admin = deps.api.addr_make(INIT_ADMIN);
+        let non_admin = deps.api.addr_make("non_admin");
+
+        // Set up admin
+        ADMIN.set(deps.as_mut(), Some(admin.clone())).unwrap();
+
+        // Insert some signatories entries
+        let fp_btc_pk = get_random_fp_pk();
+        for height in 100..110 {
+            let block_hash = get_random_block_hash();
+            let signature = get_random_block_hash();
+            insert_finality_sig_and_signatory(
+                deps.as_mut().storage,
+                &fp_btc_pk,
+                height,
+                &block_hash,
+                &signature,
+            )
+            .unwrap();
+        }
+
+        // Verify signatories exist before pruning
+        for height in 100..110 {
+            let block_hash = get_random_block_hash(); // This won't match, but we're just checking the function exists
+            let _signatories = crate::state::finality::get_signatories_by_block_hash(
+                deps.as_ref().storage,
+                height,
+                &block_hash,
+            )
+            .unwrap();
+            // Note: This will be None because we're using a different block_hash, but the function should work
+        }
+
+        // Test successful pruning by admin
+        let msg = ExecuteMsg::PruneData {
+            rollup_height: 105,
+            max_signatures_to_prune: Some(0),
+            max_signatories_to_prune: Some(10),
+            max_pub_rand_values_to_prune: None,
+        };
+
+        let info = message_info(&admin, &[]);
+        let response = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        assert_eq!(response.attributes.len(), 5); // action, rollup_height, pruned_signatures, pruned_signatories, pruned_pub_rand_values
+        assert_eq!(response.attributes[0].key, "action");
+        assert_eq!(response.attributes[0].value, "prune_data");
+        assert_eq!(response.attributes[1].key, "rollup_height");
+        assert_eq!(response.attributes[1].value, "105");
+        assert_eq!(response.attributes[2].key, "pruned_signatures");
+        assert_eq!(response.attributes[2].value, "0");
+        assert_eq!(response.attributes[3].key, "pruned_signatories");
+        assert_eq!(response.attributes[3].value, "6"); // Heights 100-105
+        assert_eq!(response.attributes[4].key, "pruned_pub_rand_values");
+        assert_eq!(response.attributes[4].value, "0");
+
+        // Test that non-admin cannot call pruning
+        let msg = ExecuteMsg::PruneData {
+            rollup_height: 200,
+            max_signatures_to_prune: None,
+            max_signatories_to_prune: None,
             max_pub_rand_values_to_prune: None,
         };
 
@@ -456,21 +534,24 @@ pub(crate) mod tests {
         let msg = ExecuteMsg::PruneData {
             rollup_height: 105,
             max_signatures_to_prune: None,
+            max_signatories_to_prune: None,
             max_pub_rand_values_to_prune: Some(10),
         };
 
         let info = message_info(&admin, &[]);
         let response = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        assert_eq!(response.attributes.len(), 4);
+        assert_eq!(response.attributes.len(), 5);
         assert_eq!(response.attributes[0].key, "action");
         assert_eq!(response.attributes[0].value, "prune_data");
         assert_eq!(response.attributes[1].key, "rollup_height");
         assert_eq!(response.attributes[1].value, "105");
         assert_eq!(response.attributes[2].key, "pruned_signatures");
         assert_eq!(response.attributes[2].value, "0");
-        assert_eq!(response.attributes[3].key, "pruned_pub_rand_values");
-        assert_eq!(response.attributes[3].value, "6"); // Heights 100-105
+        assert_eq!(response.attributes[3].key, "pruned_signatories");
+        assert_eq!(response.attributes[3].value, "0");
+        assert_eq!(response.attributes[4].key, "pruned_pub_rand_values");
+        assert_eq!(response.attributes[4].value, "6"); // Heights 100-105
 
         // Verify values are pruned
         for height in 100..106 {
@@ -488,6 +569,7 @@ pub(crate) mod tests {
         let msg = ExecuteMsg::PruneData {
             rollup_height: 200,
             max_signatures_to_prune: None,
+            max_signatories_to_prune: None,
             max_pub_rand_values_to_prune: None,
         };
 
@@ -538,21 +620,24 @@ pub(crate) mod tests {
         let msg = ExecuteMsg::PruneData {
             rollup_height: 105,
             max_signatures_to_prune: Some(10),
+            max_signatories_to_prune: None,
             max_pub_rand_values_to_prune: Some(10),
         };
 
         let info = message_info(&admin, &[]);
         let response = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        assert_eq!(response.attributes.len(), 4);
+        assert_eq!(response.attributes.len(), 5);
         assert_eq!(response.attributes[0].key, "action");
         assert_eq!(response.attributes[0].value, "prune_data");
         assert_eq!(response.attributes[1].key, "rollup_height");
         assert_eq!(response.attributes[1].value, "105");
         assert_eq!(response.attributes[2].key, "pruned_signatures");
         assert_eq!(response.attributes[2].value, "6"); // Heights 100-105
-        assert_eq!(response.attributes[3].key, "pruned_pub_rand_values");
+        assert_eq!(response.attributes[3].key, "pruned_signatories");
         assert_eq!(response.attributes[3].value, "6"); // Heights 100-105
+        assert_eq!(response.attributes[4].key, "pruned_pub_rand_values");
+        assert_eq!(response.attributes[4].value, "6"); // Heights 100-105
 
         // Verify data is pruned
         for height in 100..106 {
@@ -574,39 +659,46 @@ pub(crate) mod tests {
         let msg = ExecuteMsg::PruneData {
             rollup_height: 108,
             max_signatures_to_prune: Some(5),
+            max_signatories_to_prune: None,
             max_pub_rand_values_to_prune: Some(0),
         };
 
         let info = message_info(&admin, &[]);
         let response = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        assert_eq!(response.attributes.len(), 4); // action, rollup_height, pruned_signatures, pruned_pub_rand_values
+        assert_eq!(response.attributes.len(), 5); // action, rollup_height, pruned_signatures, pruned_signatories, pruned_pub_rand_values
         assert_eq!(response.attributes[2].key, "pruned_signatures");
         assert_eq!(response.attributes[2].value, "3"); // Heights 106-108
-        assert_eq!(response.attributes[3].key, "pruned_pub_rand_values");
-        assert_eq!(response.attributes[3].value, "0"); // Heights 106-108
+        assert_eq!(response.attributes[3].key, "pruned_signatories");
+        assert_eq!(response.attributes[3].value, "3"); // Heights 106-108
+        assert_eq!(response.attributes[4].key, "pruned_pub_rand_values");
+        assert_eq!(response.attributes[4].value, "0"); // Heights 106-108
 
         // Test pruning only pub rand values
         let msg = ExecuteMsg::PruneData {
             rollup_height: 108,
             max_signatures_to_prune: Some(0),
+            max_signatories_to_prune: None,
             max_pub_rand_values_to_prune: Some(5),
         };
 
         let info = message_info(&admin, &[]);
         let response = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        assert_eq!(response.attributes.len(), 4); // action, rollup_height, pruned_signatures, pruned_pub_rand_values
+        assert_eq!(response.attributes.len(), 5); // action, rollup_height, pruned_signatures, pruned_signatories, pruned_pub_rand_values
         assert_eq!(response.attributes[2].key, "pruned_signatures");
         assert_eq!(response.attributes[2].value, "0"); // Heights 106-108
-        assert_eq!(response.attributes[3].key, "pruned_pub_rand_values");
+        assert_eq!(response.attributes[3].key, "pruned_signatories");
+        assert_eq!(response.attributes[3].value, "0"); // Heights 106-108
+        assert_eq!(response.attributes[4].key, "pruned_pub_rand_values");
         // The value will depend on the test setup, but you can check it's a string representing a number.
-        assert!(response.attributes[3].value.parse::<u64>().is_ok());
+        assert!(response.attributes[4].value.parse::<u64>().is_ok());
 
         // Test that non-admin cannot call pruning
         let msg = ExecuteMsg::PruneData {
             rollup_height: 200,
             max_signatures_to_prune: Some(0),
+            max_signatories_to_prune: None,
             max_pub_rand_values_to_prune: Some(0),
         };
 

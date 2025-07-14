@@ -1,4 +1,7 @@
-use crate::{error::ContractError, state::pruning::{DEFAULT_PRUNING, MAX_PRUNING}};
+use crate::{
+    error::ContractError,
+    state::pruning::{DEFAULT_PRUNING, MAX_PRUNING},
+};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{StdResult, Storage};
 use cw_storage_plus::{Bound, Map};
@@ -156,6 +159,54 @@ pub(crate) fn prune_finality_signatures(
     }
 
     Ok(all_signatures.len())
+}
+
+/// Prunes old signatories by block hash for all blocks.
+///
+/// This function removes all signatories entries for rollup blocks with height <= rollup_height.
+/// It's designed to be called manually by the admin to prevent indefinite storage growth.
+///
+/// The function prunes up to `max_signatories_to_prune` old entries per call
+/// to prevent gas exhaustion when there are many old entries to clean up.
+///
+/// # Arguments
+///
+/// * `storage` - The storage instance to operate on
+/// * `rollup_height` - Remove all signatories for rollup blocks with height <= this value
+/// * `max_signatories_to_prune` - Maximum number of signatories entries to prune in this operation
+///     - If not provided, the default value is 50.
+///     - If provided, the value must be between 1 and 100.
+///
+/// # Returns
+///
+/// Returns the number of signatories entries that were pruned, or an error if the operation failed.
+pub(crate) fn prune_signatories_by_block_hash(
+    storage: &mut dyn Storage,
+    rollup_height: u64,
+    max_signatories_to_prune: Option<u32>,
+) -> Result<usize, ContractError> {
+    let max_to_prune = max_signatories_to_prune
+        .unwrap_or(DEFAULT_PRUNING)
+        .min(MAX_PRUNING) as usize;
+
+    // Get max signatories entries to prune in range from storage, ordered by height (ascending)
+    let all_signatories = SIGNATORIES_BY_BLOCK_HASH
+        .range(
+            storage,
+            None,
+            Some(Bound::exclusive((rollup_height + 1, &[] as &[u8]))),
+            cosmwasm_std::Order::Ascending,
+        )
+        .take(max_to_prune)
+        .collect::<cosmwasm_std::StdResult<Vec<_>>>()?;
+
+    for (key, _signatories) in &all_signatories {
+        let (height, block_hash) = key;
+        // Remove the signatories entry from storage
+        SIGNATORIES_BY_BLOCK_HASH.remove(storage, (*height, block_hash.as_slice()));
+    }
+
+    Ok(all_signatories.len())
 }
 
 #[cfg(test)]
@@ -429,5 +480,183 @@ mod tests {
         // Verify height 300 is still there
         let sig = get_finality_signature(deps.as_ref().storage, 300, &fp_btc_pk).unwrap();
         assert!(sig.is_some());
+    }
+
+    #[test]
+    fn test_prune_signatories_by_block_hash() {
+        let mut deps = mock_dependencies();
+        let fp_btc_pk1 = get_random_fp_pk();
+        let fp_btc_pk2 = get_random_fp_pk();
+
+        // Insert several signatories entries at different heights
+        let heights = vec![100, 200, 300, 400, 500];
+        let block_hashes: Vec<Vec<u8>> = heights.iter().map(|_| get_random_block_hash()).collect();
+        let signatures: Vec<Vec<u8>> = heights.iter().map(|_| get_random_block_hash()).collect();
+
+        // Insert signatories for first finality provider
+        for (i, &height) in heights.iter().enumerate() {
+            insert_finality_sig_and_signatory(
+                deps.as_mut().storage,
+                &fp_btc_pk1,
+                height,
+                &block_hashes[i],
+                &signatures[i],
+            )
+            .unwrap();
+        }
+
+        // Insert signatories for second finality provider
+        for (i, &height) in heights.iter().enumerate() {
+            insert_finality_sig_and_signatory(
+                deps.as_mut().storage,
+                &fp_btc_pk2,
+                height,
+                &block_hashes[i],
+                &signatures[i],
+            )
+            .unwrap();
+        }
+
+        // Verify signatories exist before pruning
+        for &height in &heights {
+            let signatories1 = get_signatories_by_block_hash(
+                deps.as_ref().storage,
+                height,
+                &block_hashes[heights.iter().position(|&h| h == height).unwrap()],
+            )
+            .unwrap();
+            assert!(signatories1.is_some());
+            let signatories2 = get_signatories_by_block_hash(
+                deps.as_ref().storage,
+                height,
+                &block_hashes[heights.iter().position(|&h| h == height).unwrap()],
+            )
+            .unwrap();
+            assert!(signatories2.is_some());
+        }
+
+        // Test pruning with rollup_height = 250
+        // This should prune signatories at heights 100, 200 for both finality providers
+        let pruned_count =
+            prune_signatories_by_block_hash(deps.as_mut().storage, 250, None).unwrap();
+        assert_eq!(pruned_count, 2); // 2 entries (one per block hash at heights 100, 200)
+
+        // Verify old signatories are gone
+        for &height in &[100, 200] {
+            let idx = heights.iter().position(|&h| h == height).unwrap();
+            let signatories =
+                get_signatories_by_block_hash(deps.as_ref().storage, height, &block_hashes[idx])
+                    .unwrap();
+            assert!(signatories.is_none());
+        }
+
+        // Verify remaining signatories are still there
+        for &height in &[300, 400, 500] {
+            let idx = heights.iter().position(|&h| h == height).unwrap();
+            let signatories =
+                get_signatories_by_block_hash(deps.as_ref().storage, height, &block_hashes[idx])
+                    .unwrap();
+            assert!(signatories.is_some());
+        }
+    }
+
+    #[test]
+    fn test_prune_signatories_by_block_hash_with_limit() {
+        let mut deps = mock_dependencies();
+        let fp_btc_pk = get_random_fp_pk();
+
+        // Insert many signatories entries
+        let heights: Vec<u64> = (100..120).collect();
+        let block_hashes: Vec<Vec<u8>> = heights.iter().map(|_| get_random_block_hash()).collect();
+        let signatures: Vec<Vec<u8>> = heights.iter().map(|_| get_random_block_hash()).collect();
+
+        for (i, &height) in heights.iter().enumerate() {
+            insert_finality_sig_and_signatory(
+                deps.as_mut().storage,
+                &fp_btc_pk,
+                height,
+                &block_hashes[i],
+                &signatures[i],
+            )
+            .unwrap();
+        }
+
+        // Test pruning with a limit of 5
+        let pruned_count =
+            prune_signatories_by_block_hash(deps.as_mut().storage, 150, Some(5)).unwrap();
+        assert_eq!(pruned_count, 5); // Should only prune 5 entries due to limit
+
+        // Verify only the first 5 heights are pruned
+        for &height in &[100, 101, 102, 103, 104] {
+            let idx = heights.iter().position(|&h| h == height).unwrap();
+            let signatories =
+                get_signatories_by_block_hash(deps.as_ref().storage, height, &block_hashes[idx])
+                    .unwrap();
+            assert!(signatories.is_none());
+        }
+
+        // Verify remaining heights are still there
+        for &height in &[105, 106, 107, 108, 109] {
+            let idx = heights.iter().position(|&h| h == height).unwrap();
+            let signatories =
+                get_signatories_by_block_hash(deps.as_ref().storage, height, &block_hashes[idx])
+                    .unwrap();
+            assert!(signatories.is_some());
+        }
+    }
+
+    #[test]
+    fn test_prune_signatories_by_block_hash_empty_storage() {
+        let mut deps = mock_dependencies();
+
+        // Test pruning on empty storage
+        let pruned_count =
+            prune_signatories_by_block_hash(deps.as_mut().storage, 100, None).unwrap();
+        assert_eq!(pruned_count, 0);
+    }
+
+    #[test]
+    fn test_prune_signatories_by_block_hash_max_limit() {
+        let mut deps = mock_dependencies();
+        let fp_btc_pk = get_random_fp_pk();
+
+        // Insert many signatories entries
+        let heights: Vec<u64> = (100..200).collect();
+        let block_hashes: Vec<Vec<u8>> = heights.iter().map(|_| get_random_block_hash()).collect();
+        let signatures: Vec<Vec<u8>> = heights.iter().map(|_| get_random_block_hash()).collect();
+
+        for (i, &height) in heights.iter().enumerate() {
+            insert_finality_sig_and_signatory(
+                deps.as_mut().storage,
+                &fp_btc_pk,
+                height,
+                &block_hashes[i],
+                &signatures[i],
+            )
+            .unwrap();
+        }
+
+        // Test pruning with a limit higher than MAX_PRUNING
+        let pruned_count =
+            prune_signatories_by_block_hash(deps.as_mut().storage, 150, Some(200)).unwrap();
+        assert_eq!(pruned_count, 51); // Should prune all 51 entries up to height 150
+
+        // Verify all heights up to 150 are pruned
+        for &height in &heights[..51] {
+            let idx = heights.iter().position(|&h| h == height).unwrap();
+            let signatories =
+                get_signatories_by_block_hash(deps.as_ref().storage, height, &block_hashes[idx])
+                    .unwrap();
+            assert!(signatories.is_none());
+        }
+
+        // Verify remaining heights are still there
+        for &height in &heights[51..] {
+            let idx = heights.iter().position(|&h| h == height).unwrap();
+            let signatories =
+                get_signatories_by_block_hash(deps.as_ref().storage, height, &block_hashes[idx])
+                    .unwrap();
+            assert!(signatories.is_some());
+        }
     }
 }
