@@ -242,12 +242,15 @@
           "add_to_allowlist": {
             "type": "object",
             "required": [
-              "fp_pubkey_hex"
+              "fp_pubkey_hex_list"
             ],
             "properties": {
-              "fp_pubkey_hex": {
-                "description": "The BTC public key of the finality provider to add to the allowlist (in hex format)",
-                "type": "string"
+              "fp_pubkey_hex_list": {
+                "description": "The BTC public keys of the finality providers to add to the allowlist (in hex format)",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
               }
             },
             "additionalProperties": false
@@ -265,12 +268,15 @@
           "remove_from_allowlist": {
             "type": "object",
             "required": [
-              "fp_pubkey_hex"
+              "fp_pubkey_hex_list"
             ],
             "properties": {
-              "fp_pubkey_hex": {
-                "description": "The BTC public key of the finality provider to remove from the allowlist (in hex format)",
-                "type": "string"
+              "fp_pubkey_hex_list": {
+                "description": "The BTC public keys of the finality providers to remove from the allowlist (in hex format)",
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
               }
             },
             "additionalProperties": false
