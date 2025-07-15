@@ -171,54 +171,62 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_update_admin() {
+    fn test_only_admin_can_update_admin() {
         let mut deps = mock_deps_babylon();
         let init_admin = deps.api.addr_make(INIT_ADMIN);
         let new_admin = deps.api.addr_make(NEW_ADMIN);
-        // Create an InstantiateMsg with admin set to Some(INIT_ADMIN.into())
+        let random_user = deps.api.addr_make("random_user");
+        let bsn_id = "op-stack-l2-11155420".to_string();
+        let min_pub_rand = 100;
+
+        // Initialize contract
         let instantiate_msg = InstantiateMsg {
-            admin: init_admin.to_string(), // Admin provided
-            bsn_id: "op-stack-l2-11155420".to_string(),
-            min_pub_rand: 100,
+            admin: init_admin.to_string(),
+            bsn_id,
+            min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
         };
-
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-
-        // Call the instantiate function
-        let res = instantiate(deps.as_mut(), mock_env(), info.clone(), instantiate_msg).unwrap();
-
+        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
         // Assert that no messages were sent
         assert_eq!(0, res.messages.len());
-
         // Use assert_admin to verify that the admin was set correctly
         ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
 
-        // Update the admin to new_admin
+        // Test 1: Only admin can update admin
         let update_admin_msg = ExecuteMsg::UpdateAdmin {
             admin: new_admin.to_string(),
         };
 
-        // Execute the UpdateAdmin message with non-admin info
-        let non_admin_info = message_info(&deps.api.addr_make("non_admin"), &[]);
+        // Random user should fail
+        let random_info = message_info(&random_user, &[]);
         let err = execute(
             deps.as_mut(),
             mock_env(),
-            non_admin_info,
+            random_info,
             update_admin_msg.clone(),
         )
         .unwrap_err();
         assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
 
-        // Execute the UpdateAdmin message with the initial admin info
+        // Creator should fail (not admin)
+        let creator_info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        let err = execute(
+            deps.as_mut(),
+            mock_env(),
+            creator_info,
+            update_admin_msg.clone(),
+        )
+        .unwrap_err();
+        assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
+
+        // Current admin should succeed
         let admin_info = message_info(&init_admin, &[]);
         let res = execute(deps.as_mut(), mock_env(), admin_info, update_admin_msg).unwrap();
-
-        // Assert that no messages were sent
         assert_eq!(0, res.messages.len());
 
-        // Use assert_admin to verify that the admin was updated correctly
+        // Verify admin was updated
         ADMIN.assert_admin(deps.as_ref(), &new_admin).unwrap();
     }
 
@@ -339,13 +347,13 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_update_admin_invalid_address() {
+    fn test_admin_update_rejects_malformed_addresses() {
         let mut deps = mock_deps_babylon();
         let init_admin = deps.api.addr_make(INIT_ADMIN);
-        let invalid_new_admin = "invalid-new-admin";
         let bsn_id = "op-stack-l2-11155420".to_string();
-        let min_pub_rand = get_random_u64_range(1, 1000000);
+        let min_pub_rand = 100;
 
+        // Initialize contract
         let instantiate_msg = InstantiateMsg {
             admin: init_admin.to_string(),
             bsn_id,
@@ -353,21 +361,297 @@ pub(crate) mod tests {
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
         };
-
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-
-        // Call the instantiate function
-        let res = instantiate(deps.as_mut(), mock_env(), info.clone(), instantiate_msg).unwrap();
+        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        // Assert that no messages were sent
         assert_eq!(0, res.messages.len());
-
-        // Try to update admin with invalid address
-        let update_admin_msg = ExecuteMsg::UpdateAdmin {
-            admin: invalid_new_admin.to_string(),
-        };
+        // Use assert_admin to verify that the admin was set correctly
+        ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
 
         let admin_info = message_info(&init_admin, &[]);
+
+        // Test various invalid address formats
+        let invalid_addresses = vec![
+            "",               // Empty string
+            "a",              // Too short
+            "invalid",        // No prefix
+            "cosmos1",        // Incomplete
+            "cosmos1invalid", // Invalid format
+            // Invalid prefix
+            "invalid1234567890123456789012345678901234567890",
+            // Too long
+            "cosmos1234567890123456789012345678901234567890123456789012345678901234567890",
+            "COSMOS1INVALIDUPPERCASE", // Uppercase (should be lowercase)
+            "cosmos1!@#$%^&*()",       // Special characters
+            "cosmos1\n\t\r",           // Control characters
+            "cosmos1 space",           // Contains space
+            "cosmos1-dash",            // Contains dash
+            "cosmos1.dot",             // Contains dot
+        ];
+
+        for invalid_addr in invalid_addresses {
+            let update_admin_msg = ExecuteMsg::UpdateAdmin {
+                admin: invalid_addr.to_string(),
+            };
+            let err = execute(
+                deps.as_mut(),
+                mock_env(),
+                admin_info.clone(),
+                update_admin_msg,
+            )
+            .unwrap_err();
+            assert!(
+                matches!(err, ContractError::StdError(_)),
+                "Expected StdError for invalid address: {}",
+                invalid_addr
+            );
+        }
+
+        // Test valid addresses should work
+        let valid_new_admin = deps.api.addr_make("valid_admin");
+        let update_admin_msg = ExecuteMsg::UpdateAdmin {
+            admin: valid_new_admin.to_string(),
+        };
+        let res = execute(deps.as_mut(), mock_env(), admin_info, update_admin_msg).unwrap();
+        assert_eq!(0, res.messages.len());
+        ADMIN.assert_admin(deps.as_ref(), &valid_new_admin).unwrap();
+    }
+
+    #[test]
+    fn test_admin_query_returns_correct_admin_after_updates() {
+        let mut deps = mock_deps_babylon();
+        let init_admin = deps.api.addr_make(INIT_ADMIN);
+        let new_admin = deps.api.addr_make(NEW_ADMIN);
+        let third_admin = deps.api.addr_make("third_admin");
+        let bsn_id = "op-stack-l2-11155420".to_string();
+        let min_pub_rand = 100;
+
+        // Initialize contract
+        let instantiate_msg = InstantiateMsg {
+            admin: init_admin.to_string(),
+            bsn_id,
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+        };
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        // Assert that no messages were sent
+        assert_eq!(0, res.messages.len());
+        // Use assert_admin to verify that the admin was set correctly
+        ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
+
+        // Test 1: Initial admin query
+        let admin_query = query(deps.as_ref(), mock_env(), QueryMsg::Admin {}).unwrap();
+        let admin_response: AdminResponse = from_json(admin_query).unwrap();
+        assert_eq!(admin_response.admin.unwrap(), init_admin.as_str());
+
+        // Test 2: Update admin and verify query consistency
+        let update_admin_msg = ExecuteMsg::UpdateAdmin {
+            admin: new_admin.to_string(),
+        };
+        let admin_info = message_info(&init_admin, &[]);
+        execute(deps.as_mut(), mock_env(), admin_info, update_admin_msg).unwrap();
+
+        // Query should reflect the new admin
+        let admin_query = query(deps.as_ref(), mock_env(), QueryMsg::Admin {}).unwrap();
+        let admin_response: AdminResponse = from_json(admin_query).unwrap();
+        assert_eq!(admin_response.admin.unwrap(), new_admin.as_str());
+
+        // Test 3: Multiple updates and consistency
+        let update_admin_msg = ExecuteMsg::UpdateAdmin {
+            admin: third_admin.to_string(),
+        };
+        let admin_info = message_info(&new_admin, &[]);
+        execute(deps.as_mut(), mock_env(), admin_info, update_admin_msg).unwrap();
+
+        let admin_query = query(deps.as_ref(), mock_env(), QueryMsg::Admin {}).unwrap();
+        let admin_response: AdminResponse = from_json(admin_query).unwrap();
+        assert_eq!(admin_response.admin.unwrap(), third_admin.as_str());
+
+        // Test 4: Verify old admin cannot update anymore
+        let update_admin_msg = ExecuteMsg::UpdateAdmin {
+            admin: init_admin.to_string(),
+        };
+        let old_admin_info = message_info(&init_admin, &[]);
+        let err = execute(deps.as_mut(), mock_env(), old_admin_info, update_admin_msg).unwrap_err();
+        assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
+    }
+
+    #[test]
+    fn test_admin_update_idempotency() {
+        let mut deps = mock_deps_babylon();
+        let init_admin = deps.api.addr_make(INIT_ADMIN);
+        let new_admin = deps.api.addr_make(NEW_ADMIN);
+        let bsn_id = "op-stack-l2-11155420".to_string();
+        let min_pub_rand = 100;
+
+        // Initialize contract
+        let instantiate_msg = InstantiateMsg {
+            admin: init_admin.to_string(),
+            bsn_id,
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+        };
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        // Assert that no messages were sent
+        assert_eq!(0, res.messages.len());
+        // Use assert_admin to verify that the admin was set correctly
+        ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
+
+        // Test 1: Setting admin to same value should work
+        let update_admin_msg = ExecuteMsg::UpdateAdmin {
+            admin: init_admin.to_string(),
+        };
+        let admin_info = message_info(&init_admin, &[]);
+        let res = execute(
+            deps.as_mut(),
+            mock_env(),
+            admin_info.clone(),
+            update_admin_msg,
+        )
+        .unwrap();
+        assert_eq!(0, res.messages.len());
+
+        // Admin should still be the same
+        ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
+
+        // Test 2: Update to new admin
+        let update_admin_msg = ExecuteMsg::UpdateAdmin {
+            admin: new_admin.to_string(),
+        };
+        let res = execute(deps.as_mut(), mock_env(), admin_info, update_admin_msg).unwrap();
+        assert_eq!(0, res.messages.len());
+        ADMIN.assert_admin(deps.as_ref(), &new_admin).unwrap();
+
+        // Test 3: Setting new admin to same value should work
+        let update_admin_msg = ExecuteMsg::UpdateAdmin {
+            admin: new_admin.to_string(),
+        };
+        let admin_info = message_info(&new_admin, &[]);
+        let res = execute(deps.as_mut(), mock_env(), admin_info, update_admin_msg).unwrap();
+        assert_eq!(0, res.messages.len());
+        ADMIN.assert_admin(deps.as_ref(), &new_admin).unwrap();
+    }
+
+    #[test]
+    fn test_admin_permissions_transfer_immediately_after_update() {
+        let mut deps = mock_deps_babylon();
+        let init_admin = deps.api.addr_make(INIT_ADMIN);
+        let new_admin = deps.api.addr_make(NEW_ADMIN);
+        let bsn_id = "op-stack-l2-11155420".to_string();
+        let min_pub_rand = 100;
+
+        // Initialize contract
+        let instantiate_msg = InstantiateMsg {
+            admin: init_admin.to_string(),
+            bsn_id,
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+        };
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        // Assert that no messages were sent
+        assert_eq!(0, res.messages.len());
+        // Use assert_admin to verify that the admin was set correctly
+        ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
+
+        // Test 1: Admin can update to themselves (idempotent)
+        let update_admin_msg = ExecuteMsg::UpdateAdmin {
+            admin: init_admin.to_string(),
+        };
+        let admin_info = message_info(&init_admin, &[]);
+        let res = execute(
+            deps.as_mut(),
+            mock_env(),
+            admin_info.clone(),
+            update_admin_msg,
+        )
+        .unwrap();
+        assert_eq!(0, res.messages.len());
+
+        // Test 2: Admin transfers to new admin
+        let update_admin_msg = ExecuteMsg::UpdateAdmin {
+            admin: new_admin.to_string(),
+        };
+        let res = execute(
+            deps.as_mut(),
+            mock_env(),
+            admin_info.clone(),
+            update_admin_msg,
+        )
+        .unwrap();
+        assert_eq!(0, res.messages.len());
+
+        // Test 3: Old admin loses permissions immediately
+        let update_admin_msg = ExecuteMsg::UpdateAdmin {
+            admin: init_admin.to_string(),
+        };
         let err = execute(deps.as_mut(), mock_env(), admin_info, update_admin_msg).unwrap_err();
-        assert!(matches!(err, ContractError::StdError(_)));
+        assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
+
+        // Test 4: New admin has full permissions
+        let update_admin_msg = ExecuteMsg::UpdateAdmin {
+            admin: init_admin.to_string(),
+        };
+        let new_admin_info = message_info(&new_admin, &[]);
+        let res = execute(deps.as_mut(), mock_env(), new_admin_info, update_admin_msg).unwrap();
+        assert_eq!(0, res.messages.len());
+        ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
+    }
+
+    #[test]
+    fn test_admin_state_persists_across_queries_and_updates() {
+        let mut deps = mock_deps_babylon();
+        let init_admin = deps.api.addr_make(INIT_ADMIN);
+        let new_admin = deps.api.addr_make(NEW_ADMIN);
+        let bsn_id = "op-stack-l2-11155420".to_string();
+        let min_pub_rand = 100;
+
+        // Initialize contract
+        let instantiate_msg = InstantiateMsg {
+            admin: init_admin.to_string(),
+            bsn_id,
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+        };
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        // Assert that no messages were sent
+        assert_eq!(0, res.messages.len());
+        // Use assert_admin to verify that the admin was set correctly
+        ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
+
+        // Test 1: Admin state persists across queries
+        for _ in 0..5 {
+            let admin_query = query(deps.as_ref(), mock_env(), QueryMsg::Admin {}).unwrap();
+            let admin_response: AdminResponse = from_json(admin_query).unwrap();
+            assert_eq!(admin_response.admin.unwrap(), init_admin.as_str());
+        }
+
+        // Test 2: Admin state persists after update
+        let update_admin_msg = ExecuteMsg::UpdateAdmin {
+            admin: new_admin.to_string(),
+        };
+        let admin_info = message_info(&init_admin, &[]);
+        execute(deps.as_mut(), mock_env(), admin_info, update_admin_msg).unwrap();
+
+        // Verify persistence across multiple queries
+        for _ in 0..5 {
+            let admin_query = query(deps.as_ref(), mock_env(), QueryMsg::Admin {}).unwrap();
+            let admin_response: AdminResponse = from_json(admin_query).unwrap();
+            assert_eq!(admin_response.admin.unwrap(), new_admin.as_str());
+        }
+
+        // Test 3: Config should remain unchanged after admin update
+        let config_query = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
+        let config: Config = from_json(config_query).unwrap();
+        assert_eq!(config.bsn_id, "op-stack-l2-11155420".to_string());
+        assert_eq!(config.min_pub_rand, min_pub_rand);
     }
 
     #[test]
