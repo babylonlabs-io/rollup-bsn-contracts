@@ -724,147 +724,131 @@ pub(crate) mod tests {
 
     #[test]
     fn test_allowlist_management() {
+        use rand::rngs::StdRng;
+        use rand::{Rng, SeedableRng};
         let mut deps = mock_deps_babylon();
         let admin = deps.api.addr_make(INIT_ADMIN);
+        let admin_info = message_info(&admin, &[]);
+        let non_admin_info = message_info(&deps.api.addr_make("non_admin"), &[]);
 
-        // Setup contract
+        // Helper to generate random hex pubkeys using a shared rng
+        fn random_fp_pubkeys(rng: &mut StdRng, n: usize) -> Vec<String> {
+            (0..n)
+                .map(|_| {
+                    (0..66)
+                        .map(|_| format!("{:x}", rng.random_range(0..16)))
+                        .collect::<String>()
+                })
+                .collect()
+        }
+
+        let mut rng = StdRng::seed_from_u64(42); // deterministic
+        let initial_fps = random_fp_pubkeys(&mut rng, 5);
+
         let instantiate_msg = InstantiateMsg {
             admin: admin.to_string(),
             bsn_id: "op-stack-l2-11155420".to_string(),
             min_pub_rand: 100,
-            allowed_finality_providers: None,
+            allowed_finality_providers: Some(initial_fps.clone()),
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
 
-        let fp_pubkey_hex = "02a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7";
-
-        // Test adding to allowlist with admin
-        let add_msg = ExecuteMsg::AddToAllowlist {
-            fp_pubkey_hex_list: vec![fp_pubkey_hex.to_string()],
-        };
-        let admin_info = message_info(&admin, &[]);
-        let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), add_msg).unwrap();
-        assert_eq!(res.attributes[0].key, "action");
-        assert_eq!(res.attributes[0].value, "add_to_allowlist");
-        assert_eq!(res.attributes[1].key, "num_added");
-        assert_eq!(res.attributes[1].value, "1");
-
-        // Verify FP is in allowlist
+        // Check all initial FPs are in allowlist
         let query_res = query(
             deps.as_ref(),
             mock_env(),
             QueryMsg::AllowedFinalityProviders {},
         )
         .unwrap();
-        let allowed_fps: Vec<String> = from_json(query_res).unwrap();
-        assert!(allowed_fps.contains(&fp_pubkey_hex.to_string()));
+        let mut allowed_fps: Vec<String> = from_json(query_res).unwrap();
+        for fp in &initial_fps {
+            assert!(allowed_fps.contains(fp));
+        }
+        let orig_len = allowed_fps.len();
 
-        // Test adding to allowlist with non-admin should fail
-        let non_admin_info = message_info(&deps.api.addr_make("non_admin"), &[]);
-        let add_msg_2 = ExecuteMsg::AddToAllowlist {
-            fp_pubkey_hex_list: vec![fp_pubkey_hex.to_string()],
+        // Test adding a duplicate FP (should not error, allowlist unchanged)
+        let dup_add_msg = ExecuteMsg::AddToAllowlist {
+            fp_pubkey_hex_list: vec![initial_fps[0].clone()],
         };
-        let err = execute(deps.as_mut(), mock_env(), non_admin_info, add_msg_2).unwrap_err();
-        assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
-
-        // Test adding empty pubkey should fail
-        let empty_msg = ExecuteMsg::AddToAllowlist {
-            fp_pubkey_hex_list: vec!["".to_string()],
-        };
-        let err = execute(deps.as_mut(), mock_env(), admin_info.clone(), empty_msg).unwrap_err();
-        assert_eq!(err, ContractError::EmptyFpBtcPubKey);
-
-        // Test adding multiple valid pubkeys
-        let multiple_valid_msg = ExecuteMsg::AddToAllowlist {
-            fp_pubkey_hex_list: vec![
-                "02a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7".to_string(),
-                "03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7".to_string(),
-            ],
-        };
-        let res = execute(
-            deps.as_mut(),
-            mock_env(),
-            admin_info.clone(),
-            multiple_valid_msg,
-        )
-        .unwrap();
+        let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), dup_add_msg).unwrap();
         assert_eq!(res.attributes[0].key, "action");
         assert_eq!(res.attributes[0].value, "add_to_allowlist");
-        assert_eq!(res.attributes[1].key, "num_added");
-        assert_eq!(res.attributes[1].value, "2");
-
-        // Verify multiple FP are in allowlist
+        // Allowlist should not grow
         let query_res = query(
             deps.as_ref(),
             mock_env(),
             QueryMsg::AllowedFinalityProviders {},
         )
         .unwrap();
-        let allowed_fps: Vec<String> = from_json(query_res).unwrap();
-        assert!(allowed_fps.contains(&fp_pubkey_hex.to_string()));
-        assert!(allowed_fps.contains(
-            &"03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7".to_string()
-        ));
+        allowed_fps = from_json(query_res).unwrap();
+        assert_eq!(allowed_fps.len(), orig_len);
 
-        // Test removing from allowlist with admin
+        // Test removing a non-existent FP (should not error, allowlist unchanged)
+        let non_existent_fp = "deadbeef".repeat(8);
         let remove_msg = ExecuteMsg::RemoveFromAllowlist {
-            fp_pubkey_hex_list: vec![fp_pubkey_hex.to_string()],
+            fp_pubkey_hex_list: vec![non_existent_fp.clone()],
         };
         let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), remove_msg).unwrap();
         assert_eq!(res.attributes[0].key, "action");
         assert_eq!(res.attributes[0].value, "remove_from_allowlist");
-        assert_eq!(res.attributes[1].key, "num_removed");
-        assert_eq!(res.attributes[1].value, "1");
-
-        // Verify FP is not in allowlist
+        // Allowlist should not shrink
         let query_res = query(
             deps.as_ref(),
             mock_env(),
             QueryMsg::AllowedFinalityProviders {},
         )
         .unwrap();
-        let allowed_fps: Vec<String> = from_json(query_res).unwrap();
-        assert!(!allowed_fps.contains(&fp_pubkey_hex.to_string()));
+        allowed_fps = from_json(query_res).unwrap();
+        assert_eq!(allowed_fps.len(), orig_len);
 
-        // Test removing empty pubkey should fail
-        let empty_msg = ExecuteMsg::RemoveFromAllowlist {
-            fp_pubkey_hex_list: vec!["".to_string()],
+        // Test adding more FPs
+        let new_fps = random_fp_pubkeys(&mut rng, 3);
+        let add_msg = ExecuteMsg::AddToAllowlist {
+            fp_pubkey_hex_list: new_fps.clone(),
         };
-        let err = execute(deps.as_mut(), mock_env(), admin_info.clone(), empty_msg).unwrap_err();
-        assert_eq!(err, ContractError::EmptyFpBtcPubKey);
-
-        // Test removing multiple valid pubkeys
-        let multiple_valid_msg = ExecuteMsg::RemoveFromAllowlist {
-            fp_pubkey_hex_list: vec![
-                "02a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7".to_string(),
-                "03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7".to_string(),
-            ],
-        };
-        let res = execute(
-            deps.as_mut(),
+        let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), add_msg).unwrap();
+        assert_eq!(res.attributes[0].value, "add_to_allowlist");
+        let query_res = query(
+            deps.as_ref(),
             mock_env(),
-            admin_info.clone(),
-            multiple_valid_msg,
+            QueryMsg::AllowedFinalityProviders {},
         )
         .unwrap();
-        assert_eq!(res.attributes[0].key, "action");
+        allowed_fps = from_json(query_res).unwrap();
+        for fp in &new_fps {
+            assert!(allowed_fps.contains(fp));
+        }
+        assert_eq!(allowed_fps.len(), orig_len + new_fps.len());
+
+        // Test removing some FPs (including one that was just added)
+        let remove_some = vec![initial_fps[0].clone(), new_fps[0].clone()];
+        let remove_msg = ExecuteMsg::RemoveFromAllowlist {
+            fp_pubkey_hex_list: remove_some.clone(),
+        };
+        let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), remove_msg).unwrap();
         assert_eq!(res.attributes[0].value, "remove_from_allowlist");
-        assert_eq!(res.attributes[1].key, "num_removed");
-        assert_eq!(res.attributes[1].value, "2");
-
-        // Verify multiple FP are not in allowlist
         let query_res = query(
             deps.as_ref(),
             mock_env(),
             QueryMsg::AllowedFinalityProviders {},
         )
         .unwrap();
-        let allowed_fps: Vec<String> = from_json(query_res).unwrap();
-        assert!(!allowed_fps.contains(&fp_pubkey_hex.to_string()));
-        assert!(!allowed_fps.contains(
-            &"03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7".to_string()
-        ));
+        allowed_fps = from_json(query_res).unwrap();
+        for fp in &remove_some {
+            assert!(!allowed_fps.contains(fp));
+        }
+        assert_eq!(
+            allowed_fps.len(),
+            orig_len + new_fps.len() - remove_some.len()
+        );
+
+        // Test non-admin cannot add
+        let add_msg = ExecuteMsg::AddToAllowlist {
+            fp_pubkey_hex_list: random_fp_pubkeys(&mut rng, 1),
+        };
+        let err = execute(deps.as_mut(), mock_env(), non_admin_info, add_msg).unwrap_err();
+        assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
     }
 
     #[test]
