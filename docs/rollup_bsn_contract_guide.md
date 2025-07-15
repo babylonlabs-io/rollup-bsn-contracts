@@ -80,5 +80,24 @@ The following operations are planned but not yet implemented:
 
 - `SetSubmissionInterval`: Updates the submission interval configuration to control how frequently each FP can submit signatures (e.g., every X-th block)
 
+## External Integration
+
+The Rollup BSN contract is used by two main types of off-chain actors:
+
+- **Finality Providers** submit data to the contract:
+  - `CommitPublicRandomness`: Commits a Merkle root of public
+ randomness, which must be BTC-timestamped on Babylon before use
+  - `SubmitFinalitySignature`: Submits an EOTS signature for a 
+  rollup block, including Merkle proof linking to prior randomness
+
+- **Finality Gadgets** and other off-chain services query the 
+contract:
+  - `BlockVoters`: Lists FPs that signed a given block
+  - `Config`: Returns BSN configuration (ID, rate limits, min 
+  randomness).
+  - `FirstPubRandCommit` / `LastPubRandCommit`: Retrieves commitment 
+  ranges for a given FP.
+  - `ListPubRandCommit`: Paginates randomness commitments for 
+  coordination with BTC timestamping
 
 
