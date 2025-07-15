@@ -249,3 +249,36 @@ impl From<BabylonMsg> for CosmosMsg<BabylonMsg> {
         CosmosMsg::Custom(original)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_instantiate_msg_validation_rate_limiting_interval_zero() {
+        let msg = InstantiateMsg {
+            admin: "cosmos1admin".to_string(),
+            bsn_id: "valid-bsn_123".to_string(),
+            min_pub_rand: 1,
+            rate_limiting_interval: 0,
+            max_msgs_per_interval: 10,
+        };
+
+        let err = msg.validate().unwrap_err();
+        assert!(matches!(err, ContractError::InvalidRateLimitingInterval(0)));
+    }
+
+    #[test]
+    fn test_instantiate_msg_validation_max_msgs_per_interval_zero() {
+        let msg = InstantiateMsg {
+            admin: "cosmos1admin".to_string(),
+            bsn_id: "valid-bsn_123".to_string(),
+            min_pub_rand: 1,
+            rate_limiting_interval: 1000,
+            max_msgs_per_interval: 0,
+        };
+
+        let err = msg.validate().unwrap_err();
+        assert!(matches!(err, ContractError::InvalidMaxMsgsPerInterval(0)));
+    }
+}
