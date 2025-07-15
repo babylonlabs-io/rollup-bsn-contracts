@@ -368,25 +368,30 @@ pub(crate) mod tests {
 
     #[test]
     fn test_finality_signature_system_activation_check() {
-        use crate::contract::tests::mock_deps_babylon;
-        use crate::state::config::{Config, CONFIG};
+        use crate::contract::instantiate;
+        use crate::contract::tests::{mock_deps_babylon, CREATOR, INIT_ADMIN};
+        use crate::msg::InstantiateMsg;
         use crate::testutil::datagen::*;
+        use cosmwasm_std::testing::message_info;
 
         let mut deps = mock_deps_babylon();
 
         // Configure the contract with activation height of 1000
         let activation_height = 1000;
-        let config = Config {
+        let admin = deps.api.addr_make(INIT_ADMIN);
+
+        let instantiate_msg = InstantiateMsg {
+            admin: admin.to_string(),
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: 1,
-            rate_limiting: crate::state::config::RateLimitingConfig {
-                max_msgs_per_interval: 100,
-                block_interval: 10,
-            },
+            max_msgs_per_interval: 100,
+            rate_limiting_interval: 10,
             bsn_activation_height: activation_height,
             finality_signature_interval: 5,
         };
-        CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
 
         let add_finality_signature = get_add_finality_sig();
         let proof = add_finality_signature.proof.unwrap().into();
@@ -436,26 +441,31 @@ pub(crate) mod tests {
 
     #[test]
     fn test_finality_signature_interval_check() {
-        use crate::contract::tests::mock_deps_babylon;
-        use crate::state::config::{Config, CONFIG};
+        use crate::contract::instantiate;
+        use crate::contract::tests::{mock_deps_babylon, CREATOR, INIT_ADMIN};
+        use crate::msg::InstantiateMsg;
         use crate::testutil::datagen::*;
+        use cosmwasm_std::testing::message_info;
 
         let mut deps = mock_deps_babylon();
 
         // Configure the contract with activation height of 1000 and interval of 5
         let activation_height = 1000;
         let interval = 5;
-        let config = Config {
+        let admin = deps.api.addr_make(INIT_ADMIN);
+
+        let instantiate_msg = InstantiateMsg {
+            admin: admin.to_string(),
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: 1,
-            rate_limiting: crate::state::config::RateLimitingConfig {
-                max_msgs_per_interval: 100,
-                block_interval: 10,
-            },
+            max_msgs_per_interval: 100,
+            rate_limiting_interval: 10,
             bsn_activation_height: activation_height,
             finality_signature_interval: interval,
         };
-        CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
 
         // Use test data from babylon_test_utils
         let add_finality_signature = get_add_finality_sig();
