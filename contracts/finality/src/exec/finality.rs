@@ -380,7 +380,6 @@ pub(crate) mod tests {
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
-        // Use test data from babylon_test_utils to avoid Proof construction issues
         let add_finality_signature = get_add_finality_sig();
         let proof = add_finality_signature.proof.unwrap().into();
 
@@ -427,12 +426,11 @@ pub(crate) mod tests {
         );
     }
 
-    #[test]
-    fn test_finality_signature_interval_check_fails() {
+        #[test]
+    fn test_finality_signature_interval_validation() {
         use crate::contract::tests::mock_deps_babylon;
         use crate::state::config::{Config, CONFIG};
         use crate::testutil::datagen::*;
-        use babylon_merkle::Proof;
         use rand::{rng, Rng};
 
         let mut deps = mock_deps_babylon();
@@ -448,81 +446,50 @@ pub(crate) mod tests {
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
-        // Generate random data for the function call
+        // Generate test data
         let mut rng = rng();
         let random_signature: Vec<u8> = (0..64).map(|_| rng.random()).collect();
         let random_pub_rand: Vec<u8> = (0..32).map(|_| rng.random()).collect();
         let random_block_hash: Vec<u8> = (0..32).map(|_| rng.random()).collect();
+        let add_finality_signature = get_add_finality_sig();
+        let proof = add_finality_signature.proof.unwrap().into();
 
-        // Dummy proof - will fail later validations but passes type check
-        let proof = babylon_merkle::Proof {
-            total: 1,
-            index: 0,
-            leaf_hash: vec![0u8; 32].into(),
-            aunts: vec![],
-        };
+        // TEST FAIL CASE: Invalid interval heights should fail with rate limit error
+        let invalid_heights = vec![
+            activation_height + 1, // 1001: (1001-1000) % 5 = 1 ≠ 0
+            activation_height + 2, // 1002: (1002-1000) % 5 = 2 ≠ 0
+            activation_height + 3, // 1003: (1003-1000) % 5 = 3 ≠ 0
+            activation_height + 4, // 1004: (1004-1000) % 5 = 4 ≠ 0
+            activation_height + 6, // 1006: (1006-1000) % 5 = 1 ≠ 0
+        ];
 
-        // Try to submit finality signature at a height that doesn't respect the interval
-        let invalid_height = activation_height + 1; // Should be 1000, 1005, 1010, etc.
-        let result = handle_finality_signature(
-            deps.as_mut(),
-            &mock_env(),
-            &get_random_fp_pk_hex(),
-            None,
-            None,
-            invalid_height, // Invalid interval should fail
-            &random_pub_rand,
-            &proof,
-            &random_block_hash,
-            &random_signature,
-        );
+        for invalid_height in invalid_heights {
+            let result = handle_finality_signature(
+                deps.as_mut(),
+                &mock_env(),
+                &get_random_fp_pk_hex(),
+                None,
+                None,
+                invalid_height,
+                &random_pub_rand,
+                &proof,
+                &random_block_hash,
+                &random_signature,
+            );
 
-        assert_eq!(
-            result.unwrap_err(),
-            ContractError::FinalitySignatureRateLimitExceeded(invalid_height, interval)
-        );
-    }
+            assert_eq!(
+                result.unwrap_err(),
+                ContractError::FinalitySignatureRateLimitExceeded(invalid_height, interval),
+                "Height {} should fail interval check", invalid_height
+            );
+        }
 
-    #[test]
-    fn test_finality_signature_interval_check_passes() {
-        use crate::contract::tests::mock_deps_babylon;
-        use crate::state::config::{Config, CONFIG};
-        use crate::testutil::datagen::*;
-        use babylon_merkle::Proof;
-        use rand::{rng, Rng};
-
-        let mut deps = mock_deps_babylon();
-
-        // Configure the contract with activation height of 1000 and interval of 5
-        let activation_height = 1000;
-        let interval = 5;
-        let config = Config {
-            bsn_id: format!("test-{}", get_random_u64()),
-            min_pub_rand: 1,
-            bsn_activation_height: activation_height,
-            finality_signature_interval: interval,
-        };
-        CONFIG.save(deps.as_mut().storage, &config).unwrap();
-
-        // Generate random data for the function call
-        let mut rng = rng();
-        let random_signature: Vec<u8> = (0..64).map(|_| rng.random()).collect();
-        let random_pub_rand: Vec<u8> = (0..32).map(|_| rng.random()).collect();
-        let random_block_hash: Vec<u8> = (0..32).map(|_| rng.random()).collect();
-
-        // Dummy proof - will fail later validations but passes type check
-        let proof = babylon_merkle::Proof {
-            total: 1,
-            index: 0,
-            leaf_hash: vec![0u8; 32].into(),
-            aunts: vec![],
-        };
-
-        // Test valid heights that respect the interval
+        // TEST PASS CASE: Valid interval heights should pass rate limiting
         let valid_heights = vec![
-            activation_height,      // 1000: (1000-1000) % 5 = 0
-            activation_height + 5,  // 1005: (1005-1000) % 5 = 0
-            activation_height + 10, // 1010: (1010-1000) % 5 = 0
+            activation_height,      // 1000: (1000-1000) % 5 = 0 ✅
+            activation_height + 5,  // 1005: (1005-1000) % 5 = 0 ✅
+            activation_height + 10, // 1010: (1010-1000) % 5 = 0 ✅
+            activation_height + 15, // 1015: (1015-1000) % 5 = 0 ✅
         ];
 
         for valid_height in valid_heights {
@@ -532,22 +499,24 @@ pub(crate) mod tests {
                 &get_random_fp_pk_hex(),
                 None,
                 None,
-                valid_height, // Valid interval should pass rate limiting
+                valid_height,
                 &random_pub_rand,
                 &proof,
                 &random_block_hash,
                 &random_signature,
             );
 
-            // Should fail at a later stage (FP not found), not at rate limiting
+            // Should pass rate limiting but fail at later validation stage (FP not found)
             let error = result.unwrap_err();
             assert_ne!(
                 error,
-                ContractError::BeforeSystemActivation(valid_height, activation_height)
+                ContractError::BeforeSystemActivation(valid_height, activation_height),
+                "Height {} should pass system activation check", valid_height
             );
             assert_ne!(
                 error,
-                ContractError::FinalitySignatureRateLimitExceeded(valid_height, interval)
+                ContractError::FinalitySignatureRateLimitExceeded(valid_height, interval),
+                "Height {} should pass interval check", valid_height
             );
         }
     }
