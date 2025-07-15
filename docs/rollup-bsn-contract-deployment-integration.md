@@ -47,15 +47,14 @@ Babylon Genesis mainnet is permissioned. Two governance steps are
 required:
 
 - **Contract deployment**:  Submit one of the following:
-   - `MsgStoreCode`: Upload your contract code via proposal. Preferred for one-time deployments.
-  - `MsgUpdateParams`: Whitelist your Babylon address under ` code_upload_access`. Useful for frequent deployers.
+   - `MsgStoreCode`: Upload your contract code via proposal. Preferred for one-time deployments
+  - `MsgUpdateParams`: Whitelist your Babylon address under ` code_upload_access`. Useful for frequent deployers
 
-  To learn more, see the [deployment guide](https://docs.babylonlabs.io/guides/governance/submit_proposals/smart_contract_deployment/)  
+  To learn more, see the [deployment guide](https://docs.babylonlabs.io/guides/governance/submit_proposals/smart_contract_deployment/) 
   and review past proposals in the [governance forum](https://forum.babylon.foundation/c/gov-proposals/smart-contract-proposals/15)
 
 - **BSN registration**:  Submit a `MsgRegisterConsumer` proposal 
-using the metadata defined in the [Rollup BSN Registration]
-(#rollup-bsn-registration) section.
+using the metadata defined in the [Rollup BSN Registration](#rollup-bsn-registration) section
  
  > Note: A unified governance flow combining either `MsgStoreCode`
 or `MsgUpdateParams` with `MsgRegisterConsumer` is under 
