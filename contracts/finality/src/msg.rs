@@ -358,7 +358,7 @@ mod tests {
             };
 
             let result = msg.validate();
-            assert!(result.is_ok(), "Expected success for bsn_id = {bsn_id}");
+            assert!(result.is_ok(), "Expected success for bsn_id = {}", bsn_id);
         }
     }
 
