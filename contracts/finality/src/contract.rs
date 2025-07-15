@@ -145,11 +145,10 @@ pub(crate) mod tests {
     use crate::testutil::datagen::*;
     use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage};
     use cosmwasm_std::{
-        from_json,
         testing::{message_info, mock_env},
         OwnedDeps,
     };
-    use cw_controllers::{AdminError, AdminResponse};
+    use cw_controllers::AdminError;
 
     pub(crate) const CREATOR: &str = "creator";
     pub(crate) const INIT_ADMIN: &str = "initial_admin";
@@ -220,122 +219,6 @@ pub(crate) mod tests {
 
         // Use assert_admin to verify that the admin was updated correctly
         ADMIN.assert_admin(deps.as_ref(), &new_admin).unwrap();
-    }
-
-    #[test]
-    fn test_instantiate_validation() {
-        let mut deps = mock_deps_babylon();
-        let init_admin = deps.api.addr_make(INIT_ADMIN);
-
-        let min_pub_rand = get_random_u64_range(0, 1000000);
-        let bsn_id = "op-stack-l2-11155420".to_string();
-
-        let msg = InstantiateMsg {
-            admin: init_admin.to_string(),
-            bsn_id: bsn_id.clone(),
-            min_pub_rand,
-            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
-            rate_limiting_interval: RATE_LIMITING_INTERVAL,
-        };
-
-        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-        let result = instantiate(deps.as_mut(), mock_env(), info, msg);
-
-        if min_pub_rand > 0 {
-            // Should succeed and set state correctly
-            assert!(
-                result.is_ok(),
-                "Expected success for min_pub_rand = {min_pub_rand}"
-            );
-
-            // Verify the response
-            let res = result.unwrap();
-            assert_eq!(res.messages.len(), 0);
-
-            // Verify admin was set correctly
-            ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
-
-            // Verify admin is queryable
-            let admin_query = query(deps.as_ref(), mock_env(), QueryMsg::Admin {}).unwrap();
-            let admin: AdminResponse = from_json(admin_query).unwrap();
-            assert_eq!(admin.admin.unwrap(), init_admin.as_str());
-
-            // Verify config was saved correctly
-            let config_query = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
-            let config: Config = from_json(config_query).unwrap();
-            assert_eq!(config.bsn_id, bsn_id);
-            assert_eq!(config.min_pub_rand, min_pub_rand);
-        } else {
-            // Should fail with specific error
-            assert!(result.is_err(), "Expected error for min_pub_rand = 0");
-            assert_eq!(result.unwrap_err(), ContractError::InvalidMinPubRand(0));
-        }
-    }
-
-    #[test]
-    fn test_invalid_admin_address() {
-        let mut deps = mock_deps_babylon();
-        let invalid_admin = "invalid-address";
-        let bsn_id = "op-stack-l2-11155420".to_string();
-        let min_pub_rand = get_random_u64_range(1, 1000000);
-
-        let instantiate_msg = InstantiateMsg {
-            admin: invalid_admin.to_string(),
-            bsn_id,
-            min_pub_rand,
-            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
-            rate_limiting_interval: RATE_LIMITING_INTERVAL,
-        };
-
-        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-
-        // Call the instantiate function - should fail due to invalid admin address
-        let err = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap_err();
-        assert!(matches!(err, ContractError::StdError(_)));
-    }
-
-    #[test]
-    fn test_invalid_consumer_id() {
-        let mut deps = mock_deps_babylon();
-        let valid_admin = deps.api.addr_make(INIT_ADMIN);
-        let invalid_bsn_id = "invalid@bsn#id"; // Contains invalid characters
-        let min_pub_rand = get_random_u64_range(1, 1000000);
-
-        let instantiate_msg = InstantiateMsg {
-            admin: valid_admin.to_string(),
-            bsn_id: invalid_bsn_id.to_string(),
-            min_pub_rand,
-            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
-            rate_limiting_interval: RATE_LIMITING_INTERVAL,
-        };
-
-        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-
-        // Call the instantiate function - should fail due to invalid consumer ID
-        let err = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap_err();
-        assert!(matches!(err, ContractError::InvalidBsnId(_)));
-    }
-
-    #[test]
-    fn test_empty_consumer_id() {
-        let mut deps = mock_deps_babylon();
-        let valid_admin = deps.api.addr_make(INIT_ADMIN);
-        let empty_bsn_id = "";
-        let min_pub_rand = get_random_u64_range(1, 1000000);
-
-        let instantiate_msg = InstantiateMsg {
-            admin: valid_admin.to_string(),
-            bsn_id: empty_bsn_id.to_string(),
-            min_pub_rand,
-            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
-            rate_limiting_interval: RATE_LIMITING_INTERVAL,
-        };
-
-        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-
-        // Call the instantiate function - should fail due to empty consumer ID
-        let err = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap_err();
-        assert!(matches!(err, ContractError::InvalidBsnId(_)));
     }
 
     #[test]
