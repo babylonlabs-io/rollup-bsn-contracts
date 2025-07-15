@@ -4,6 +4,8 @@ use cosmwasm_std::{Deps, StdResult, Storage};
 use cw_controllers::{Admin, AdminResponse};
 use cw_storage_plus::{Item, Map};
 
+use crate::error::ContractError;
+
 pub(crate) const ADMIN: Admin = Admin::new("admin");
 pub(crate) const CONFIG: Item<Config> = Item::new("config");
 
@@ -31,8 +33,16 @@ pub fn get_admin(deps: Deps<BabylonQuery>) -> StdResult<AdminResponse> {
 }
 
 /// Check if a finality provider is in the allowlist
-pub fn is_finality_provider_allowed(storage: &dyn Storage, fp_btc_pk_hex: &str) -> bool {
-    ALLOWED_FINALITY_PROVIDERS.has(storage, fp_btc_pk_hex.to_string())
+pub fn ensure_fp_in_allowlist(
+    storage: &dyn Storage,
+    fp_btc_pk_hex: &str,
+) -> Result<(), ContractError> {
+    ALLOWED_FINALITY_PROVIDERS
+        .has(storage, fp_btc_pk_hex.to_string())
+        .then_some(())
+        .ok_or(ContractError::FinalityProviderNotAllowed(
+            fp_btc_pk_hex.to_string(),
+        ))
 }
 
 /// Add a finality provider to the allowlist

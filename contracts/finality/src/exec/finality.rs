@@ -1,6 +1,6 @@
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
-use crate::state::config::{get_config, is_finality_provider_allowed};
+use crate::state::config::{ensure_fp_in_allowlist, get_config};
 use crate::state::finality::{
     insert_finality_sig_and_signatory, list_finality_signatures, FinalitySigInfo,
 };
@@ -30,11 +30,7 @@ pub fn handle_finality_signature(
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
 
     // Check if the finality provider is in the allowlist
-    if !is_finality_provider_allowed(deps.storage, fp_btc_pk_hex) {
-        return Err(ContractError::FinalityProviderNotAllowed(
-            fp_btc_pk_hex.to_string(),
-        ));
-    }
+    ensure_fp_in_allowlist(deps.storage, fp_btc_pk_hex)?;
 
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
 
