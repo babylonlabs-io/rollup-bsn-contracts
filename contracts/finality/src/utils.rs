@@ -3,6 +3,8 @@ use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{Binary, Deps, Env, StdResult};
 use k256::sha2::{Digest, Sha256};
 
+use crate::error::ContractError;
+
 /// FinalityProviderResponse defines a finality provider with voting power information.
 /// NOTE: this is a subset of the response from Babylon
 pub struct FinalityProviderResponse {
@@ -90,4 +92,15 @@ pub fn get_fp_fin_vote_context_v0(env: &Env) -> StdResult<String> {
     let chain_id = &env.block.chain_id;
     let address = env.contract.address.to_string();
     Ok(fp_fin_vote_context_v0(chain_id, &address))
+}
+
+/// Ensures the system is activated by checking if the current height is at or above the activation height
+pub fn ensure_system_activated(height: u64, activation_height: u64) -> Result<(), ContractError> {
+    if height < activation_height {
+        return Err(ContractError::BeforeSystemActivation(
+            height,
+            activation_height,
+        ));
+    }
+    Ok(())
 }

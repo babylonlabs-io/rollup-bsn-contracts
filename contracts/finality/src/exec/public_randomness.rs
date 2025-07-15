@@ -4,8 +4,9 @@ use crate::msg::BabylonMsg;
 use crate::state::config::get_config;
 use crate::state::public_randomness::{insert_pub_rand_commit, PubRandCommit};
 use crate::state::rate_limiting::check_rate_limit_and_accumulate;
-use crate::utils::get_fp_rand_commit_context_v0;
-use crate::utils::query_finality_provider;
+use crate::utils::{
+    ensure_system_activated, get_fp_rand_commit_context_v0, query_finality_provider,
+};
 use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{DepsMut, Env, Event, Response};
 use k256::ecdsa::signature::Verifier;
@@ -27,12 +28,7 @@ pub fn handle_public_randomness_commit(
     let config = get_config(deps.storage)?;
 
     // Public randomness commits are not allowed before system activation
-    if start_height < config.bsn_activation_height {
-        return Err(ContractError::BeforeSystemActivation(
-            start_height,
-            config.bsn_activation_height,
-        ));
-    }
+    ensure_system_activated(start_height, config.bsn_activation_height)?;
 
     // Check if FP BTC PubKey is empty
     if fp_btc_pk_hex.is_empty() {

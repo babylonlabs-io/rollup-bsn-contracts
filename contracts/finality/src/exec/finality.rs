@@ -8,7 +8,7 @@ use crate::state::public_randomness::{
     get_timestamped_pub_rand_commit_for_height, insert_pub_rand_value, PubRandCommit,
 };
 use crate::state::rate_limiting::check_rate_limit_and_accumulate;
-use crate::utils::{get_fp_fin_vote_context_v0, query_finality_provider};
+use crate::utils::{ensure_system_activated, get_fp_fin_vote_context_v0, query_finality_provider};
 use babylon_bindings::BabylonQuery;
 use babylon_merkle::Proof;
 use cosmwasm_std::{Deps, DepsMut, Env, Event, Response};
@@ -30,13 +30,8 @@ pub fn handle_finality_signature(
     // Load config first
     let config = get_config(deps.storage)?;
 
-    // Ensure system is activated
-    if height < config.bsn_activation_height {
-        return Err(ContractError::BeforeSystemActivation(
-            height,
-            config.bsn_activation_height,
-        ));
-    }
+    // Finality signatures are not allowed before system activation
+    ensure_system_activated(height, config.bsn_activation_height)?;
 
     // Ensure finality signature interval is respected
     if (height - config.bsn_activation_height) % config.finality_signature_interval != 0 {
