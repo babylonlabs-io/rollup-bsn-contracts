@@ -28,7 +28,7 @@ pub fn handle_finality_signature(
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
     // Load config first
-    let config = get_config(deps.as_ref())?;
+    let config = get_config(deps.storage)?;
 
     // Ensure system is activated
     if height < config.bsn_activation_height {
@@ -379,6 +379,10 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: 1,
+            rate_limiting: crate::state::config::RateLimitingConfig {
+                max_msgs_per_interval: 100,
+                block_interval: 10,
+            },
             bsn_activation_height: activation_height,
             finality_signature_interval: 5,
         };
@@ -444,6 +448,10 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: 1,
+            rate_limiting: crate::state::config::RateLimitingConfig {
+                max_msgs_per_interval: 100,
+                block_interval: 10,
+            },
             bsn_activation_height: activation_height,
             finality_signature_interval: interval,
         };

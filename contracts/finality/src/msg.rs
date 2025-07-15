@@ -286,6 +286,8 @@ mod tests {
             min_pub_rand: 1,
             rate_limiting_interval: 0,
             max_msgs_per_interval: 10,
+            bsn_activation_height: 1,
+            finality_signature_interval: 1,
         };
 
         let err = msg.validate().unwrap_err();
@@ -300,6 +302,8 @@ mod tests {
             min_pub_rand: 1,
             rate_limiting_interval: 1000,
             max_msgs_per_interval: 0,
+            bsn_activation_height: 1,
+            finality_signature_interval: 1,
         };
 
         let err = msg.validate().unwrap_err();

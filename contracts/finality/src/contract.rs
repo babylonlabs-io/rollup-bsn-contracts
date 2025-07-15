@@ -460,8 +460,10 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
             bsn_id,
             min_pub_rand,
-            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            bsn_activation_height: 1,
+            finality_signature_interval: 1,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
@@ -520,8 +522,10 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
             bsn_id,
             min_pub_rand,
-            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            bsn_activation_height: 1,
+            finality_signature_interval: 1,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
@@ -578,8 +582,10 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
             bsn_id,
             min_pub_rand,
-            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            bsn_activation_height: 1,
+            finality_signature_interval: 1,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
@@ -645,8 +651,10 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
             bsn_id,
             min_pub_rand,
-            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            bsn_activation_height: 1,
+            finality_signature_interval: 1,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
