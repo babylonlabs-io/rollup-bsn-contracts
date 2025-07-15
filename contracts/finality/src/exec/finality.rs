@@ -7,6 +7,7 @@ use crate::state::finality::{
 use crate::state::public_randomness::{
     get_timestamped_pub_rand_commit_for_height, insert_pub_rand_value, PubRandCommit,
 };
+use crate::state::rate_limiting::check_rate_limit_and_accumulate;
 use crate::utils::{get_fp_fin_vote_context_v0, query_finality_provider};
 use babylon_bindings::BabylonQuery;
 use babylon_merkle::Proof;
@@ -30,6 +31,9 @@ pub fn handle_finality_signature(
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
 
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
+
+    // Ensure rate limiting and accumulate; this step will fail if the rate limit is exceeded
+    check_rate_limit_and_accumulate(deps.storage, env, &fp_btc_pk)?;
 
     // Load any existing finality signature by the finality provider at the same height
     let existing_finality_sigs = list_finality_signatures(deps.storage, height, &fp_btc_pk)?;
@@ -165,7 +169,7 @@ fn ensure_fp_exists_and_not_slashed(
     deps: Deps<BabylonQuery>,
     fp_pubkey_hex: &str,
 ) -> Result<(), ContractError> {
-    let config = get_config(deps)?;
+    let config = get_config(deps.storage)?;
     let fp = query_finality_provider(deps, fp_pubkey_hex.to_string());
     match fp {
         // the finality provider is found but is associated with other BSNs

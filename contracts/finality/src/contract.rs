@@ -8,12 +8,11 @@ use crate::exec::public_randomness::handle_public_randomness_commit;
 use crate::msg::BabylonMsg;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::queries::query_block_voters;
-use crate::state::config::{get_config, set_config, Config, ADMIN};
+use crate::state::config::{get_config, set_config, Config, RateLimitingConfig, ADMIN};
 use crate::state::pruning::handle_prune_data;
 use crate::state::public_randomness::{
     get_first_pub_rand_commit, get_last_pub_rand_commit, list_pub_rand_commit,
 };
-use crate::utils::validate_bsn_id_format;
 
 pub fn instantiate(
     mut deps: DepsMut<BabylonQuery>,
@@ -21,22 +20,20 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response<BabylonMsg>, ContractError> {
-    // Validate min_pub_rand to be at least 1
-    if msg.min_pub_rand == 0 {
-        return Err(ContractError::InvalidMinPubRand(msg.min_pub_rand));
-    }
-
-    let api = deps.api;
+    // validate the instantiation message
+    msg.validate()?;
 
     // Validate and set admin address
+    let api = deps.api;
     ADMIN.set(deps.branch(), Some(api.addr_validate(&msg.admin)?))?;
-
-    // Validate consumer ID format
-    validate_bsn_id_format(&msg.bsn_id)?;
 
     let config = Config {
         bsn_id: msg.bsn_id,
         min_pub_rand: msg.min_pub_rand,
+        rate_limiting: RateLimitingConfig {
+            max_msgs_per_interval: msg.max_msgs_per_interval,
+            block_interval: msg.rate_limiting_interval,
+        },
     };
     set_config(deps.storage, &config)?;
 
@@ -49,7 +46,7 @@ pub fn query(
     msg: QueryMsg,
 ) -> Result<QueryResponse, ContractError> {
     match msg {
-        QueryMsg::Config {} => Ok(to_json_binary(&get_config(deps)?)?),
+        QueryMsg::Config {} => Ok(to_json_binary(&get_config(deps.storage)?)?),
         QueryMsg::Admin {} => Ok(to_json_binary(&ADMIN.query_admin(deps)?)?),
         QueryMsg::BlockVoters { height, hash_hex } => Ok(to_json_binary(&query_block_voters(
             deps, height, hash_hex,
@@ -158,6 +155,9 @@ pub(crate) mod tests {
     pub(crate) const INIT_ADMIN: &str = "initial_admin";
     const NEW_ADMIN: &str = "new_admin";
 
+    const MAX_MSGS_PER_INTERVAL: u32 = 100;
+    const RATE_LIMITING_INTERVAL: u64 = 10000;
+
     // Define a type alias for OwnedDeps with BabylonQuery
     pub type BabylonDeps = OwnedDeps<MockStorage, MockApi, MockQuerier, BabylonQuery>;
 
@@ -184,6 +184,8 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
             bsn_id,
             min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
@@ -240,6 +242,8 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
             bsn_id: bsn_id.clone(),
             min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -287,6 +291,8 @@ pub(crate) mod tests {
             admin: invalid_admin.to_string(),
             bsn_id,
             min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -307,6 +313,8 @@ pub(crate) mod tests {
             admin: valid_admin.to_string(),
             bsn_id: invalid_bsn_id.to_string(),
             min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -327,6 +335,8 @@ pub(crate) mod tests {
             admin: valid_admin.to_string(),
             bsn_id: empty_bsn_id.to_string(),
             min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -348,6 +358,8 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
             bsn_id,
             min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
