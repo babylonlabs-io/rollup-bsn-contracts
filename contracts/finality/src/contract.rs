@@ -42,6 +42,16 @@ pub fn instantiate(
     };
     set_config(deps.storage, &config)?;
 
+    // Add initial allowed finality providers if provided
+    if let Some(fp_list) = msg.allowed_finality_providers {
+        for fp_pubkey in &fp_list {
+            if fp_pubkey.is_empty() {
+                return Err(ContractError::EmptyFpBtcPubKey);
+            }
+            crate::state::allowlist::add_finality_provider_to_allowlist(deps.storage, fp_pubkey)?;
+        }
+    }
+
     Ok(Response::new().add_attribute("action", "instantiate"))
 }
 
@@ -191,6 +201,7 @@ pub(crate) mod tests {
             admin: init_admin.to_string(), // Admin provided
             bsn_id: "op-stack-l2-11155420".to_string(),
             min_pub_rand: 100,
+            allowed_finality_providers: None,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -243,6 +254,7 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
             bsn_id: bsn_id.clone(),
             min_pub_rand,
+            allowed_finality_providers: None,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -290,6 +302,7 @@ pub(crate) mod tests {
             admin: invalid_admin.to_string(),
             bsn_id,
             min_pub_rand,
+            allowed_finality_providers: None,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -310,6 +323,7 @@ pub(crate) mod tests {
             admin: valid_admin.to_string(),
             bsn_id: invalid_bsn_id.to_string(),
             min_pub_rand,
+            allowed_finality_providers: None,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -330,6 +344,7 @@ pub(crate) mod tests {
             admin: valid_admin.to_string(),
             bsn_id: empty_bsn_id.to_string(),
             min_pub_rand,
+            allowed_finality_providers: None,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -351,6 +366,7 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
             bsn_id,
             min_pub_rand,
+            allowed_finality_providers: None,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -716,6 +732,7 @@ pub(crate) mod tests {
             admin: admin.to_string(),
             bsn_id: "op-stack-l2-11155420".to_string(),
             min_pub_rand: 100,
+            allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
@@ -848,5 +865,32 @@ pub(crate) mod tests {
         assert!(!allowed_fps.contains(
             &"03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7".to_string()
         ));
+    }
+
+    #[test]
+    fn test_instantiate_with_allowed_finality_providers() {
+        let mut deps = mock_deps_babylon();
+        let admin = deps.api.addr_make(INIT_ADMIN);
+
+        // Test instantiating with initial allowlist
+        let initial_fp =
+            "02a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7".to_string();
+        let instantiate_msg = InstantiateMsg {
+            admin: admin.to_string(),
+            bsn_id: "op-stack-l2-11155420".to_string(),
+            min_pub_rand: 100,
+            allowed_finality_providers: Some(vec![initial_fp.clone()]),
+        };
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        // Query and check
+        let query_res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::AllowedFinalityProviders {},
+        )
+        .unwrap();
+        let allowed_fps: Vec<String> = from_json(query_res).unwrap();
+        assert!(allowed_fps.contains(&initial_fp));
     }
 }

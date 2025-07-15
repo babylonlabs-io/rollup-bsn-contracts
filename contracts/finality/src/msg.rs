@@ -13,6 +13,8 @@ pub struct InstantiateMsg {
     pub admin: String,
     pub bsn_id: String,
     pub min_pub_rand: u64,
+    /// Optional list of BTC public keys (hex) to pre-populate the allowlist at instantiation
+    pub allowed_finality_providers: Option<Vec<String>>,
 }
 
 #[cw_serde]
