@@ -38,6 +38,8 @@ fn instantiate_works() {
         admin: mock_api.addr_make(CREATOR),
         bsn_id: "op-stack-l2-11155420".to_string(),
         min_pub_rand: 100,
+        bsn_activation_height: 1,
+        finality_signature_interval: 1,
     };
     let info = mock_info(CREATOR, &[]);
     let res: ContractResult<Response> = instantiate(&mut deps, mock_env(), info, msg.clone());
@@ -49,6 +51,8 @@ fn instantiate_works() {
         from_json(query(&mut deps, mock_env(), QueryMsg::Config {}).unwrap()).unwrap();
     assert_eq!(msg.bsn_id, res.bsn_id);
     assert_eq!(msg.min_pub_rand, res.min_pub_rand);
+    assert_eq!(msg.bsn_activation_height, res.bsn_activation_height);
+    assert_eq!(msg.finality_signature_interval, res.finality_signature_interval);
 
     // Check the admin is properly stored in the state and returned
     let res: AdminResponse =
