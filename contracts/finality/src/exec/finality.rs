@@ -41,7 +41,6 @@ pub fn handle_finality_signature(
         ));
     }
 
-    // Now proceed with other validations only if rate limiting passes
     // Ensure the finality provider exists and is not slashed
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
 
