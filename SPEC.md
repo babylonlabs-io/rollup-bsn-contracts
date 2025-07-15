@@ -15,21 +15,24 @@
     - [4.3.2. LastFinalizedEpoch (MUST)](#432-lastfinalizedepoch-must)
   - [4.4. Contract Instantiation](#44-contract-instantiation)
   - [4.5. Signing Context](#45-signing-context)
-  - [4.6. Finality Contract message handlers](#46-finality-contract-message-handlers)
-    - [4.6.1. CommitPublicRandomness (MUST)](#461-commitpublicrandomness-must)
-    - [4.6.2. SubmitFinalitySignature (MUST)](#462-submitfinalitysignature-must)
-    - [4.5.3. UpdateAdmin (SHOULD)](#453-updateadmin-should)
-  - [4.7. Contract State Storage](#47-contract-state-storage)
-    - [4.7.1. Core Configuration](#471-core-configuration)
-    - [4.7.2. Finality State Storage](#472-finality-state-storage)
-    - [4.7.3. Public Randomness Storage](#473-public-randomness-storage)
-  - [4.8. Finality contract queries](#48-finality-contract-queries)
-    - [4.8.1. BlockVoters (MUST)](#481-blockvoters-must)
-    - [4.8.2. FirstPubRandCommit (MUST)](#482-firstpubrandcommit-must)
-    - [4.8.3. LastPubRandCommit (MUST)](#483-lastpubrandcommit-must)
-    - [4.8.4. ListPubRandCommit (MUST)](#484-listpubrandcommit-must)
-    - [4.8.5. Admin (SHOULD)](#485-admin-should)
-    - [4.8.6. Config (SHOULD)](#486-config-should)
+  - [4.6. Rate Limiting (MUST)](#46-rate-limiting-must)
+  - [4.7. Finality Contract message handlers](#47-finality-contract-message-handlers)
+    - [4.7.1. CommitPublicRandomness (MUST)](#471-commitpublicrandomness-must)
+    - [4.7.2. SubmitFinalitySignature (MUST)](#472-submitfinalitysignature-must)
+    - [4.7.3. UpdateAdmin (SHOULD)](#473-updateadmin-should)
+    - [4.7.4. PruneData (SHOULD)](#474-prunedata-should)
+  - [4.8. Contract State Storage](#48-contract-state-storage)
+    - [4.8.1. Core Configuration](#481-core-configuration)
+    - [4.8.2. Rate Limiting Storage](#482-rate-limiting-storage)
+    - [4.8.3. Finality State Storage](#483-finality-state-storage)
+    - [4.8.4. Public Randomness Storage](#484-public-randomness-storage)
+  - [4.9. Finality contract queries](#49-finality-contract-queries)
+    - [4.9.1. BlockVoters (MUST)](#491-blockvoters-must)
+    - [4.9.2. FirstPubRandCommit (MUST)](#492-firstpubrandcommit-must)
+    - [4.9.3. LastPubRandCommit (MUST)](#493-lastpubrandcommit-must)
+    - [4.9.4. ListPubRandCommit (MUST)](#494-listpubrandcommit-must)
+    - [4.9.5. Admin (SHOULD)](#495-admin-should)
+    - [4.9.6. Config (SHOULD)](#496-config-should)
 - [5. Implementation status](#5-implementation-status)
   - [5.1. Babylon implementation status](#51-babylon-implementation-status)
   - [5.2. Finality contract implementation status](#52-finality-contract-implementation-status)
@@ -333,15 +336,18 @@ Bitcoin blockchain before being used for finality signatures.
 
 ### 4.4. Contract Instantiation
 
-Finality contracts MUST utilize custom queries provided by the
+Finality contracts MUST support instantiation with configuration parameters for
+operational settings. The contract MUST utilize custom queries provided by the
 [babylon-bindings](https://github.com/babylonlabs-io/bindings/) crate to
-interact with Babylon-specific functionality. These custom queries provide
-access to Babylon chain state that is not available through standard CosmWasm
-queries.
+interact with Babylon-specific functionality.
+
 ```rust
 pub struct InstantiateMsg {
     pub admin: String,
     pub bsn_id: String,
+    pub min_pub_rand: u64,
+    pub rate_limiting_interval: u64,
+    pub max_msgs_per_interval: u32,
 }
 ```
 
@@ -353,18 +359,29 @@ parameters must be provided:
   settings
 - `bsn_id`: String - The unique identifier for this BSN (e.g.,
   `op-stack-l2-11155420`)
+- `min_pub_rand`: u64 - Minimum number of public randomness values required in
+  commitments (must be ≥ 1)
+- `rate_limiting_interval`: u64 - Number of blocks in each rate limiting
+  interval (must be ≥ 1)
+- `max_msgs_per_interval`: u32 - Maximum messages allowed per finality provider
+  per interval (must be ≥ 1)
 
 **Validation Requirements:**
 1. **Admin Address Validation**: The `admin` parameter MUST be a valid Babylon address
-2. **Consumer ID Validation**: The `bsn_id` parameter MUST:
+2. **BSN ID Validation**: The `bsn_id` parameter MUST:
    - Not be empty
    - Contain only alphanumeric characters, hyphens, and underscores
    - Not exceed 100 characters in length
+3. **Min Pub Rand Validation**: The `min_pub_rand` parameter MUST be ≥ 1
+4. **Rate Limiting Validation**: Both `rate_limiting_interval` and
+   `max_msgs_per_interval` MUST be ≥ 1
 
 **Instantiation Process:**
-1. **Parameter Validation**: Validate the admin address and consumer ID format
+1. **Parameter Validation**: Validate all input parameters according to the
+   requirements above
 2. **Admin Setup**: Set the provided admin address as the contract administrator
-3. **Configuration Storage**: Save the bsn_id in the contract configuration
+3. **Configuration Storage**: Save the bsn_id, min_pub_rand, and rate limiting
+   configuration in the contract configuration
 4. **Response**: Return a success response with instantiation attributes
 
 ### 4.5. Signing Context
@@ -401,7 +418,66 @@ message being signed as raw bytes from the hex string. This ensures that
 signatures are cryptographically bound to the specific contract instance and
 cannot be replayed across different contracts or chains.
 
-### 4.6. Finality Contract message handlers
+### 4.6. Rate Limiting (MUST)
+
+Finality contracts MUST implement rate limiting to prevent spam and ensure fair
+usage of the contract by finality providers. The rate limiting system operates
+on a per-finality provider basis using block intervals.
+
+**Rate Limiting Design:**
+- **Interval-Based**: Rate limits are calculated based on block intervals, where
+  each interval consists of a configurable number of Babylon blocks
+- **Per-Finality Provider**: Each finality provider has an independent rate
+  limit counter
+- **Automatic Reset**: Counters automatically reset when a new interval begins
+- **Configurable Limits**: Both the interval duration and maximum messages per
+  interval are configurable at contract instantiation
+
+**Rate Limiting Configuration:**
+```rust
+pub struct RateLimitingConfig {
+    pub max_msgs_per_interval: u32,  // Maximum messages per FP per interval
+    pub block_interval: u64,         // Number of Babylon blocks per interval
+}
+```
+
+**Rate Limiting Storage:**
+- **Storage Key**: `Map<&[u8], (u64, u32)>` where the key is the finality
+  provider's BTC public key
+- **Storage Value**: Tuple of `(interval_number, message_count)` where:
+  - `interval_number`: The current interval number (calculated as `block_height
+    / block_interval`)
+  - `message_count`: Number of messages processed in the current interval
+
+**Rate Limiting Logic:**
+1. **Interval Calculation**: `current_interval = block_height / block_interval`
+2. **Counter Retrieval**: Load existing counter for the finality provider or
+   initialize with `(current_interval, 0)`
+3. **Interval Reset Check**: If stored interval differs from current interval,
+   reset count to 0 and update interval
+4. **Rate Limit Check**: Verify that `message_count + 1 ≤
+   max_msgs_per_interval`
+5. **Counter Update**: Increment the message count and save to storage
+6. **Error Handling**: Return `ContractError::RateLimitExceeded` if the limit
+   would be exceeded
+
+**Integration Points:**
+- MUST be enforced in `CommitPublicRandomness` handler before signature
+  verification
+- MUST be enforced in `SubmitFinalitySignature` handler before finality
+  signature processing
+- Rate limiting checks MUST occur early in message processing to prevent
+  resource consumption
+
+**Rate Limiting Errors:**
+```rust
+ContractError::RateLimitExceeded {
+    fp_btc_pk: String,     // Hex-encoded finality provider BTC public key
+    limit: u32,            // The rate limit that was exceeded
+}
+```
+
+### 4.7. Finality Contract message handlers
 
 The finality contract message requirements are divided into core finality
 functionality (MUST) and administrative functionality (SHOULD):
@@ -481,7 +557,7 @@ pub enum ExecuteMsg {
 }
 ```
 
-#### 4.6.1. CommitPublicRandomness (MUST)
+#### 4.7.1. CommitPublicRandomness (MUST)
 
 **Message Structure:**
 ```rust
@@ -497,7 +573,14 @@ CommitPublicRandomness {
 **Expected Behaviour:** Finality contracts MUST implement this handler with the
 following verification logic:
 
-1. **Finality Provider Existence Check**: Verify that the finality provider
+1. **Rate Limiting Check**: Enforce rate limiting for the finality provider:
+   - Call the rate limiting function with the finality provider's BTC public
+     key and current block environment
+   - Return `ContractError::RateLimitExceeded` if the rate limit is exceeded
+   - This check MUST occur before any other validation to prevent resource
+     consumption
+
+2. **Finality Provider Existence Check**: Verify that the finality provider
    exists and is not slashed by querying the Babylon Genesis chain through gRPC:
    - Use `query_grpc` to call `/babylon.btcstaking.v1.Query/FinalityProvider`
      with the `fp_pubkey_hex` parameters
@@ -506,7 +589,7 @@ following verification logic:
    - Ensure the finality provider has not been slashed (`slashed_babylon_height`
      and `slashed_btc_height` are both 0)
 
-2. **Signature Verification**: Verify the commitment signature using Schnorr
+3. **Signature Verification**: Verify the commitment signature using Schnorr
    signature verification:
    - Decode the finality provider's BTC public key from `fp_pubkey_hex`
      parameter
@@ -518,7 +601,7 @@ following verification logic:
      are in big-endian bytes)
    - Verify signature against the constructed message using the BTC public key
 
-3. **Height Overlap Check**: Ensure no overlap with existing public randomness
+4. **Height Overlap Check**: Ensure no overlap with existing public randomness
    commitments:
    - Query the last public randomness commitment for this finality provider from
      public randomness commitment state
@@ -526,7 +609,7 @@ following verification logic:
    - Ensure `start_height > last_commit.start_height + last_commit.num_pub_rand
      - 1` to prevent overlapping ranges
 
-4. **Storage Operations**: Save the public randomness commitment data:
+5. **Storage Operations**: Save the public randomness commitment data:
    - Create a new `PubRandCommit` struct with provided parameters and current
      Babylon epoch
    - Save to the public randomness commitment state using key `(fp_pubkey_hex,
@@ -534,7 +617,7 @@ following verification logic:
    - Record the current Babylon epoch as the commitment epoch for BTC
      timestamping validation
 
-#### 4.6.2. SubmitFinalitySignature (MUST)
+#### 4.7.2. SubmitFinalitySignature (MUST)
 
 **Message Structure:**
 ```rust
@@ -563,7 +646,14 @@ SHA256(signing_context || height || block_hash)`
 **Expected Behaviour:** Finality contracts MUST implement this handler with the
 following verification logic:
 
-1. **Finality Provider Existence Check**: Verify that the finality provider
+1. **Rate Limiting Check**: Enforce rate limiting for the finality provider:
+   - Call the rate limiting function with the finality provider's BTC public
+     key and current block environment
+   - Return `ContractError::RateLimitExceeded` if the rate limit is exceeded
+   - This check MUST occur before any other validation to prevent resource
+     consumption
+
+2. **Finality Provider Existence Check**: Verify that the finality provider
    exists and is not slashed by querying the Babylon Genesis chain through gRPC:
    - Use `query_grpc` to call `/babylon.btcstaking.v1.Query/FinalityProvider`
      with the `bsn_id` parameters
@@ -572,14 +662,14 @@ following verification logic:
    - Ensure the finality provider has not been slashed (`slashed_babylon_height`
      and `slashed_btc_height` are both 0)
 
-2. **Duplicate Vote Check**: Check if an identical vote already exists:
+3. **Duplicate Vote Check**: Check if an identical vote already exists:
    - Query finality signature state using key `(height, fp_pubkey_hex)`
    - If the same signature exists for the same block hash, return success
      (duplicate vote)
    - If a different signature exists for the same height, proceed to
      equivocation handling
 
-3. **Public Randomness Commitment Retrieval**: Find the public randomness
+4. **Public Randomness Commitment Retrieval**: Find the public randomness
    commitment that covers the target height:
    - Query public randomness commitment state to find commitment where
      `start_height <= height <= start_height + num_pub_rand - 1`
@@ -588,7 +678,7 @@ following verification logic:
      last finalized epoch
    - Use the commitment for subsequent verification steps
 
-4. **Finality Signature Verification**:
+5. **Finality Signature Verification**:
    - Verify `height == pr_commit.start_height + proof.index`
    - Verify `proof.total == pr_commit.num_pub_rand`
    - Verify the inclusion proof for the public randomness value against
@@ -601,7 +691,7 @@ following verification logic:
        format)
      - Public randomness value and EOTS signature
 
-5. **Equivocation Detection and Handling**: Check if the finality provider has
+6. **Equivocation Detection and Handling**: Check if the finality provider has
    already voted for a different block at this height:
    - If existing signature differs from current block hash:
      - Extract the secret key using EOTS from the two different signatures
@@ -609,7 +699,7 @@ following verification logic:
        Genesis
      - Emit `slashed_finality_provider` event with extracted secret key
 
-6. **Storage Operations**: Store the finality signature and related data
+7. **Storage Operations**: Store the finality signature and related data
    atomically:
    - Use the `insert_finality_sig_and_signatory` helper function to perform all
      storage operations atomically
@@ -618,11 +708,11 @@ following verification logic:
        override existing signature)
      - Add signatory to the set of signatories for the block using key `(height,
        block_hash)`
-     - Save public randomness value using key `(fp_pubkey_hex, height)` if this
+     - Save public randomness value using key `(height, fp_pubkey_hex)` if this
        is the first vote for this height
 
 
-#### 4.5.3. UpdateAdmin (SHOULD)
+#### 4.7.3. UpdateAdmin (SHOULD)
 
 **Message Structure:**
 ```rust
@@ -648,12 +738,75 @@ handler with the following verification logic:
    - The new admin address from `admin` parameter replaces the current admin
    - Return success response
 
-### 4.7. Contract State Storage
+#### 4.7.4. PruneData (SHOULD)
+
+**Message Structure:**
+```rust
+PruneData {
+    rollup_height: u64,
+    max_signatures_to_prune: Option<u32>,
+    max_pub_rand_values_to_prune: Option<u32>,
+}
+```
+
+**Parameter Semantics:**
+- `rollup_height`: Remove all data for rollup blocks with height ≤ this value.
+- `max_signatures_to_prune`: Maximum number of finality signatures and signatories to prune in a single operation.
+  - Since every signature has a corresponding signatory record, this limit applies to both.
+  - If `None`, the default value is 50.
+  - If `Some(0)`, disables pruning of finality signatures and signatories for this call.
+- `max_pub_rand_values_to_prune`: Maximum number of public randomness values to prune in a single operation.
+  - If `None`, the default value is 50.
+  - If `Some(0)`, disables pruning of public randomness values for this call.
+
+**Expected Behaviour:** Finality contracts SHOULD implement this administrative
+handler with the following logic:
+
+1. **Admin Authorization**: Verify that the caller is the current contract
+   admin:
+   - Query the current admin address
+   - Verify that the message sender matches the current admin address
+
+2. **Parameter Validation**: Validate pruning parameters:
+   - Ensure `rollup_height` is reasonable (not excessively high)
+   - Apply default limits if `None` provided (50 for both types)
+   - Apply maximum limits to prevent gas exhaustion (100 for both types)
+
+3. **Pruning Operations**: Remove old data for blocks with height ≤
+   `rollup_height`:
+   - **Finality Signatures**: Remove entries from `FINALITY_SIGNATURES` storage
+     up to `max_signatures_to_prune` limit
+   - **Signatories**: Remove entries from `SIGNATORIES_BY_BLOCK_HASH` storage
+     up to the same limit (one-to-one correspondence with signatures)
+   - **Public Randomness Values**: Remove entries from `PUB_RAND_VALUES`
+     storage up to `max_pub_rand_values_to_prune` limit
+
+4. **Response Attributes**: Return response with pruning statistics:
+   - `pruned_signatures`: Number of finality signatures removed
+   - `pruned_signatories`: Number of signatory entries removed
+   - `pruned_pub_rand_values`: Number of public randomness values removed
+
+**WARNING**: This operation is irreversible. The admin is responsible for
+ensuring that the pruning height is safe and that no data is still being used
+for the affected height range.
+
+**Example Usage:**
+```json
+{
+  "prune_data": {
+    "rollup_height": 1000,
+    "max_signatures_to_prune": 50,
+    "max_pub_rand_values_to_prune": 20
+  }
+}
+```
+
+### 4.8. Contract State Storage
 
 This section documents the actual state storage structure used by the finality
 contract implementation.
 
-#### 4.7.1. Core Configuration
+#### 4.8.1. Core Configuration
 
 **ADMIN**: Admin controller for contract administration
 - Type: `Admin` (from cw-controllers)
@@ -667,12 +820,29 @@ contract implementation.
   ```rust
   pub struct Config {
       pub bsn_id: String,
+      pub min_pub_rand: u64,
+      pub rate_limiting: RateLimitingConfig,
+  }
+
+  pub struct RateLimitingConfig {
+      pub max_msgs_per_interval: u32,
+      pub block_interval: u64,
   }
   ```
 
 
 
-#### 4.7.2. Finality State Storage
+#### 4.8.2. Rate Limiting Storage
+
+**NUM_MSGS_LAST_INTERVAL**: Rate limiting counters per finality provider
+- Type: `Map<&[u8], (u64, u32)>`
+- Storage key: `"num_msgs_last_interval"`
+- Key format: `fp_pubkey_bytes`
+- Value format: `(interval_number, message_count)`
+- Purpose: Tracks message count per finality provider within block intervals
+- Automatic reset when interval changes
+
+#### 4.8.3. Finality State Storage
 
 **FINALITY_SIGNATURES**: Finality signatures by height and provider
 - Type: `Map<(u64, &[u8]), FinalitySigInfo>`
@@ -695,62 +865,33 @@ contract implementation.
 - Purpose: Maps each (height, block_hash) combination to the set of finality
   provider public keys (hex-encoded) that voted for it
 
-#### 4.7.3. Public Randomness Storage
+#### 4.8.4. Public Randomness Storage
 
 **PUB_RAND_VALUES**: Individual public randomness values
 - Type: `Map<(u64, &[u8]), Vec<u8>>`
 - Storage key: `"pub_rand_values"`
 - Key format: `(block_height, fp_pubkey_bytes)`
-- Purpose: Stores individual public randomness values revealed during finality signature submission
+- Purpose: Stores individual public randomness values revealed during finality
+  signature submission
+- **Note**: Key format changed from `(&[u8], u64)` to `(u64, &[u8])` for
+  efficient range queries in pruning operations
 
-### 4.6.x. PruneData (SHOULD)
-
-**Message Structure:**
-```rust
-PruneData {
-    rollup_height: u64,
-    max_signatures_to_prune: Option<u32>,
-    max_pub_rand_values_to_prune: Option<u32>,
-}
-```
-
-**Parameter Semantics:**
-- `rollup_height`: Remove all data for rollup blocks with height ≤ this value.
-- `max_signatures_to_prune`: Maximum number of finality signatures and signatories to prune in a single operation.
-  - Since every signature has a corresponding signatory record, this limit applies to both.
-  - If `None`, the default value is 50.
-  - If `Some(0)`, disables pruning of finality signatures and signatories for this call.
-- `max_pub_rand_values_to_prune`: Maximum number of public randomness values to prune in a single operation.
-  - If `None`, the default value is 50.
-  - If `Some(0)`, disables pruning of public randomness values for this call.
-
-**Expected Behaviour:**
-- This message can be called by the admin only.
-- It removes old data for rollup blocks with height ≤ `rollup_height`.
-- The operation is irreversible. The admin is responsible for ensuring that the pruning height is safe and that no data is still being used for the affected height range.
-- Per-type limits (`max_signatures_to_prune`, `max_pub_rand_values_to_prune`) prevent gas exhaustion; multiple calls may be required for large amounts of data.
-- The response includes attributes indicating how many items of each type were pruned:
-  - `pruned_signatures`
-  - `pruned_signatories`
-  - `pruned_pub_rand_values`
-
-**Example:**
-```json
-{
-  "prune_data": {
-    "rollup_height": 1000,
-    "max_signatures_to_prune": 50,
-    "max_pub_rand_values_to_prune": 20
+**PUB_RAND_COMMITS**: Public randomness commitments by finality provider
+- Type: `Map<(&[u8], u64), PubRandCommit>`
+- Storage key: `"pub_rand_commits"`
+- Key format: `(fp_pubkey_bytes, start_height)`
+- Purpose: Stores public randomness commitments made by finality providers
+- Structure:
+  ```rust
+  pub struct PubRandCommit {
+      pub start_height: u64,
+      pub num_pub_rand: u64,
+      pub babylon_epoch: u64,
+      pub commitment: Vec<u8>,
   }
-}
-```
-- To prune only finality signatures and signatories, set `"max_pub_rand_values_to_prune": 0`.
-- To prune only public randomness values, set `"max_signatures_to_prune": 0`.
+  ```
 
-**Breaking Change Note:**
-- The key structure for `PUB_RAND_VALUES` is now `(u64, &[u8])` (was `(&[u8], u64)`), enabling efficient range queries and unified pruning. This is a breaking change for on-chain state, but improves performance and consistency.
-
-### 4.8. Finality contract queries
+### 4.9. Finality contract queries
 
 The finality contract query requirements are divided into core finality
 functionality (MUST) and administrative functionality (SHOULD):
@@ -809,7 +950,7 @@ pub enum QueryMsg {
 }
 ```
 
-#### 4.8.1. BlockVoters (MUST)
+#### 4.9.1. BlockVoters (MUST)
 
 **Query Structure:**
 ```rust
@@ -852,7 +993,7 @@ WHERE BlockVoterInfo contains:
 - `finality_signature`: `FinalitySigInfo` - Complete signature information
   including signature and block hash
 
-#### 4.8.2. FirstPubRandCommit (MUST)
+#### 4.9.2. FirstPubRandCommit (MUST)
 
 **Query Structure:**
 ```rust
@@ -883,7 +1024,7 @@ WHERE PubRandCommit contains:
 - `babylon_epoch`: `u64`
 - `commitment`: `Vec<u8>`
 
-#### 4.8.3. LastPubRandCommit (MUST)
+#### 4.9.3. LastPubRandCommit (MUST)
 
 **Query Structure:**
 ```rust
@@ -914,7 +1055,7 @@ WHERE PubRandCommit contains:
 - `babylon_epoch`: `u64`
 - `commitment`: `Vec<u8>`
 
-#### 4.8.4. ListPubRandCommit (MUST)
+#### 4.9.4. ListPubRandCommit (MUST)
 
 **Query Structure:**
 ```rust
@@ -951,7 +1092,7 @@ WHERE PubRandCommit contains:
 - `babylon_epoch`: `u64`
 - `commitment`: `Vec<u8>`
 
-#### 4.8.5. Admin (SHOULD)
+#### 4.9.5. Admin (SHOULD)
 
 **Query Structure:**
 ```rust
@@ -973,7 +1114,7 @@ query to return the current admin address:
 WHERE AdminResponse contains:
 - `admin`: `Option<String>`
 
-#### 4.8.6. Config (SHOULD)
+#### 4.9.6. Config (SHOULD)
 
 **Query Structure:**
 ```rust
@@ -994,6 +1135,9 @@ query to return the contract configuration:
 
 WHERE Config contains:
 - `bsn_id`: `String` - The BSN identifier for this finality contract
+- `min_pub_rand`: `u64` - Minimum public randomness requirement for commitments
+- `rate_limiting`: `RateLimitingConfig` - Rate limiting configuration including
+  `max_msgs_per_interval` and `block_interval`
 
 ## 5. Implementation status
 
