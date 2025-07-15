@@ -362,7 +362,9 @@ func (s *FinalityContractTestSuite) deployContracts(
 	minPubRand := uint64(100)
 	rateLimitingInterval := uint64(10000)
 	maxMsgsPerInterval := uint32(100)
-	initMsg := NewInitMsg(s.owner.String(), bsnID, minPubRand, rateLimitingInterval, maxMsgsPerInterval)
+	bsnActivationHeight := uint64(1)       // System activates at height 1
+	finalitySignatureInterval := uint64(1) // Allow finality signatures at every height
+	initMsg := NewInitMsg(s.owner.String(), bsnID, minPubRand, rateLimitingInterval, maxMsgsPerInterval, bsnActivationHeight, finalitySignatureInterval)
 	initMsgBz := []byte(initMsg)
 	// instantiate contract
 	contractKeeper := keeper.NewDefaultPermissionKeeper(s.babylonApp.WasmKeeper)
