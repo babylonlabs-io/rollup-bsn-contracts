@@ -45,11 +45,11 @@ pub fn handle_public_randomness_commit(
     // Validate the commitment parameters
     validate_pub_rand_commit(start_height, num_pub_rand, commitment, config.min_pub_rand)?;
 
-    // Ensure the finality provider is registered and not slashed
-    ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
-
     // Check if the finality provider is in the allowlist
     ensure_fp_in_allowlist(deps.storage, fp_btc_pk_hex)?;
+
+    // Ensure the finality provider is registered and not slashed
+    ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
 
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
     let context = get_fp_rand_commit_context_v0(env)?;

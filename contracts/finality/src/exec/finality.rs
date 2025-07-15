@@ -26,11 +26,11 @@ pub fn handle_finality_signature(
     block_hash: &[u8],
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
-    // Ensure the finality provider exists and is not slashed
-    ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
-
     // Check if the finality provider is in the allowlist
     ensure_fp_in_allowlist(deps.storage, fp_btc_pk_hex)?;
+
+    // Ensure the finality provider exists and is not slashed
+    ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
 
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
 
