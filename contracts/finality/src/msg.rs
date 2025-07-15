@@ -149,8 +149,8 @@ pub enum ExecuteMsg {
     /// This message can be called by the admin only.
     /// Only finality providers in the allowlist can submit finality signatures and public randomness commitments.
     AddToAllowlist {
-        /// The BTC public key of the finality provider to add to the allowlist (in hex format)
-        fp_pubkey_hex: String,
+        /// The BTC public keys of the finality providers to add to the allowlist (in hex format)
+        fp_pubkey_hex_list: Vec<String>,
     },
     /// Remove a finality provider from the allowlist.
     ///
@@ -158,8 +158,8 @@ pub enum ExecuteMsg {
     /// Removing a finality provider from the allowlist will prevent them from submitting
     /// new finality signatures and public randomness commitments.
     RemoveFromAllowlist {
-        /// The BTC public key of the finality provider to remove from the allowlist (in hex format)
-        fp_pubkey_hex: String,
+        /// The BTC public keys of the finality providers to remove from the allowlist (in hex format)
+        fp_pubkey_hex_list: Vec<String>,
     },
 }
 
