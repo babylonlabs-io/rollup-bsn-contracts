@@ -39,3 +39,24 @@ To register the BSN, use:
 ```bash
 babylond tx btcstkconsumer register-consumer <consumer_id> <name> <description> <max_multi_staked_fps> <rollup_finality_contract_address> [flags]
 ```
+
+## Governance Notes
+Babylon devnet and testnet are permissionless — contracts can be deployed and BSNs registered without restrictions.
+
+Babylon Genesis mainnet is permissioned. Two governance steps are
+required:
+
+- **Contract deployment**:  Submit one of the following:
+   - `MsgStoreCode`: Upload your contract code via proposal. Preferred for one-time deployments.
+  - `MsgUpdateParams`: Whitelist your Babylon address under ` code_upload_access`. Useful for frequent deployers.
+
+  To learn more, see the [deployment guide](https://docs.babylonlabs.io/guides/governance/submit_proposals/smart_contract_deployment/)  
+  and review past proposals in the [governance forum](https://forum.babylon.foundation/c/gov-proposals/smart-contract-proposals/15)
+
+- **BSN registration**:  Submit a `MsgRegisterConsumer` proposal 
+using the metadata defined in the [Rollup BSN Registration]
+(#rollup-bsn-registration) section.
+ 
+ > Note: A unified governance flow combining either `MsgStoreCode`
+or `MsgUpdateParams` with `MsgRegisterConsumer` is under 
+consideration to simplify BSN onboarding on mainnet
