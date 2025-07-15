@@ -44,11 +44,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 * [#40](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/40)
   Timestamped public randomness commitments. Breaks `PubRandCommit` struct that
   is being used for both storage and queries.
+* [82](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/82) feat: add
+  bsn_activation_height and finality_signature_interval for spam protection
 
 ### API breaking
 
-* [#80](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/80) feat: rate limiting for FP messages
-* [#60](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/60) feat: add signing context
+* [#80](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/80) feat:
+  rate limiting for FP messages
+* [#60](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/60) feat:
+  add signing context
 
 ### State breaking
 
