@@ -1,4 +1,4 @@
-# Rollup BSN Contract Guide
+# Rollup BSN Contract: Deployment & Integration
 
 ## Introduction
 
