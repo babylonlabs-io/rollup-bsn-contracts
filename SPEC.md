@@ -342,6 +342,24 @@ queries.
 pub struct InstantiateMsg {
     pub admin: String,
     pub bsn_id: String,
+    pub min_pub_rand: u64,
+    pub allowed_finality_providers: Option<Vec<String>>,
+}
+```
+
+**New Optional Parameter:**
+- `allowed_finality_providers`: `Option<Vec<String>>` — An optional list of BTC public keys (hex-encoded) to pre-populate the allowlist at contract instantiation. If provided, each key must be non-empty. Any empty key will cause instantiation to fail. If omitted or empty, the allowlist will start empty.
+
+**Example:**
+```json
+{
+  "admin": "babylon1...",
+  "bsn_id": "op-stack-l2-11155420",
+  "min_pub_rand": 100,
+  "allowed_finality_providers": [
+    "02a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7",
+    "03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7"
+  ]
 }
 ```
 
@@ -353,6 +371,7 @@ parameters must be provided:
   settings
 - `bsn_id`: String - The unique identifier for this BSN (e.g.,
   `op-stack-l2-11155420`)
+- `min_pub_rand`: u64 - The minimum number of public randomness values required for commitments
 
 **Validation Requirements:**
 1. **Admin Address Validation**: The `admin` parameter MUST be a valid Babylon address
@@ -360,12 +379,14 @@ parameters must be provided:
    - Not be empty
    - Contain only alphanumeric characters, hyphens, and underscores
    - Not exceed 100 characters in length
+3. **Allowlist Validation**: If `allowed_finality_providers` is provided, all keys MUST be non-empty strings. If any are empty, instantiation MUST fail.
 
 **Instantiation Process:**
-1. **Parameter Validation**: Validate the admin address and consumer ID format
+1. **Parameter Validation**: Validate the admin address, consumer ID format, and (if provided) the allowlist
 2. **Admin Setup**: Set the provided admin address as the contract administrator
-3. **Configuration Storage**: Save the bsn_id in the contract configuration
-4. **Response**: Return a success response with instantiation attributes
+3. **Configuration Storage**: Save the bsn_id and min_pub_rand in the contract configuration
+4. **Allowlist Setup**: If provided, add all valid keys to the allowlist
+5. **Response**: Return a success response with instantiation attributes
 
 ### 4.5. Signing Context
 
