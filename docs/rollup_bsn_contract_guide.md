@@ -60,3 +60,25 @@ using the metadata defined in the [Rollup BSN Registration]
  > Note: A unified governance flow combining either `MsgStoreCode`
 or `MsgUpdateParams` with `MsgRegisterConsumer` is under 
 consideration to simplify BSN onboarding on mainnet
+
+## Contract Maintenance
+
+The Rollup BSN contract exposes `admin-only` functions for ongoing
+contract management. These operations allow storage cleanup, role 
+updates, and future configuration changes without redeployment
+
+Available operations:
+- `PruneData`: Removes all finality signatures and public randomness for rollup blocks with `height ≤ block_height`. Executed via `wasm 
+execute` with the `PruneData` message. Optional parameters control 
+batch size to prevent gas exhaustion
+
+- `UpdateAdmin`: Transfers contract admin rights to a new Babylon address. Validates the address format and enforces access control using `cw_controllers::Admin`. Executed via `wasm execute` with the `UpdateAdmin` message
+
+The following operations are planned but not yet implemented:
+
+- `SetFPAllowlist`: Manages the FP allowlist by adding or removing FPs authorized to submit signatures and randomness
+
+- `SetSubmissionInterval`: Updates the submission interval configuration to control how frequently each FP can submit signatures (e.g., every X-th block)
+
+
+
