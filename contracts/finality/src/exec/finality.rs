@@ -427,7 +427,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_finality_signature_interval_validation() {
+    fn test_finality_signature_interval_check() {
         use crate::contract::tests::mock_deps_babylon;
         use crate::state::config::{Config, CONFIG};
         use crate::testutil::datagen::*;
