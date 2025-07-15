@@ -40,7 +40,7 @@ pub fn handle_finality_signature(
 
     // Ensure finality signature interval is respected
     if (height - config.bsn_activation_height) % config.finality_signature_interval != 0 {
-        return Err(ContractError::FinalitySignatureRateLimitExceeded(
+        return Err(ContractError::FinalitySignatureNotAtScheduledHeight(
             height,
             config.finality_signature_interval,
         ));
@@ -486,7 +486,7 @@ pub(crate) mod tests {
 
             assert_eq!(
                 result.unwrap_err(),
-                ContractError::FinalitySignatureRateLimitExceeded(invalid_height, interval),
+                ContractError::FinalitySignatureNotAtScheduledHeight(invalid_height, interval),
                 "Height {} should fail interval check",
                 invalid_height
             );
@@ -524,7 +524,7 @@ pub(crate) mod tests {
             );
             assert_ne!(
                 error,
-                ContractError::FinalitySignatureRateLimitExceeded(valid_height, interval),
+                ContractError::FinalitySignatureNotAtScheduledHeight(valid_height, interval),
                 "Height {} should pass interval check",
                 valid_height
             );

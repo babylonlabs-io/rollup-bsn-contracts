@@ -51,8 +51,10 @@ pub enum ContractError {
     InvalidFinalitySignatureInterval(u64),
     #[error("System not activated yet. Current height: {0}, activation height: {1}")]
     BeforeSystemActivation(u64, u64),
-    #[error("Finality signature rate limit exceeded. Height {0} not allowed with interval {1}")]
-    FinalitySignatureRateLimitExceeded(u64, u64),
+    #[error(
+        "Finality signature not at scheduled height. Height {0} not allowed with interval {1}"
+    )]
+    FinalitySignatureNotAtScheduledHeight(u64, u64),
     #[error("{0}")]
     MerkleError(#[from] MerkleError),
     #[error("Public randomness not found for finality provider {0} at height {1}")]
