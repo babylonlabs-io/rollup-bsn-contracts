@@ -21,7 +21,9 @@ pub struct Config {
     pub bsn_id: String,
     pub min_pub_rand: u64,
     pub rate_limiting: RateLimitingConfig,
+    #[schemars(range(min = 1))]
     pub bsn_activation_height: u64,
+    #[schemars(range(min = 1))]
     pub finality_signature_interval: u64,
 }
 

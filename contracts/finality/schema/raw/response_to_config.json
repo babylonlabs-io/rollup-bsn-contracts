@@ -13,7 +13,7 @@
     "bsn_activation_height": {
       "type": "integer",
       "format": "uint64",
-      "minimum": 0.0
+      "minimum": 1.0
     },
     "bsn_id": {
       "type": "string"
@@ -21,7 +21,7 @@
     "finality_signature_interval": {
       "type": "integer",
       "format": "uint64",
-      "minimum": 0.0
+      "minimum": 1.0
     },
     "min_pub_rand": {
       "type": "integer",

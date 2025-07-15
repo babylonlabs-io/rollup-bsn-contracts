@@ -16,7 +16,9 @@ pub struct InstantiateMsg {
     pub min_pub_rand: u64,
     pub rate_limiting_interval: u64,
     pub max_msgs_per_interval: u32,
+    #[schemars(range(min = 1))]
     pub bsn_activation_height: u64,
+    #[schemars(range(min = 1))]
     pub finality_signature_interval: u64,
 }
 
