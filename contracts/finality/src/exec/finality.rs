@@ -361,4 +361,196 @@ pub(crate) mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_finality_signature_system_activation_check() {
+        use crate::contract::tests::mock_deps_babylon;
+        use crate::state::config::{Config, CONFIG};
+        use crate::testutil::datagen::*;
+
+        let mut deps = mock_deps_babylon();
+
+        // Configure the contract with activation height of 1000
+        let activation_height = 1000;
+        let config = Config {
+            bsn_id: format!("test-{}", get_random_u64()),
+            min_pub_rand: 1,
+            bsn_activation_height: activation_height,
+            finality_signature_interval: 5,
+        };
+        CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
+        // Use test data from babylon_test_utils to avoid Proof construction issues
+        let add_finality_signature = get_add_finality_sig();
+        let proof = add_finality_signature.proof.unwrap().into();
+
+        // FAIL CASE: Try to submit finality signature before activation
+        let before_activation_height = activation_height - 1;
+        let result = handle_finality_signature(
+            deps.as_mut(),
+            &mock_env(),
+            &get_random_fp_pk_hex(),
+            None,
+            None,
+            before_activation_height, // Before activation should fail
+            &add_finality_signature.pub_rand,
+            &proof,
+            &add_finality_signature.block_app_hash,
+            &add_finality_signature.finality_sig,
+        );
+
+        assert_eq!(
+            result.unwrap_err(),
+            ContractError::BeforeSystemActivation(before_activation_height, activation_height),
+            "Should fail when height < activation_height"
+        );
+
+        // PASS CASE: Try to submit finality signature at activation height (should pass system activation)
+        let result = handle_finality_signature(
+            deps.as_mut(),
+            &mock_env(),
+            &get_random_fp_pk_hex(),
+            None,
+            None,
+            activation_height, // At activation height should pass
+            &add_finality_signature.pub_rand,
+            &proof,
+            &add_finality_signature.block_app_hash,
+            &add_finality_signature.finality_sig,
+        );
+
+        // Should fail at a later stage (FP not found), not at system activation
+        assert_ne!(
+            result.unwrap_err(),
+            ContractError::BeforeSystemActivation(activation_height, activation_height),
+            "Should pass system activation check when height >= activation_height"
+        );
+    }
+
+
+
+    #[test]
+    fn test_finality_signature_interval_check_fails() {
+        use crate::contract::tests::mock_deps_babylon;
+        use crate::state::config::{Config, CONFIG};
+        use crate::testutil::datagen::*;
+        use babylon_merkle::Proof;
+        use rand::{rng, Rng};
+
+        let mut deps = mock_deps_babylon();
+
+        // Configure the contract with activation height of 1000 and interval of 5
+        let activation_height = 1000;
+        let interval = 5;
+        let config = Config {
+            bsn_id: format!("test-{}", get_random_u64()),
+            min_pub_rand: 1,
+            bsn_activation_height: activation_height,
+            finality_signature_interval: interval,
+        };
+        CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
+        // Generate random data for the function call
+        let mut rng = rng();
+        let random_signature: Vec<u8> = (0..64).map(|_| rng.random()).collect();
+        let random_pub_rand: Vec<u8> = (0..32).map(|_| rng.random()).collect();
+        let random_block_hash: Vec<u8> = (0..32).map(|_| rng.random()).collect();
+        
+        // Dummy proof - will fail later validations but passes type check
+        let proof = babylon_merkle::Proof {
+            total: 1,
+            index: 0,
+            leaf_hash: vec![0u8; 32].into(),
+            aunts: vec![],
+        };
+
+        // Try to submit finality signature at a height that doesn't respect the interval
+        let invalid_height = activation_height + 1; // Should be 1000, 1005, 1010, etc.
+        let result = handle_finality_signature(
+            deps.as_mut(),
+            &mock_env(),
+            &get_random_fp_pk_hex(),
+            None,
+            None,
+            invalid_height, // Invalid interval should fail
+            &random_pub_rand,
+            &proof,
+            &random_block_hash,
+            &random_signature,
+        );
+
+        assert_eq!(
+            result.unwrap_err(),
+            ContractError::FinalitySignatureRateLimitExceeded(invalid_height, interval)
+        );
+    }
+
+    #[test]
+    fn test_finality_signature_interval_check_passes() {
+        use crate::contract::tests::mock_deps_babylon;
+        use crate::state::config::{Config, CONFIG};
+        use crate::testutil::datagen::*;
+        use babylon_merkle::Proof;
+        use rand::{rng, Rng};
+
+        let mut deps = mock_deps_babylon();
+
+        // Configure the contract with activation height of 1000 and interval of 5
+        let activation_height = 1000;
+        let interval = 5;
+        let config = Config {
+            bsn_id: format!("test-{}", get_random_u64()),
+            min_pub_rand: 1,
+            bsn_activation_height: activation_height,
+            finality_signature_interval: interval,
+        };
+        CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
+        // Generate random data for the function call
+        let mut rng = rng();
+        let random_signature: Vec<u8> = (0..64).map(|_| rng.random()).collect();
+        let random_pub_rand: Vec<u8> = (0..32).map(|_| rng.random()).collect();
+        let random_block_hash: Vec<u8> = (0..32).map(|_| rng.random()).collect();
+        
+        // Dummy proof - will fail later validations but passes type check
+        let proof = babylon_merkle::Proof {
+            total: 1,
+            index: 0,
+            leaf_hash: vec![0u8; 32].into(),
+            aunts: vec![],
+        };
+
+        // Test valid heights that respect the interval
+        let valid_heights = vec![
+            activation_height,     // 1000: (1000-1000) % 5 = 0
+            activation_height + 5, // 1005: (1005-1000) % 5 = 0
+            activation_height + 10, // 1010: (1010-1000) % 5 = 0
+        ];
+
+        for valid_height in valid_heights {
+            let result = handle_finality_signature(
+                deps.as_mut(),
+                &mock_env(),
+                &get_random_fp_pk_hex(),
+                None,
+                None,
+                valid_height, // Valid interval should pass rate limiting
+                &random_pub_rand,
+                &proof,
+                &random_block_hash,
+                &random_signature,
+            );
+
+            // Should fail at a later stage (FP not found), not at rate limiting
+            let error = result.unwrap_err();
+            assert_ne!(
+                error,
+                ContractError::BeforeSystemActivation(valid_height, activation_height)
+            );
+            assert_ne!(
+                error,
+                ContractError::FinalitySignatureRateLimitExceeded(valid_height, interval)
+            );
+        }
+    }
 }

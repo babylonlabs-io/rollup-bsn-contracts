@@ -491,4 +491,64 @@ pub(crate) mod tests {
             }
         );
     }
+
+    #[test]
+    fn test_system_activation_check() {
+        use crate::testutil::datagen::*;
+        use rand::{rng, Rng};
+
+        let mut deps = mock_deps_babylon();
+
+        // Configure the contract with activation height of 1000
+        let activation_height = 1000;
+        let config = Config {
+            bsn_id: format!("test-{}", get_random_u64()),
+            min_pub_rand: 1, // Set to minimum to avoid other validation errors
+            bsn_activation_height: activation_height,
+            finality_signature_interval: 1,
+        };
+        CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
+        // Generate random 64-byte signature
+        let mut rng = rng();
+        let random_signature: Vec<u8> = (0..BIP340_SIGNATURE_LENGTH_BYTES)
+            .map(|_| rng.random())
+            .collect();
+
+        // FAIL CASE: Try to commit at height before activation
+        let before_activation_height = activation_height - 1;
+        let result = handle_public_randomness_commit(
+            deps.as_mut(),
+            &mock_env(),
+            &get_random_fp_pk_hex(),
+            before_activation_height, // Before activation should fail
+            1,
+            &get_random_block_hash(),
+            &random_signature,
+        );
+
+        assert_eq!(
+            result.unwrap_err(),
+            ContractError::BeforeSystemActivation(before_activation_height, activation_height),
+            "Should fail when height < activation_height"
+        );
+
+        // PASS CASE: Try to commit at activation height (should pass system activation check)
+        let result = handle_public_randomness_commit(
+            deps.as_mut(),
+            &mock_env(),
+            &get_random_fp_pk_hex(),
+            activation_height, // At activation height should pass
+            1,
+            &get_random_block_hash(),
+            &random_signature,
+        );
+
+        // Should fail at a later stage (FP not found), not at system activation
+        assert_ne!(
+            result.unwrap_err(),
+            ContractError::BeforeSystemActivation(activation_height, activation_height),
+            "Should pass system activation check when height >= activation_height"
+        );
+    }
 }
