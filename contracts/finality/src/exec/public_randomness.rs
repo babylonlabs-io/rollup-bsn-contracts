@@ -174,11 +174,12 @@ fn ensure_fp_exists_and_not_slashed(
 pub(crate) mod tests {
     use super::*;
     use crate::contract::tests::mock_deps_babylon;
-    use crate::state::config::{Config, CONFIG};
+    use crate::state::config::{Config, RateLimitingConfig, CONFIG};
     use babylon_test_utils::get_public_randomness_commitment;
     use cosmwasm_std::testing::mock_env;
 
     const MAX_MSGS_PER_INTERVAL: u32 = 100;
+    const RATE_LIMITING_INTERVAL: u64 = 10000;
 
     #[test]
     fn verify_commitment_signature_works() {
@@ -213,7 +214,10 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
-            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting: RateLimitingConfig {
+                max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+                block_interval: RATE_LIMITING_INTERVAL,
+            },
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -247,7 +251,10 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
-            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting: RateLimitingConfig {
+                max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+                block_interval: RATE_LIMITING_INTERVAL,
+            },
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -316,7 +323,10 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
-            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting: RateLimitingConfig {
+                max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+                block_interval: RATE_LIMITING_INTERVAL,
+            },
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -344,7 +354,10 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
-            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting: RateLimitingConfig {
+                max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+                block_interval: RATE_LIMITING_INTERVAL,
+            },
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -411,7 +424,10 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
-            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting: RateLimitingConfig {
+                max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+                block_interval: RATE_LIMITING_INTERVAL,
+            },
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -452,7 +468,10 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand,
-            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting: RateLimitingConfig {
+                max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+                block_interval: RATE_LIMITING_INTERVAL,
+            },
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 

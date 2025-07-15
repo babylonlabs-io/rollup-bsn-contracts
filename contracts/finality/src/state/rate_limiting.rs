@@ -8,9 +8,6 @@ use cw_storage_plus::Map;
 /// Value: Tuple of (block interval number, message count)
 const NUM_MSGS_LAST_INTERVAL: Map<&[u8], (u64, u32)> = Map::new("num_msgs_last_interval");
 
-/// The number of blocks that define a rate limiting interval
-const RATE_LIMIT_BLOCK_INTERVAL: u64 = 10000;
-
 /// Increments the message counter for a finality provider and enforces rate limiting.
 ///
 /// This function tracks the number of messages processed for each finality provider
@@ -31,8 +28,10 @@ pub fn accumulate_rate_limiter(
     env: &Env,
     fp_btc_pk: &[u8],
 ) -> Result<(), ContractError> {
+    let rl_cfg = get_config(storage)?.rate_limiting;
+
     let current_block_height = env.block.height;
-    let current_interval = current_block_height / RATE_LIMIT_BLOCK_INTERVAL;
+    let current_interval = current_block_height / rl_cfg.block_interval;
 
     // Get existing record or initialize if it's a new FP or new interval
     let (interval, count) = NUM_MSGS_LAST_INTERVAL
@@ -49,11 +48,10 @@ pub fn accumulate_rate_limiter(
     };
 
     // Check if adding one more would exceed the limit
-    let max_msgs_per_interval = get_config(storage)?.max_msgs_per_interval;
-    if new_count > max_msgs_per_interval {
+    if new_count > rl_cfg.max_msgs_per_interval {
         return Err(ContractError::RateLimitExceeded {
             fp_btc_pk: hex::encode(fp_btc_pk),
-            limit: max_msgs_per_interval,
+            limit: rl_cfg.max_msgs_per_interval,
         });
     }
 
