@@ -39,9 +39,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### State and API breaking
 
-* [#65](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/65) Remove `is_enabled` flag and associated functionality from finality contract
-* [#40](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/40) Timestamped public randomness commitments.
-  Breaks `PubRandCommit` struct that is being used for both storage and queries.
+* [#65](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/65) Remove
+  `is_enabled` flag and associated functionality from finality contract
+* [#40](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/40)
+  Timestamped public randomness commitments. Breaks `PubRandCommit` struct that
+  is being used for both storage and queries.
 
 ### API breaking
 
@@ -50,27 +52,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### State breaking
 
-* [#73](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/73) Add data pruning handler for finality signatures, signatories and public randomness values
-* [#55](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/55) evidence: remove evidence DB
-* [#35](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/35) chore: use consistent naming for state maps
-* [#40](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/40) Refactor votes storage.
+* [#73](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/73) Add data
+  pruning handler for finality signatures, signatories and public randomness
+  values
+* [#55](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/55)
+  evidence: remove evidence DB
+* [#35](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/35) chore:
+  use consistent naming for state maps
+* [#40](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/40) Refactor
+  votes storage.
+* [#75](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/75) chore:
+  store conflicting finality sigs in storage
 
 ### Improvements
 
-* [#71](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/71) chore: fix signing context
-* [#69](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/69) Define state setter functions
-* [#64](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/64) chore: clean up metadata
-* [#62](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/62) Add consumer ID format validation and admin address validation during contract instantiation and admin updates
-* [#56](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/56) e2e: migrate e2e from babylon to contract repo
-* [#57](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/57) Fix block voters response type annotation
-* [#51](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/51) finality: refactor handle_finality_signature and revise unit tests
-* [#52](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/52) chore: remove unused fields in FP struct.
-* [#31](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/31) Rename `hash` to `hash_hex`.
-* [#42](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/42) test: Add unit tests for public randomness commitment validation.
-* [#47](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/47) Create state/evidence.rs file and define setters/getters.
-* [#23](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/23) Clean up dependencies to cosmos-bsn-contracts.
-* [#24](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/24) Validate public randomness commitment.
-* [#25](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/25) Improve `check_fp_exist` to ensure FP is not slashed.
-* [#29](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/29) feat: Remove slashing evidence message
-* [59](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/59) chore: add missing validations in handle_public_randomness_commit
-* [70](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/70) chore: new query for fetch all pub rand commit
+* [#71](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/71) chore:
+  fix signing context
+* [#69](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/69) Define
+  state setter functions
+* [#64](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/64) chore:
+  clean up metadata
+* [#62](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/62) Add
+  consumer ID format validation and admin address validation during contract
+  instantiation and admin updates
+* [#56](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/56) e2e:
+  migrate e2e from babylon to contract repo
+* [#57](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/57) Fix
+  block voters response type annotation
+* [#51](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/51)
+  finality: refactor handle_finality_signature and revise unit tests
+* [#52](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/52) chore:
+  remove unused fields in FP struct.
+* [#31](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/31) Rename
+  `hash` to `hash_hex`.
+* [#42](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/42) test:
+  Add unit tests for public randomness commitment validation.
+* [#47](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/47) Create
+  state/evidence.rs file and define setters/getters.
+* [#23](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/23) Clean up
+  dependencies to cosmos-bsn-contracts.
+* [#24](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/24) Validate
+  public randomness commitment.
+* [#25](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/25) Improve
+  `check_fp_exist` to ensure FP is not slashed.
+* [#29](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/29) feat:
+  Remove slashing evidence message
+* [59](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/59) chore:
+  add missing validations in handle_public_randomness_commit
+* [70](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/70) chore:
+  new query for fetch all pub rand commit

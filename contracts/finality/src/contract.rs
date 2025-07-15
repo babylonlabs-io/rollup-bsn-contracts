@@ -144,7 +144,7 @@ pub(crate) mod tests {
     use super::*;
     use std::marker::PhantomData;
 
-    use crate::state::finality::{get_finality_signature, insert_finality_sig_and_signatory};
+    use crate::state::finality::{insert_finality_sig_and_signatory, list_finality_signatures};
     use crate::state::public_randomness::{get_pub_rand_value, insert_pub_rand_value};
     use crate::testutil::datagen::*;
     use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage};
@@ -393,7 +393,7 @@ pub(crate) mod tests {
 
         // Verify signatures exist before pruning
         for height in 100..110 {
-            let sig = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
+            let sig = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
             assert!(sig.is_some());
         }
 
@@ -419,13 +419,13 @@ pub(crate) mod tests {
 
         // Verify signatures are pruned
         for height in 100..106 {
-            let sig = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
+            let sig = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
             assert!(sig.is_none());
         }
 
         // Verify remaining signatures are still there
         for height in 106..110 {
-            let sig = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
+            let sig = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
             assert!(sig.is_some());
         }
 
@@ -611,7 +611,7 @@ pub(crate) mod tests {
 
         // Verify data exists before pruning
         for height in 100..110 {
-            let sig = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
+            let sig = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
             assert!(sig.is_some());
             let val = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk, height).unwrap();
             assert!(val.is_some());
@@ -641,7 +641,7 @@ pub(crate) mod tests {
 
         // Verify data is pruned
         for height in 100..106 {
-            let sig = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
+            let sig = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
             assert!(sig.is_none());
             let val = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk, height).unwrap();
             assert!(val.is_none());
@@ -649,7 +649,7 @@ pub(crate) mod tests {
 
         // Verify remaining data is still there
         for height in 106..110 {
-            let sig = get_finality_signature(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
+            let sig = list_finality_signatures(deps.as_ref().storage, height, &fp_btc_pk).unwrap();
             assert!(sig.is_some());
             let val = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk, height).unwrap();
             assert!(val.is_some());
