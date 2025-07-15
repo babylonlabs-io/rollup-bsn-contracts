@@ -426,12 +426,11 @@ pub(crate) mod tests {
         );
     }
 
-        #[test]
+    #[test]
     fn test_finality_signature_interval_validation() {
         use crate::contract::tests::mock_deps_babylon;
         use crate::state::config::{Config, CONFIG};
         use crate::testutil::datagen::*;
-        use rand::{rng, Rng};
 
         let mut deps = mock_deps_babylon();
 
@@ -446,11 +445,7 @@ pub(crate) mod tests {
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
-        // Generate test data
-        let mut rng = rng();
-        let random_signature: Vec<u8> = (0..64).map(|_| rng.random()).collect();
-        let random_pub_rand: Vec<u8> = (0..32).map(|_| rng.random()).collect();
-        let random_block_hash: Vec<u8> = (0..32).map(|_| rng.random()).collect();
+        // Use test data from babylon_test_utils
         let add_finality_signature = get_add_finality_sig();
         let proof = add_finality_signature.proof.unwrap().into();
 
@@ -471,16 +466,17 @@ pub(crate) mod tests {
                 None,
                 None,
                 invalid_height,
-                &random_pub_rand,
+                &add_finality_signature.pub_rand,
                 &proof,
-                &random_block_hash,
-                &random_signature,
+                &add_finality_signature.block_app_hash,
+                &add_finality_signature.finality_sig,
             );
 
             assert_eq!(
                 result.unwrap_err(),
                 ContractError::FinalitySignatureRateLimitExceeded(invalid_height, interval),
-                "Height {} should fail interval check", invalid_height
+                "Height {} should fail interval check",
+                invalid_height
             );
         }
 
@@ -500,10 +496,10 @@ pub(crate) mod tests {
                 None,
                 None,
                 valid_height,
-                &random_pub_rand,
+                &add_finality_signature.pub_rand,
                 &proof,
-                &random_block_hash,
-                &random_signature,
+                &add_finality_signature.block_app_hash,
+                &add_finality_signature.finality_sig,
             );
 
             // Should pass rate limiting but fail at later validation stage (FP not found)
@@ -511,12 +507,14 @@ pub(crate) mod tests {
             assert_ne!(
                 error,
                 ContractError::BeforeSystemActivation(valid_height, activation_height),
-                "Height {} should pass system activation check", valid_height
+                "Height {} should pass system activation check",
+                valid_height
             );
             assert_ne!(
                 error,
                 ContractError::FinalitySignatureRateLimitExceeded(valid_height, interval),
-                "Height {} should pass interval check", valid_height
+                "Height {} should pass interval check",
+                valid_height
             );
         }
     }
