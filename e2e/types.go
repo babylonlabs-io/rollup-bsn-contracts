@@ -89,13 +89,13 @@ type AddToAllowlistMsg struct {
 }
 
 type AddToAllowlistMsgParams struct {
-	FpPubkeyHex string `json:"fp_pubkey_hex"`
+	FpPubkeyHexList []string `json:"fp_pubkey_hex_list"`
 }
 
-func NewMsgAddToAllowlist(fpPubkeyHex string) AddToAllowlistMsg {
+func NewMsgAddToAllowlist(fpPubkeyHexList []string) AddToAllowlistMsg {
 	return AddToAllowlistMsg{
 		AddToAllowlist: AddToAllowlistMsgParams{
-			FpPubkeyHex: fpPubkeyHex,
+			FpPubkeyHexList: fpPubkeyHexList,
 		},
 	}
 }
@@ -105,13 +105,13 @@ type RemoveFromAllowlistMsg struct {
 }
 
 type RemoveFromAllowlistMsgParams struct {
-	FpPubkeyHex string `json:"fp_pubkey_hex"`
+	FpPubkeyHexList []string `json:"fp_pubkey_hex_list"`
 }
 
-func NewMsgRemoveFromAllowlist(fpPubkeyHex string) RemoveFromAllowlistMsg {
+func NewMsgRemoveFromAllowlist(fpPubkeyHexList []string) RemoveFromAllowlistMsg {
 	return RemoveFromAllowlistMsg{
 		RemoveFromAllowlist: RemoveFromAllowlistMsgParams{
-			FpPubkeyHex: fpPubkeyHex,
+			FpPubkeyHexList: fpPubkeyHexList,
 		},
 	}
 }
@@ -122,10 +122,10 @@ type SubmitFinalitySignatureResponse struct {
 }
 
 type QueryMsg struct {
-	Config                    *Config        `json:"config,omitempty"`
-	FirstPubRandCommit        *PubRandCommit `json:"first_pub_rand_commit,omitempty"`
-	LastPubRandCommit         *PubRandCommit `json:"last_pub_rand_commit,omitempty"`
-	AllowedFinalityProviders  *struct{}      `json:"allowed_finality_providers,omitempty"`
+	Config                   *Config        `json:"config,omitempty"`
+	FirstPubRandCommit       *PubRandCommit `json:"first_pub_rand_commit,omitempty"`
+	LastPubRandCommit        *PubRandCommit `json:"last_pub_rand_commit,omitempty"`
+	AllowedFinalityProviders *struct{}      `json:"allowed_finality_providers,omitempty"`
 	// BlockVoters is used to query the voters for a specific block
 	BlockVoters *BlockVoters `json:"block_voters,omitempty"`
 }

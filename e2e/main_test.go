@@ -113,7 +113,7 @@ func (s *FinalityContractTestSuite) Test2CreateBSNFP() {
 
 	// Add FP to allowlist
 	fpBTCPK := bbn.NewBIP340PubKeyFromBTCPK(fpPK)
-	contractMsg := NewMsgAddToAllowlist(fpBTCPK.MarshalHex())
+	contractMsg := NewMsgAddToAllowlist([]string{fpBTCPK.MarshalHex()})
 	contractMsgJson, err := json.Marshal(contractMsg)
 	s.NoError(err)
 
