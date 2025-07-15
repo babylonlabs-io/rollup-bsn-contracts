@@ -1,6 +1,7 @@
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
-use crate::state::config::{ensure_fp_in_allowlist, get_config};
+use crate::state::allowlist::ensure_fp_in_allowlist;
+use crate::state::config::get_config;
 use crate::state::finality::{
     insert_finality_sig_and_signatory, list_finality_signatures, FinalitySigInfo,
 };

@@ -3,11 +3,13 @@ use cosmwasm_std::{to_json_binary, Deps, DepsMut, Env, MessageInfo, QueryRespons
 use babylon_bindings::BabylonQuery;
 
 use crate::error::ContractError;
+use crate::exec::allowlist::{handle_add_to_allowlist, handle_remove_from_allowlist};
 use crate::exec::finality::handle_finality_signature;
 use crate::exec::public_randomness::handle_public_randomness_commit;
 use crate::msg::BabylonMsg;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::queries::query_block_voters;
+use crate::state::allowlist::get_allowed_finality_providers;
 use crate::state::config::{get_config, set_config, Config, ADMIN};
 use crate::state::pruning::handle_prune_data;
 use crate::state::public_randomness::{
@@ -73,7 +75,7 @@ pub fn query(
             reverse,
         )?)?),
         QueryMsg::AllowedFinalityProviders {} => Ok(to_json_binary(
-            &crate::state::config::get_allowed_finality_providers(deps.storage)?,
+            &get_allowed_finality_providers(deps.storage)?,
         )?),
     }
 }
@@ -139,38 +141,10 @@ pub fn execute(
             max_pub_rand_values_to_prune,
         ),
         ExecuteMsg::AddToAllowlist { fp_pubkey_hex_list } => {
-            if fp_pubkey_hex_list.is_empty() {
-                return Err(ContractError::EmptyFpBtcPubKey);
-            }
-            for key in &fp_pubkey_hex_list {
-                if key.is_empty() {
-                    return Err(ContractError::EmptyFpBtcPubKey);
-                }
-            }
-            ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
-            for key in &fp_pubkey_hex_list {
-                crate::state::config::add_finality_provider_to_allowlist(deps.storage, key)?;
-            }
-            Ok(Response::new()
-                .add_attribute("action", "add_to_allowlist")
-                .add_attribute("num_added", fp_pubkey_hex_list.len().to_string()))
+            handle_add_to_allowlist(deps, info, fp_pubkey_hex_list)
         }
         ExecuteMsg::RemoveFromAllowlist { fp_pubkey_hex_list } => {
-            if fp_pubkey_hex_list.is_empty() {
-                return Err(ContractError::EmptyFpBtcPubKey);
-            }
-            for key in &fp_pubkey_hex_list {
-                if key.is_empty() {
-                    return Err(ContractError::EmptyFpBtcPubKey);
-                }
-            }
-            ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
-            for key in &fp_pubkey_hex_list {
-                crate::state::config::remove_finality_provider_from_allowlist(deps.storage, key)?;
-            }
-            Ok(Response::new()
-                .add_attribute("action", "remove_from_allowlist")
-                .add_attribute("num_removed", fp_pubkey_hex_list.len().to_string()))
+            handle_remove_from_allowlist(deps, info, fp_pubkey_hex_list)
         }
     }
 }

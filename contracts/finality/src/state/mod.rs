@@ -1,3 +1,4 @@
+pub mod allowlist;
 pub mod config;
 pub mod finality;
 pub mod pruning;

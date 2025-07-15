@@ -1,7 +1,8 @@
 use crate::custom_queries::get_current_epoch;
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
-use crate::state::config::{ensure_fp_in_allowlist, get_config};
+use crate::state::allowlist::ensure_fp_in_allowlist;
+use crate::state::config::get_config;
 use crate::state::public_randomness::{insert_pub_rand_commit, PubRandCommit};
 use crate::utils::get_fp_rand_commit_context_v0;
 use crate::utils::query_finality_provider;
