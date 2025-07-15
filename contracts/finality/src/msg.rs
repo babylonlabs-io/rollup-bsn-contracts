@@ -1,3 +1,4 @@
+use crate::error::ContractError;
 use babylon_merkle::Proof;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Binary, CosmosMsg};
@@ -13,8 +14,98 @@ pub struct InstantiateMsg {
     pub admin: String,
     pub bsn_id: String,
     pub min_pub_rand: u64,
+    pub rate_limiting_interval: u64,
+    pub max_msgs_per_interval: u32,
     pub bsn_activation_height: u64,
     pub finality_signature_interval: u64,
+}
+
+impl InstantiateMsg {
+    const MAX_BSN_ID_LENGTH: usize = 100;
+
+    /// Validates that a BSN ID has a valid format (non-empty, valid characters, etc.)
+    fn validate_bsn_id_format(&self) -> Result<(), ContractError> {
+        if self.bsn_id.is_empty() {
+            return Err(ContractError::InvalidBsnId(
+                "BSN ID cannot be empty".to_string(),
+            ));
+        }
+
+        // Check for valid characters (alphanumeric, hyphens, underscores)
+        if !self
+            .bsn_id
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
+            return Err(ContractError::InvalidBsnId(
+                "BSN ID can only contain alphanumeric characters, hyphens, and underscores"
+                    .to_string(),
+            ));
+        }
+
+        // Check length (reasonable bounds)
+        if self.bsn_id.len() > Self::MAX_BSN_ID_LENGTH {
+            return Err(ContractError::InvalidBsnId(
+                "BSN ID cannot exceed {MAX_BSN_ID_LENGTH} characters".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    fn validate_min_pub_rand(&self) -> Result<(), ContractError> {
+        if self.min_pub_rand == 0 {
+            return Err(ContractError::InvalidMinPubRand(self.min_pub_rand));
+        }
+        Ok(())
+    }
+
+    fn validate_rate_limiting(&self) -> Result<(), ContractError> {
+        if self.rate_limiting_interval == 0 {
+            return Err(ContractError::InvalidRateLimitingInterval(
+                self.rate_limiting_interval,
+            ));
+        }
+        if self.max_msgs_per_interval == 0 {
+            return Err(ContractError::InvalidMaxMsgsPerInterval(
+                self.max_msgs_per_interval,
+            ));
+        }
+        Ok(())
+    }
+
+    fn validate_bsn_activation_height(&self) -> Result<(), ContractError> {
+        if self.bsn_activation_height == 0 {
+            return Err(ContractError::InvalidBsnActivationHeight(
+                self.bsn_activation_height,
+            ));
+        }
+        Ok(())
+    }
+
+    fn validate_finality_signature_interval(&self) -> Result<(), ContractError> {
+        if self.finality_signature_interval == 0 {
+            return Err(ContractError::InvalidFinalitySignatureInterval(
+                self.finality_signature_interval,
+            ));
+        }
+        Ok(())
+    }
+
+    pub fn validate(&self) -> Result<(), ContractError> {
+        // Validate min_pub_rand
+        self.validate_min_pub_rand()?;
+        // Validate BSN ID format
+        self.validate_bsn_id_format()?;
+        // Validate rate limiting settings
+        self.validate_rate_limiting()?;
+        // Validate BSN activation height
+        self.validate_bsn_activation_height()?;
+        // Validate finality signature interval
+        self.validate_finality_signature_interval()?;
+
+        Ok(())
+    }
 }
 
 #[cw_serde]
@@ -180,5 +271,38 @@ impl cosmwasm_std::CustomMsg for BabylonMsg {}
 impl From<BabylonMsg> for CosmosMsg<BabylonMsg> {
     fn from(original: BabylonMsg) -> Self {
         CosmosMsg::Custom(original)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_instantiate_msg_validation_rate_limiting_interval_zero() {
+        let msg = InstantiateMsg {
+            admin: "cosmos1admin".to_string(),
+            bsn_id: "valid-bsn_123".to_string(),
+            min_pub_rand: 1,
+            rate_limiting_interval: 0,
+            max_msgs_per_interval: 10,
+        };
+
+        let err = msg.validate().unwrap_err();
+        assert!(matches!(err, ContractError::InvalidRateLimitingInterval(0)));
+    }
+
+    #[test]
+    fn test_instantiate_msg_validation_max_msgs_per_interval_zero() {
+        let msg = InstantiateMsg {
+            admin: "cosmos1admin".to_string(),
+            bsn_id: "valid-bsn_123".to_string(),
+            min_pub_rand: 1,
+            rate_limiting_interval: 1000,
+            max_msgs_per_interval: 0,
+        };
+
+        let err = msg.validate().unwrap_err();
+        assert!(matches!(err, ContractError::InvalidMaxMsgsPerInterval(0)));
     }
 }

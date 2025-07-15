@@ -9,7 +9,9 @@
     "required": [
       "admin",
       "bsn_id",
-      "min_pub_rand"
+      "max_msgs_per_interval",
+      "min_pub_rand",
+      "rate_limiting_interval"
     ],
     "properties": {
       "admin": {
@@ -18,7 +20,17 @@
       "bsn_id": {
         "type": "string"
       },
+      "max_msgs_per_interval": {
+        "type": "integer",
+        "format": "uint32",
+        "minimum": 0.0
+      },
       "min_pub_rand": {
+        "type": "integer",
+        "format": "uint64",
+        "minimum": 0.0
+      },
+      "rate_limiting_interval": {
         "type": "integer",
         "format": "uint64",
         "minimum": 0.0
@@ -510,11 +522,11 @@
     "config": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Config",
-      "description": "Config are OP finality gadget's configuration",
       "type": "object",
       "required": [
         "bsn_id",
-        "min_pub_rand"
+        "min_pub_rand",
+        "rate_limiting"
       ],
       "properties": {
         "bsn_id": {
@@ -524,9 +536,37 @@
           "type": "integer",
           "format": "uint64",
           "minimum": 0.0
+        },
+        "rate_limiting": {
+          "$ref": "#/definitions/RateLimitingConfig"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "definitions": {
+        "RateLimitingConfig": {
+          "description": "RateLimitingConfig defines parameters for rate limiting message processing",
+          "type": "object",
+          "required": [
+            "block_interval",
+            "max_msgs_per_interval"
+          ],
+          "properties": {
+            "block_interval": {
+              "description": "Number of Babylon blocks in each interval",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "max_msgs_per_interval": {
+              "description": "Maximum number of messages allowed from each FP per interval",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      }
     },
     "first_pub_rand_commit": {
       "$schema": "http://json-schema.org/draft-07/schema#",
