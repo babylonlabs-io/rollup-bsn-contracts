@@ -427,8 +427,6 @@ pub(crate) mod tests {
         );
     }
 
-
-
     #[test]
     fn test_finality_signature_interval_check_fails() {
         use crate::contract::tests::mock_deps_babylon;
@@ -455,7 +453,7 @@ pub(crate) mod tests {
         let random_signature: Vec<u8> = (0..64).map(|_| rng.random()).collect();
         let random_pub_rand: Vec<u8> = (0..32).map(|_| rng.random()).collect();
         let random_block_hash: Vec<u8> = (0..32).map(|_| rng.random()).collect();
-        
+
         // Dummy proof - will fail later validations but passes type check
         let proof = babylon_merkle::Proof {
             total: 1,
@@ -511,7 +509,7 @@ pub(crate) mod tests {
         let random_signature: Vec<u8> = (0..64).map(|_| rng.random()).collect();
         let random_pub_rand: Vec<u8> = (0..32).map(|_| rng.random()).collect();
         let random_block_hash: Vec<u8> = (0..32).map(|_| rng.random()).collect();
-        
+
         // Dummy proof - will fail later validations but passes type check
         let proof = babylon_merkle::Proof {
             total: 1,
@@ -522,8 +520,8 @@ pub(crate) mod tests {
 
         // Test valid heights that respect the interval
         let valid_heights = vec![
-            activation_height,     // 1000: (1000-1000) % 5 = 0
-            activation_height + 5, // 1005: (1005-1000) % 5 = 0
+            activation_height,      // 1000: (1000-1000) % 5 = 0
+            activation_height + 5,  // 1005: (1005-1000) % 5 = 0
             activation_height + 10, // 1010: (1010-1000) % 5 = 0
         ];
 

@@ -52,7 +52,10 @@ fn instantiate_works() {
     assert_eq!(msg.bsn_id, res.bsn_id);
     assert_eq!(msg.min_pub_rand, res.min_pub_rand);
     assert_eq!(msg.bsn_activation_height, res.bsn_activation_height);
-    assert_eq!(msg.finality_signature_interval, res.finality_signature_interval);
+    assert_eq!(
+        msg.finality_signature_interval,
+        res.finality_signature_interval
+    );
 
     // Check the admin is properly stored in the state and returned
     let res: AdminResponse =
