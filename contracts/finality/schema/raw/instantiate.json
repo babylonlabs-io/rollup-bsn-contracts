@@ -4,7 +4,9 @@
   "type": "object",
   "required": [
     "admin",
+    "bsn_activation_height",
     "bsn_id",
+    "finality_signature_interval",
     "max_msgs_per_interval",
     "min_pub_rand",
     "rate_limiting_interval"
@@ -13,8 +15,18 @@
     "admin": {
       "type": "string"
     },
+    "bsn_activation_height": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
     "bsn_id": {
       "type": "string"
+    },
+    "finality_signature_interval": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
     },
     "max_msgs_per_interval": {
       "type": "integer",
