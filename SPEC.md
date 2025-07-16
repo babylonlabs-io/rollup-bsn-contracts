@@ -33,6 +33,7 @@
     - [4.9.4. ListPubRandCommit (MUST)](#494-listpubrandcommit-must)
     - [4.9.5. Admin (SHOULD)](#495-admin-should)
     - [4.9.6. Config (SHOULD)](#496-config-should)
+    - [4.9.7. AllowedFinalityProviders (SHOULD)](#497-allowedfinalityproviders-should)
 - [5. Implementation status](#5-implementation-status)
   - [5.1. Babylon implementation status](#51-babylon-implementation-status)
   - [5.2. Finality contract implementation status](#52-finality-contract-implementation-status)
@@ -1246,7 +1247,7 @@ WHERE Config contains:
 - `rate_limiting`: `RateLimitingConfig` - Rate limiting configuration including
   `max_msgs_per_interval` and `block_interval`
 
-#### 4.8.7. AllowedFinalityProviders (SHOULD)
+#### 4.9.7. AllowedFinalityProviders (SHOULD)
 
 **Query Structure:**
 ```rust
