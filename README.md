@@ -7,7 +7,7 @@ finality signatures and block finalisation status of rollups.
 ## Specification
 
 For detailed technical specifications and requirements of the finality contract,
-please see [SPEC.md](SPEC.md). The spec document outlines the contract's
+please see [SPEC.md](docs/SPEC.md). The spec document outlines the contract's
 interfaces, message handlers, queries, and provides guidance for integrators.
 
 ## Development
