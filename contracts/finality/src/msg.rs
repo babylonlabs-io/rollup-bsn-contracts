@@ -287,6 +287,7 @@ mod tests {
             min_pub_rand: 1,
             rate_limiting_interval: 0,
             max_msgs_per_interval: 10,
+            allowed_finality_providers: None,
         };
 
         let err = msg.validate().unwrap_err();
@@ -301,6 +302,7 @@ mod tests {
             min_pub_rand: 1,
             rate_limiting_interval: 1000,
             max_msgs_per_interval: 0,
+            allowed_finality_providers: None,
         };
 
         let err = msg.validate().unwrap_err();
@@ -317,6 +319,7 @@ mod tests {
                 min_pub_rand,
                 rate_limiting_interval: 10000,
                 max_msgs_per_interval: 100,
+                allowed_finality_providers: None,
             };
 
             let result = msg.validate();
@@ -343,6 +346,7 @@ mod tests {
             min_pub_rand: 100,
             rate_limiting_interval: 10000,
             max_msgs_per_interval: 100,
+            allowed_finality_providers: None,
         };
 
         let err = msg.validate().unwrap_err();
@@ -358,6 +362,7 @@ mod tests {
             min_pub_rand: 100,
             rate_limiting_interval: 10000,
             max_msgs_per_interval: 100,
+            allowed_finality_providers: None,
         };
 
         let err = msg.validate().unwrap_err();
@@ -381,6 +386,7 @@ mod tests {
                 min_pub_rand: 100,
                 rate_limiting_interval: 10000,
                 max_msgs_per_interval: 100,
+                allowed_finality_providers: None,
             };
 
             let result = msg.validate();
@@ -398,6 +404,7 @@ mod tests {
             min_pub_rand: 100,
             rate_limiting_interval: 10000,
             max_msgs_per_interval: 100,
+            allowed_finality_providers: None,
         };
         assert!(msg.validate().is_ok());
 
@@ -409,6 +416,7 @@ mod tests {
             min_pub_rand: 100,
             rate_limiting_interval: 10000,
             max_msgs_per_interval: 100,
+            allowed_finality_providers: None,
         };
         let err = msg.validate().unwrap_err();
         assert!(matches!(err, ContractError::InvalidBsnId(_)));

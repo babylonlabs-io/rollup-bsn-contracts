@@ -282,6 +282,8 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
             bsn_id: bsn_id.clone(),
             min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
             allowed_finality_providers: None,
         };
 
@@ -430,6 +432,7 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
@@ -490,6 +493,7 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
@@ -548,6 +552,7 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
@@ -615,6 +620,7 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
@@ -1015,6 +1021,8 @@ pub(crate) mod tests {
             admin: admin.to_string(),
             bsn_id: "op-stack-l2-11155420".to_string(),
             min_pub_rand: 100,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
             allowed_finality_providers: Some(initial_fps.clone()),
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -1129,6 +1137,8 @@ pub(crate) mod tests {
             admin: admin.to_string(),
             bsn_id: "op-stack-l2-11155420".to_string(),
             min_pub_rand: 100,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
             allowed_finality_providers: Some(vec![initial_fp.clone()]),
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
