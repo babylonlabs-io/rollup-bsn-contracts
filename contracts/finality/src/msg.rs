@@ -16,7 +16,6 @@ pub struct InstantiateMsg {
     pub min_pub_rand: u64,
     pub rate_limiting_interval: u64,
     pub max_msgs_per_interval: u32,
-    #[schemars(range(min = 1))]
     pub bsn_activation_height: u64,
     #[schemars(range(min = 1))]
     pub finality_signature_interval: u64,
@@ -76,15 +75,6 @@ impl InstantiateMsg {
         Ok(())
     }
 
-    fn validate_bsn_activation_height(&self) -> Result<(), ContractError> {
-        if self.bsn_activation_height == 0 {
-            return Err(ContractError::InvalidBsnActivationHeight(
-                self.bsn_activation_height,
-            ));
-        }
-        Ok(())
-    }
-
     fn validate_finality_signature_interval(&self) -> Result<(), ContractError> {
         if self.finality_signature_interval == 0 {
             return Err(ContractError::InvalidFinalitySignatureInterval(
@@ -101,8 +91,6 @@ impl InstantiateMsg {
         self.validate_bsn_id_format()?;
         // Validate rate limiting settings
         self.validate_rate_limiting()?;
-        // Validate BSN activation height
-        self.validate_bsn_activation_height()?;
         // Validate finality signature interval
         self.validate_finality_signature_interval()?;
 

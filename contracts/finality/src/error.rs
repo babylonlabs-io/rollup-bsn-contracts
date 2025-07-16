@@ -45,8 +45,6 @@ pub enum ContractError {
     InvalidNumPubRand(u64),
     #[error("Invalid min_pub_rand value: {0}. Must be at least 1")]
     InvalidMinPubRand(u64),
-    #[error("Invalid bsn_activation_height value: {0}. Must be at least 1")]
-    InvalidBsnActivationHeight(u64),
     #[error("Invalid finality_signature_interval value: {0}. Must be at least 1")]
     InvalidFinalitySignatureInterval(u64),
     #[error("BSN not activated yet. Current height: {0}, activation height: {1}")]

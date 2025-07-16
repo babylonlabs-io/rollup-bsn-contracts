@@ -241,7 +241,7 @@ pub(crate) mod tests {
 
         let min_pub_rand = get_random_u64_range(0, 1000000);
         let bsn_id = "op-stack-l2-11155420".to_string();
-        let bsn_activation_height = get_random_u64_range(1, 1000000);
+        let bsn_activation_height = get_random_u64_range(0, 1000000);
         let finality_signature_interval = get_random_u64_range(1, 1000000);
 
         let msg = InstantiateMsg {
@@ -299,7 +299,7 @@ pub(crate) mod tests {
         let invalid_admin = "invalid-address";
         let bsn_id = "op-stack-l2-11155420".to_string();
         let min_pub_rand = get_random_u64_range(1, 1000000);
-        let bsn_activation_height = get_random_u64_range(1, 1000000);
+        let bsn_activation_height = get_random_u64_range(0, 1000000);
         let finality_signature_interval = get_random_u64_range(1, 1000000);
 
         let instantiate_msg = InstantiateMsg {
@@ -325,7 +325,7 @@ pub(crate) mod tests {
         let valid_admin = deps.api.addr_make(INIT_ADMIN);
         let invalid_bsn_id = "invalid@bsn#id"; // Contains invalid characters
         let min_pub_rand = get_random_u64_range(1, 1000000);
-        let bsn_activation_height = get_random_u64_range(1, 1000000);
+        let bsn_activation_height = get_random_u64_range(0, 1000000);
         let finality_signature_interval = get_random_u64_range(1, 1000000);
 
         let instantiate_msg = InstantiateMsg {
@@ -351,7 +351,7 @@ pub(crate) mod tests {
         let valid_admin = deps.api.addr_make(INIT_ADMIN);
         let empty_bsn_id = "";
         let min_pub_rand = get_random_u64_range(1, 1000000);
-        let bsn_activation_height = get_random_u64_range(1, 1000000);
+        let bsn_activation_height = get_random_u64_range(0, 1000000);
         let finality_signature_interval = get_random_u64_range(1, 1000000);
 
         let instantiate_msg = InstantiateMsg {
@@ -372,12 +372,42 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn test_instantiate_with_zero_bsn_activation_height() {
+        let mut deps = mock_deps_babylon();
+        let valid_admin = deps.api.addr_make(INIT_ADMIN);
+        let bsn_id = "test-bsn-zero-activation";
+        let min_pub_rand = get_random_u64_range(1, 1000000);
+        let finality_signature_interval = get_random_u64_range(1, 1000000);
+
+        let instantiate_msg = InstantiateMsg {
+            admin: valid_admin.to_string(),
+            bsn_id: bsn_id.to_string(),
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 0,
+            finality_signature_interval,
+        };
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+
+        // Should successfully instantiate with 0
+        let result = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg);
+        assert!(result.is_ok());
+
+        // Verify the config was stored correctly
+        let config = get_config(deps.as_ref().storage).unwrap();
+        assert_eq!(config.bsn_activation_height, 0);
+        assert_eq!(config.bsn_id, bsn_id);
+    }
+
+    #[test]
     fn test_admin_update_rejects_malformed_addresses() {
         let mut deps = mock_deps_babylon();
         let init_admin = deps.api.addr_make(INIT_ADMIN);
         let bsn_id = "op-stack-l2-11155420".to_string();
         let min_pub_rand = get_random_u64_range(1, 1000000);
-        let bsn_activation_height = get_random_u64_range(1, 1000000);
+        let bsn_activation_height = get_random_u64_range(0, 1000000);
         let finality_signature_interval = get_random_u64_range(1, 1000000);
 
         // Initialize contract
