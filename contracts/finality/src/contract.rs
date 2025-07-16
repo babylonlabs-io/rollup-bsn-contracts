@@ -401,8 +401,7 @@ pub(crate) mod tests {
             .unwrap_err();
             assert!(
                 matches!(err, ContractError::StdError(_)),
-                "Expected StdError for invalid address: {}",
-                invalid_addr
+                "Expected StdError for invalid address: {invalid_addr}"
             );
         }
 
