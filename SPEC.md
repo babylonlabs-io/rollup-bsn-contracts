@@ -368,8 +368,8 @@ parameters must be provided:
 - `max_msgs_per_interval`: u32 - Maximum messages allowed per finality provider
   per interval (must be ≥ 1)
 - `bsn_activation_height`: u64 - The block height at which the BSN system is
-  activated and begins accepting finality signatures and public randomness
-  commitments (must be ≥ 1)
+  activated and begins accepting finality signatures. Setting this to 0 means
+  "activate immediately from genesis"
 - `finality_signature_interval`: u64 - The interval between allowed finality
   signature submissions to prevent spam (must be ≥ 1)
 
@@ -382,18 +382,8 @@ parameters must be provided:
 3. **Min Pub Rand Validation**: The `min_pub_rand` parameter MUST be ≥ 1
 4. **Rate Limiting Validation**: Both `rate_limiting_interval` and
    `max_msgs_per_interval` MUST be ≥ 1
-5. **BSN Activation Height Validation**: The `bsn_activation_height` parameter
-   MUST be ≥ 1
-6. **Finality Signature Interval Validation**: The `finality_signature_interval`
+5. **Finality Signature Interval Validation**: The `finality_signature_interval`
    parameter MUST be ≥ 1
-
-**System Activation Logic:**
-- The BSN system is considered activated when the current block height is ≥
-  `bsn_activation_height`
-- Before activation, both `CommitPublicRandomness` and `SubmitFinalitySignature`
-  messages will be rejected
-- After activation, finality signatures can only be submitted at heights where
-  `(height - bsn_activation_height) % finality_signature_interval == 0`
 
 **Instantiation Process:**
 1. **Parameter Validation**: Validate all input parameters according to the
@@ -593,21 +583,14 @@ CommitPublicRandomness {
 **Expected Behaviour:** Finality contracts MUST implement this handler with the
 following verification logic:
 
-1. **System Activation Check**: Ensure the BSN system is activated before
-   processing public randomness commitments:
-   - Load the contract configuration to get `bsn_activation_height`
-   - Verify that `start_height >= bsn_activation_height`
-   - Return `ContractError::BeforeSystemActivation` if the system is not yet
-     activated
-
-2. **Rate Limiting Check**: Enforce rate limiting for the finality provider:
+1. **Rate Limiting Check**: Enforce rate limiting for the finality provider:
    - Call the rate limiting function with the finality provider's BTC public key
      and current block environment
    - Return `ContractError::RateLimitExceeded` if the rate limit is exceeded
    - This check MUST occur before any other validation to prevent resource
      consumption
 
-3. **Finality Provider Existence Check**: Verify that the finality provider
+2. **Finality Provider Existence Check**: Verify that the finality provider
    exists and is not slashed by querying the Babylon Genesis chain through gRPC:
    - Use `query_grpc` to call `/babylon.btcstaking.v1.Query/FinalityProvider`
      with the `fp_pubkey_hex` parameters
@@ -616,7 +599,7 @@ following verification logic:
    - Ensure the finality provider has not been slashed (`slashed_babylon_height`
      and `slashed_btc_height` are both 0)
 
-4. **Signature Verification**: Verify the commitment signature using Schnorr
+3. **Signature Verification**: Verify the commitment signature using Schnorr
    signature verification:
    - Decode the finality provider's BTC public key from `fp_pubkey_hex`
      parameter
@@ -627,7 +610,7 @@ following verification logic:
      and num_pub_rand are in big-endian bytes)
    - Verify signature against the constructed message using the BTC public key
 
-5. **Height Overlap Check**: Ensure no overlap with existing public randomness
+4. **Height Overlap Check**: Ensure no overlap with existing public randomness
    commitments:
    - Query the last public randomness commitment for this finality provider from
      public randomness commitment state
@@ -635,7 +618,7 @@ following verification logic:
    - Ensure `start_height > last_commit.start_height + last_commit.num_pub_rand
      - 1` to prevent overlapping ranges
 
-6. **Storage Operations**: Save the public randomness commitment data:
+5. **Storage Operations**: Save the public randomness commitment data:
    - Create a new `PubRandCommit` struct with provided parameters and current
      Babylon epoch
    - Save to the public randomness commitment state using key `(fp_pubkey_hex,
@@ -676,8 +659,8 @@ following verification logic:
    processing finality signatures:
    - Load the contract configuration to get `bsn_activation_height`
    - Verify that `height >= bsn_activation_height`
-   - Return `ContractError::BeforeSystemActivation` if the system is not yet
-     activated
+   - Return `ContractError::BeforeBSNActivation` if the height is before BSN
+     activation
 
 2. **Finality Signature Interval Check**: Ensure finality signatures are only
    submitted at scheduled intervals to prevent spam:
