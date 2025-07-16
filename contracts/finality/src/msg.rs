@@ -299,7 +299,8 @@ mod tests {
             if min_pub_rand > 0 {
                 assert!(
                     result.is_ok(),
-                    "Expected success for min_pub_rand = {}", min_pub_rand
+                    "Expected success for min_pub_rand = {}",
+                    min_pub_rand
                 );
             } else {
                 assert!(result.is_err(), "Expected error for min_pub_rand = 0");

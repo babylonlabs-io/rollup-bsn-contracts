@@ -260,7 +260,7 @@ mod tests {
             let max_msgs = if rng.random_range(0..2) == 0 {
                 1
             } else {
-                rng.random_range(1..=u32::MAX.min(1000))
+                rng.random_range(1..=1000)
             };
             let block_interval = rng.random_range(1..=100);
             let block_height = rng.random_range(0..=1000);

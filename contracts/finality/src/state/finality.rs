@@ -44,7 +44,7 @@ pub fn insert_finality_signature(
 
     FINALITY_SIGNATURES
         .save(storage, (height, fp_btc_pk), &signatures)
-        .map_err(|e| ContractError::StdError(e))
+        .map_err(ContractError::StdError)
 }
 
 /// Map of (block height, block hash) tuples to the list of signatories
