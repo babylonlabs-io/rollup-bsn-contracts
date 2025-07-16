@@ -95,4 +95,6 @@ pub enum ContractError {
     InvalidMaxMsgsPerInterval(u32),
     #[error("Rate limit exceeded for finality provider {fp_btc_pk} with limit {limit}")]
     RateLimitExceeded { fp_btc_pk: String, limit: u32 },
+    #[error("Finality provider {0} is not in the allowlist")]
+    FinalityProviderNotAllowed(String),
 }

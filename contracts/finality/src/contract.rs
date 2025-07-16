@@ -3,11 +3,13 @@ use cosmwasm_std::{to_json_binary, Deps, DepsMut, Env, MessageInfo, QueryRespons
 use babylon_bindings::BabylonQuery;
 
 use crate::error::ContractError;
+use crate::exec::allowlist::{handle_add_to_allowlist, handle_remove_from_allowlist};
 use crate::exec::finality::handle_finality_signature;
 use crate::exec::public_randomness::handle_public_randomness_commit;
 use crate::msg::BabylonMsg;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::queries::query_block_voters;
+use crate::state::allowlist::get_allowed_finality_providers;
 use crate::state::config::{get_config, set_config, Config, RateLimitingConfig, ADMIN};
 use crate::state::pruning::handle_prune_data;
 use crate::state::public_randomness::{
@@ -36,6 +38,16 @@ pub fn instantiate(
         },
     };
     set_config(deps.storage, &config)?;
+
+    // Add initial allowed finality providers if provided
+    if let Some(fp_list) = msg.allowed_finality_providers {
+        for fp_pubkey in &fp_list {
+            if fp_pubkey.is_empty() {
+                return Err(ContractError::EmptyFpBtcPubKey);
+            }
+            crate::state::allowlist::add_finality_provider_to_allowlist(deps.storage, fp_pubkey)?;
+        }
+    }
 
     Ok(Response::new().add_attribute("action", "instantiate"))
 }
@@ -69,6 +81,9 @@ pub fn query(
             limit,
             reverse,
         )?)?),
+        QueryMsg::AllowedFinalityProviders {} => Ok(to_json_binary(
+            &get_allowed_finality_providers(deps.storage)?,
+        )?),
     }
 }
 
@@ -132,6 +147,12 @@ pub fn execute(
             max_signatures_to_prune,
             max_pub_rand_values_to_prune,
         ),
+        ExecuteMsg::AddToAllowlist { fp_pubkey_hex_list } => {
+            handle_add_to_allowlist(deps, info, fp_pubkey_hex_list)
+        }
+        ExecuteMsg::RemoveFromAllowlist { fp_pubkey_hex_list } => {
+            handle_remove_from_allowlist(deps, info, fp_pubkey_hex_list)
+        }
     }
 }
 
@@ -171,28 +192,6 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_invalid_admin_address() {
-        let mut deps = mock_deps_babylon();
-        let invalid_admin = "invalid-address";
-        let bsn_id = "op-stack-l2-11155420".to_string();
-        let min_pub_rand = get_random_u64_range(1, 1000000);
-
-        let instantiate_msg = InstantiateMsg {
-            admin: invalid_admin.to_string(),
-            bsn_id,
-            min_pub_rand,
-            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
-            rate_limiting_interval: RATE_LIMITING_INTERVAL,
-        };
-
-        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-
-        // Call the instantiate function - should fail due to invalid admin address
-        let err = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap_err();
-        assert!(matches!(err, ContractError::StdError(_)));
-    }
-
-    #[test]
     fn test_update_admin() {
         let mut deps = mock_deps_babylon();
         let init_admin = deps.api.addr_make(INIT_ADMIN);
@@ -208,6 +207,7 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
@@ -248,8 +248,100 @@ pub(crate) mod tests {
         let res = execute(deps.as_mut(), mock_env(), admin_info, update_admin_msg).unwrap();
         assert_eq!(0, res.messages.len());
 
+        // Define valid_admin and empty_bsn_id for the next test
+        let valid_admin = deps.api.addr_make("valid_admin");
+        let empty_bsn_id = "";
+
+        let instantiate_msg = InstantiateMsg {
+            admin: valid_admin.to_string(),
+            bsn_id: empty_bsn_id.to_string(),
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            allowed_finality_providers: None,
+        };
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+
+        // Call the instantiate function - should fail due to empty consumer ID
+        let err = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap_err();
+        assert!(matches!(err, ContractError::InvalidBsnId(_)));
         // Verify admin was updated
         ADMIN.assert_admin(deps.as_ref(), &new_admin).unwrap();
+    }
+
+    #[test]
+    fn test_instantiate_validation() {
+        let mut deps = mock_deps_babylon();
+        let init_admin = deps.api.addr_make(INIT_ADMIN);
+
+        let min_pub_rand = get_random_u64_range(0, 1000000);
+        let bsn_id = "op-stack-l2-11155420".to_string();
+
+        let msg = InstantiateMsg {
+            admin: init_admin.to_string(),
+            bsn_id: bsn_id.clone(),
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            allowed_finality_providers: None,
+        };
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        let result = instantiate(deps.as_mut(), mock_env(), info, msg);
+
+        if min_pub_rand > 0 {
+            // Should succeed and set state correctly
+            assert!(
+                result.is_ok(),
+                "Expected success for min_pub_rand = {min_pub_rand}"
+            );
+
+            // Verify the response
+            let res = result.unwrap();
+            assert_eq!(res.messages.len(), 0);
+
+            // Verify admin was set correctly
+            ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
+
+            // Verify admin is queryable
+            let admin_query = query(deps.as_ref(), mock_env(), QueryMsg::Admin {}).unwrap();
+            let admin: AdminResponse = from_json(admin_query).unwrap();
+            assert_eq!(admin.admin.unwrap(), init_admin.as_str());
+
+            // Verify config was saved correctly
+            let config_query = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
+            let config: Config = from_json(config_query).unwrap();
+            assert_eq!(config.bsn_id, bsn_id);
+            assert_eq!(config.min_pub_rand, min_pub_rand);
+        } else {
+            // Should fail with specific error
+            assert!(result.is_err(), "Expected error for min_pub_rand = 0");
+            assert_eq!(result.unwrap_err(), ContractError::InvalidMinPubRand(0));
+        }
+    }
+
+    #[test]
+    fn test_invalid_admin_address() {
+        let mut deps = mock_deps_babylon();
+        let invalid_admin = "invalid-address";
+        let bsn_id = "op-stack-l2-11155420".to_string();
+        let min_pub_rand = get_random_u64_range(1, 1000000);
+
+        let instantiate_msg = InstantiateMsg {
+            admin: invalid_admin.to_string(),
+            bsn_id,
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            allowed_finality_providers: None,
+        };
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+
+        // Call the instantiate function - should fail due to invalid admin address
+        let err = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap_err();
+        assert!(matches!(err, ContractError::StdError(_)));
     }
 
     #[test]
@@ -266,6 +358,7 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
@@ -308,8 +401,7 @@ pub(crate) mod tests {
             .unwrap_err();
             assert!(
                 matches!(err, ContractError::StdError(_)),
-                "Expected StdError for invalid address: {}",
-                invalid_addr
+                "Expected StdError for invalid address: {invalid_addr}"
             );
         }
 
@@ -339,6 +431,7 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
@@ -399,6 +492,7 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
@@ -457,6 +551,7 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
@@ -524,6 +619,7 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
@@ -895,5 +991,165 @@ pub(crate) mod tests {
         let info = message_info(&non_admin, &[]);
         let result = execute(deps.as_mut(), mock_env(), info, msg);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_allowlist_management() {
+        use rand::rngs::StdRng;
+        use rand::{Rng, SeedableRng};
+        let mut deps = mock_deps_babylon();
+        let admin = deps.api.addr_make(INIT_ADMIN);
+        let admin_info = message_info(&admin, &[]);
+        let non_admin_info = message_info(&deps.api.addr_make("non_admin"), &[]);
+
+        // Helper to generate random hex pubkeys using a shared rng
+        fn random_fp_pubkeys(rng: &mut StdRng, n: usize) -> Vec<String> {
+            (0..n)
+                .map(|_| {
+                    (0..66)
+                        .map(|_| format!("{:x}", rng.random_range(0..16)))
+                        .collect::<String>()
+                })
+                .collect()
+        }
+
+        let mut rng = StdRng::seed_from_u64(42); // deterministic
+        let initial_fps = random_fp_pubkeys(&mut rng, 5);
+
+        let instantiate_msg = InstantiateMsg {
+            admin: admin.to_string(),
+            bsn_id: "op-stack-l2-11155420".to_string(),
+            min_pub_rand: 100,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            allowed_finality_providers: Some(initial_fps.clone()),
+        };
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+
+        // Check all initial FPs are in allowlist
+        let query_res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::AllowedFinalityProviders {},
+        )
+        .unwrap();
+        let mut allowed_fps: Vec<String> = from_json(query_res).unwrap();
+        for fp in &initial_fps {
+            assert!(allowed_fps.contains(fp));
+        }
+        let orig_len = allowed_fps.len();
+
+        // Test adding a duplicate FP (should not error, allowlist unchanged)
+        let dup_add_msg = ExecuteMsg::AddToAllowlist {
+            fp_pubkey_hex_list: vec![initial_fps[0].clone()],
+        };
+        let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), dup_add_msg).unwrap();
+        assert_eq!(res.attributes[0].key, "action");
+        assert_eq!(res.attributes[0].value, "add_to_allowlist");
+        // Allowlist should not grow
+        let query_res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::AllowedFinalityProviders {},
+        )
+        .unwrap();
+        allowed_fps = from_json(query_res).unwrap();
+        assert_eq!(allowed_fps.len(), orig_len);
+
+        // Test removing a non-existent FP (should not error, allowlist unchanged)
+        let non_existent_fp = "deadbeef".repeat(8);
+        let remove_msg = ExecuteMsg::RemoveFromAllowlist {
+            fp_pubkey_hex_list: vec![non_existent_fp.clone()],
+        };
+        let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), remove_msg).unwrap();
+        assert_eq!(res.attributes[0].key, "action");
+        assert_eq!(res.attributes[0].value, "remove_from_allowlist");
+        // Allowlist should not shrink
+        let query_res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::AllowedFinalityProviders {},
+        )
+        .unwrap();
+        allowed_fps = from_json(query_res).unwrap();
+        assert_eq!(allowed_fps.len(), orig_len);
+
+        // Test adding more FPs
+        let new_fps = random_fp_pubkeys(&mut rng, 3);
+        let add_msg = ExecuteMsg::AddToAllowlist {
+            fp_pubkey_hex_list: new_fps.clone(),
+        };
+        let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), add_msg).unwrap();
+        assert_eq!(res.attributes[0].value, "add_to_allowlist");
+        let query_res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::AllowedFinalityProviders {},
+        )
+        .unwrap();
+        allowed_fps = from_json(query_res).unwrap();
+        for fp in &new_fps {
+            assert!(allowed_fps.contains(fp));
+        }
+        assert_eq!(allowed_fps.len(), orig_len + new_fps.len());
+
+        // Test removing some FPs (including one that was just added)
+        let remove_some = vec![initial_fps[0].clone(), new_fps[0].clone()];
+        let remove_msg = ExecuteMsg::RemoveFromAllowlist {
+            fp_pubkey_hex_list: remove_some.clone(),
+        };
+        let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), remove_msg).unwrap();
+        assert_eq!(res.attributes[0].value, "remove_from_allowlist");
+        let query_res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::AllowedFinalityProviders {},
+        )
+        .unwrap();
+        allowed_fps = from_json(query_res).unwrap();
+        for fp in &remove_some {
+            assert!(!allowed_fps.contains(fp));
+        }
+        assert_eq!(
+            allowed_fps.len(),
+            orig_len + new_fps.len() - remove_some.len()
+        );
+
+        // Test non-admin cannot add
+        let add_msg = ExecuteMsg::AddToAllowlist {
+            fp_pubkey_hex_list: random_fp_pubkeys(&mut rng, 1),
+        };
+        let err = execute(deps.as_mut(), mock_env(), non_admin_info, add_msg).unwrap_err();
+        assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
+    }
+
+    #[test]
+    fn test_instantiate_with_allowed_finality_providers() {
+        let mut deps = mock_deps_babylon();
+        let admin = deps.api.addr_make(INIT_ADMIN);
+
+        // Test instantiating with initial allowlist
+        let initial_fp =
+            "02a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7".to_string();
+        let instantiate_msg = InstantiateMsg {
+            admin: admin.to_string(),
+            bsn_id: "op-stack-l2-11155420".to_string(),
+            min_pub_rand: 100,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            allowed_finality_providers: Some(vec![initial_fp.clone()]),
+        };
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+        // Query and check
+        let query_res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::AllowedFinalityProviders {},
+        )
+        .unwrap();
+        let allowed_fps: Vec<String> = from_json(query_res).unwrap();
+        assert!(allowed_fps.contains(&initial_fp));
     }
 }

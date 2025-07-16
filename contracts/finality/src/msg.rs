@@ -16,6 +16,8 @@ pub struct InstantiateMsg {
     pub min_pub_rand: u64,
     pub rate_limiting_interval: u64,
     pub max_msgs_per_interval: u32,
+    /// Optional list of BTC public keys (hex) to pre-populate the allowlist at instantiation
+    pub allowed_finality_providers: Option<Vec<String>>,
 }
 
 impl InstantiateMsg {
@@ -119,6 +121,12 @@ pub enum QueryMsg {
     Admin {},
     #[returns(Config)]
     Config {},
+    /// Get the list of all allowed finality providers.
+    ///
+    /// Returns a list of BTC public keys (in hex format) of finality providers
+    /// that are allowed to submit finality signatures and public randomness commitments.
+    #[returns(Vec<String>)]
+    AllowedFinalityProviders {},
 }
 
 // Note: Adapted from packages/apis/src/btc_staking_api.rs / packages/apis/src/finality_api.rs
@@ -207,6 +215,23 @@ pub enum ExecuteMsg {
         /// If not provided, the default value is 50.
         max_pub_rand_values_to_prune: Option<u32>,
     },
+    /// Add a finality provider to the allowlist.
+    ///
+    /// This message can be called by the admin only.
+    /// Only finality providers in the allowlist can submit finality signatures and public randomness commitments.
+    AddToAllowlist {
+        /// The BTC public keys of the finality providers to add to the allowlist (in hex format)
+        fp_pubkey_hex_list: Vec<String>,
+    },
+    /// Remove a finality provider from the allowlist.
+    ///
+    /// This message can be called by the admin only.
+    /// Removing a finality provider from the allowlist will prevent them from submitting
+    /// new finality signatures and public randomness commitments.
+    RemoveFromAllowlist {
+        /// The BTC public keys of the finality providers to remove from the allowlist (in hex format)
+        fp_pubkey_hex_list: Vec<String>,
+    },
 }
 
 #[cw_serde]
@@ -262,6 +287,7 @@ mod tests {
             min_pub_rand: 1,
             rate_limiting_interval: 0,
             max_msgs_per_interval: 10,
+            allowed_finality_providers: None,
         };
 
         let err = msg.validate().unwrap_err();
@@ -276,6 +302,7 @@ mod tests {
             min_pub_rand: 1,
             rate_limiting_interval: 1000,
             max_msgs_per_interval: 0,
+            allowed_finality_providers: None,
         };
 
         let err = msg.validate().unwrap_err();
@@ -292,6 +319,7 @@ mod tests {
                 min_pub_rand,
                 rate_limiting_interval: 10000,
                 max_msgs_per_interval: 100,
+                allowed_finality_providers: None,
             };
 
             let result = msg.validate();
@@ -299,8 +327,7 @@ mod tests {
             if min_pub_rand > 0 {
                 assert!(
                     result.is_ok(),
-                    "Expected success for min_pub_rand = {}",
-                    min_pub_rand
+                    "Expected success for min_pub_rand = {min_pub_rand}"
                 );
             } else {
                 assert!(result.is_err(), "Expected error for min_pub_rand = 0");
@@ -318,6 +345,7 @@ mod tests {
             min_pub_rand: 100,
             rate_limiting_interval: 10000,
             max_msgs_per_interval: 100,
+            allowed_finality_providers: None,
         };
 
         let err = msg.validate().unwrap_err();
@@ -333,6 +361,7 @@ mod tests {
             min_pub_rand: 100,
             rate_limiting_interval: 10000,
             max_msgs_per_interval: 100,
+            allowed_finality_providers: None,
         };
 
         let err = msg.validate().unwrap_err();
@@ -356,10 +385,11 @@ mod tests {
                 min_pub_rand: 100,
                 rate_limiting_interval: 10000,
                 max_msgs_per_interval: 100,
+                allowed_finality_providers: None,
             };
 
             let result = msg.validate();
-            assert!(result.is_ok(), "Expected success for bsn_id = {}", bsn_id);
+            assert!(result.is_ok(), "Expected success for bsn_id = {bsn_id}");
         }
     }
 
@@ -373,6 +403,7 @@ mod tests {
             min_pub_rand: 100,
             rate_limiting_interval: 10000,
             max_msgs_per_interval: 100,
+            allowed_finality_providers: None,
         };
         assert!(msg.validate().is_ok());
 
@@ -384,6 +415,7 @@ mod tests {
             min_pub_rand: 100,
             rate_limiting_interval: 10000,
             max_msgs_per_interval: 100,
+            allowed_finality_providers: None,
         };
         let err = msg.validate().unwrap_err();
         assert!(matches!(err, ContractError::InvalidBsnId(_)));

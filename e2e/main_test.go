@@ -110,6 +110,26 @@ func (s *FinalityContractTestSuite) Test2CreateBSNFP() {
 	fpInDB, err := s.babylonApp.BTCStakingKeeper.GetFinalityProvider(s.ctx, fp.BtcPk.MustMarshal())
 	s.NoError(err)
 	s.Equal(fp.BtcPk, fpInDB.BtcPk)
+
+	// Add FP to allowlist
+	fpBTCPK := bbn.NewBIP340PubKeyFromBTCPK(fpPK)
+	contractMsg := NewMsgAddToAllowlist([]string{fpBTCPK.MarshalHex()})
+	contractMsgJson, err := json.Marshal(contractMsg)
+	s.NoError(err)
+
+	// Add to allowlist using the contract owner
+	err = s.ExecuteContract(s.contractAddr, s.owner, contractMsgJson)
+	s.NoError(err)
+
+	// Verify FP is in allowlist
+	query := NewQueryAllowedFinalityProviders()
+	queryJson, err := json.Marshal(query)
+	s.NoError(err)
+	queryResBz := s.QueryContract(s.contractAddr, string(queryJson))
+	var allowedFPs []string
+	err = json.Unmarshal(queryResBz, &allowedFPs)
+	s.NoError(err)
+	s.Contains(allowedFPs, fpBTCPK.MarshalHex())
 }
 
 func (s *FinalityContractTestSuite) Test3CommitAndTimestampPubRand() {

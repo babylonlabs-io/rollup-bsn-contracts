@@ -42,9 +42,7 @@ pub fn insert_finality_signature(
         ));
     }
 
-    FINALITY_SIGNATURES
-        .save(storage, (height, fp_btc_pk), &signatures)
-        .map_err(ContractError::StdError)
+    Ok(FINALITY_SIGNATURES.save(storage, (height, fp_btc_pk), &signatures)?)
 }
 
 /// Map of (block height, block hash) tuples to the list of signatories

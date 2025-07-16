@@ -40,6 +40,7 @@ fn instantiate_works() {
         min_pub_rand: 100,
         max_msgs_per_interval: 100,
         rate_limiting_interval: 10000,
+        allowed_finality_providers: None,
     };
     let info = mock_info(CREATOR, &[]);
     let res: ContractResult<Response> = instantiate(&mut deps, mock_env(), info, msg.clone());
