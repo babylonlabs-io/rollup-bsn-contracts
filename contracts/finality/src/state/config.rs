@@ -8,15 +8,24 @@ use babylon_bindings::BabylonQuery;
 pub(crate) const ADMIN: Admin = Admin::new("admin");
 pub(crate) const CONFIG: Item<Config> = Item::new("config");
 
-/// Config are OP finality gadget's configuration
+#[cw_serde]
+/// RateLimitingConfig defines parameters for rate limiting message processing
+pub struct RateLimitingConfig {
+    /// Maximum number of messages allowed from each FP per interval
+    pub max_msgs_per_interval: u32,
+    /// Number of Babylon blocks in each interval
+    pub block_interval: u64,
+}
+
 #[cw_serde]
 pub struct Config {
     pub bsn_id: String,
     pub min_pub_rand: u64,
+    pub rate_limiting: RateLimitingConfig,
 }
 
-pub fn get_config(deps: Deps<BabylonQuery>) -> StdResult<Config> {
-    CONFIG.load(deps.storage)
+pub fn get_config(storage: &dyn Storage) -> StdResult<Config> {
+    CONFIG.load(storage)
 }
 
 pub fn set_config(storage: &mut dyn Storage, config: &Config) -> StdResult<()> {

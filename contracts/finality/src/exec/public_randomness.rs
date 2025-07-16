@@ -4,6 +4,7 @@ use crate::msg::BabylonMsg;
 use crate::state::allowlist::ensure_fp_in_allowlist;
 use crate::state::config::get_config;
 use crate::state::public_randomness::{insert_pub_rand_commit, PubRandCommit};
+use crate::state::rate_limiting::check_rate_limit_and_accumulate;
 use crate::utils::get_fp_rand_commit_context_v0;
 use crate::utils::query_finality_provider;
 use babylon_bindings::BabylonQuery;
@@ -41,7 +42,7 @@ pub fn handle_public_randomness_commit(
         });
     }
 
-    let config = get_config(deps.as_ref())?;
+    let config = get_config(deps.storage)?;
 
     // Validate the commitment parameters
     validate_pub_rand_commit(start_height, num_pub_rand, commitment, config.min_pub_rand)?;
@@ -53,6 +54,10 @@ pub fn handle_public_randomness_commit(
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
 
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
+
+    // Ensure rate limiting and accumulate; this step will fail if the rate limit is exceeded
+    check_rate_limit_and_accumulate(deps.storage, env, &fp_btc_pk)?;
+
     let context = get_fp_rand_commit_context_v0(env)?;
     // Verify signature over the list
     verify_commitment_signature(
@@ -173,9 +178,12 @@ fn ensure_fp_exists_and_not_slashed(
 pub(crate) mod tests {
     use super::*;
     use crate::contract::tests::mock_deps_babylon;
-    use crate::state::config::{Config, CONFIG};
+    use crate::state::config::{Config, RateLimitingConfig, CONFIG};
     use babylon_test_utils::get_public_randomness_commitment;
     use cosmwasm_std::testing::mock_env;
+
+    const MAX_MSGS_PER_INTERVAL: u32 = 100;
+    const RATE_LIMITING_INTERVAL: u64 = 10000;
 
     #[test]
     fn verify_commitment_signature_works() {
@@ -210,6 +218,10 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
+            rate_limiting: RateLimitingConfig {
+                max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+                block_interval: RATE_LIMITING_INTERVAL,
+            },
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -243,6 +255,10 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
+            rate_limiting: RateLimitingConfig {
+                max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+                block_interval: RATE_LIMITING_INTERVAL,
+            },
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -311,6 +327,10 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
+            rate_limiting: RateLimitingConfig {
+                max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+                block_interval: RATE_LIMITING_INTERVAL,
+            },
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -338,6 +358,10 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
+            rate_limiting: RateLimitingConfig {
+                max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+                block_interval: RATE_LIMITING_INTERVAL,
+            },
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -404,6 +428,10 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand: get_random_u64(),
+            rate_limiting: RateLimitingConfig {
+                max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+                block_interval: RATE_LIMITING_INTERVAL,
+            },
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 
@@ -444,6 +472,10 @@ pub(crate) mod tests {
         let config = Config {
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand,
+            rate_limiting: RateLimitingConfig {
+                max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+                block_interval: RATE_LIMITING_INTERVAL,
+            },
         };
         CONFIG.save(deps.as_mut().storage, &config).unwrap();
 

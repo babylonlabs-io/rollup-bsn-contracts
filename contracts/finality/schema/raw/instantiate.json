@@ -5,7 +5,9 @@
   "required": [
     "admin",
     "bsn_id",
-    "min_pub_rand"
+    "max_msgs_per_interval",
+    "min_pub_rand",
+    "rate_limiting_interval"
   ],
   "properties": {
     "admin": {
@@ -24,7 +26,17 @@
     "bsn_id": {
       "type": "string"
     },
+    "max_msgs_per_interval": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
     "min_pub_rand": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "rate_limiting_interval": {
       "type": "integer",
       "format": "uint64",
       "minimum": 0.0

@@ -47,8 +47,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### API breaking
 
-* [#60](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/60) feat:
-  add signing context
+* [#80](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/80) feat: rate limiting for FP messages
+* [#60](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/60) feat: add signing context
 
 ### State breaking
 
@@ -67,8 +67,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Improvements
 
+* [#84](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/84) chore: consolidate tests for InstantiateMsg
 * [#81](https://github.com/babylonlabs-io/rollup-bsn-contracts/issues/81) Add
   allowlist functionality for finality providers.
+* [76](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/76) chore:
+  admin unit tests
 * [#71](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/71) chore:
   fix signing context
 * [#69](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/69) Define

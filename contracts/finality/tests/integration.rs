@@ -38,6 +38,8 @@ fn instantiate_works() {
         admin: mock_api.addr_make(CREATOR),
         bsn_id: "op-stack-l2-11155420".to_string(),
         min_pub_rand: 100,
+        max_msgs_per_interval: 100,
+        rate_limiting_interval: 10000,
         allowed_finality_providers: None,
     };
     let info = mock_info(CREATOR, &[]);
