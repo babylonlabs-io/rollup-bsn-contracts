@@ -4,9 +4,7 @@ use crate::msg::BabylonMsg;
 use crate::state::config::get_config;
 use crate::state::public_randomness::{insert_pub_rand_commit, PubRandCommit};
 use crate::state::rate_limiting::check_rate_limit_and_accumulate;
-use crate::utils::{
-    get_fp_rand_commit_context_v0, query_finality_provider,
-};
+use crate::utils::{get_fp_rand_commit_context_v0, query_finality_provider};
 use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{DepsMut, Env, Event, Response};
 use k256::ecdsa::signature::Verifier;
