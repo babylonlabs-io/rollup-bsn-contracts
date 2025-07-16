@@ -196,49 +196,77 @@ pub(crate) mod tests {
         let mut deps = mock_deps_babylon();
         let init_admin = deps.api.addr_make(INIT_ADMIN);
         let new_admin = deps.api.addr_make(NEW_ADMIN);
-        // Create an InstantiateMsg with admin set to Some(INIT_ADMIN.into())
+        let random_user = deps.api.addr_make("random_user");
+        let bsn_id = "op-stack-l2-11155420".to_string();
+        let min_pub_rand = 100;
+
+        // Initialize contract
         let instantiate_msg = InstantiateMsg {
-            admin: init_admin.to_string(), // Admin provided
-            bsn_id: "op-stack-l2-11155420".to_string(),
-            min_pub_rand: 100,
+            admin: init_admin.to_string(),
+            bsn_id,
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
             allowed_finality_providers: None,
         };
-
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-
-        // Call the instantiate function
-        let res = instantiate(deps.as_mut(), mock_env(), info.clone(), instantiate_msg).unwrap();
-
+        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
         // Assert that no messages were sent
         assert_eq!(0, res.messages.len());
-
         // Use assert_admin to verify that the admin was set correctly
         ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
 
-        // Update the admin to new_admin
+        // Test 1: Only admin can update admin
         let update_admin_msg = ExecuteMsg::UpdateAdmin {
             admin: new_admin.to_string(),
         };
 
-        // Execute the UpdateAdmin message with non-admin info
-        let non_admin_info = message_info(&deps.api.addr_make("non_admin"), &[]);
+        // Random user should fail
+        let random_info = message_info(&random_user, &[]);
         let err = execute(
             deps.as_mut(),
             mock_env(),
-            non_admin_info,
+            random_info,
             update_admin_msg.clone(),
         )
         .unwrap_err();
         assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
 
-        // Execute the UpdateAdmin message with the initial admin info
+        // Creator should fail (not admin)
+        let creator_info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        let err = execute(
+            deps.as_mut(),
+            mock_env(),
+            creator_info,
+            update_admin_msg.clone(),
+        )
+        .unwrap_err();
+        assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
+
+        // Current admin should succeed
         let admin_info = message_info(&init_admin, &[]);
         let res = execute(deps.as_mut(), mock_env(), admin_info, update_admin_msg).unwrap();
-
-        // Assert that no messages were sent
         assert_eq!(0, res.messages.len());
 
-        // Use assert_admin to verify that the admin was updated correctly
+        // Define valid_admin and empty_bsn_id for the next test
+        let valid_admin = deps.api.addr_make("valid_admin");
+        let empty_bsn_id = "";
+
+        let instantiate_msg = InstantiateMsg {
+            admin: valid_admin.to_string(),
+            bsn_id: empty_bsn_id.to_string(),
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            allowed_finality_providers: None,
+        };
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+
+        // Call the instantiate function - should fail due to empty consumer ID
+        let err = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap_err();
+        assert!(matches!(err, ContractError::InvalidBsnId(_)));
+        // Verify admin was updated
         ADMIN.assert_admin(deps.as_ref(), &new_admin).unwrap();
     }
 
@@ -312,81 +340,6 @@ pub(crate) mod tests {
         // Call the instantiate function - should fail due to invalid admin address
         let err = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap_err();
         assert!(matches!(err, ContractError::StdError(_)));
-    }
-
-    #[test]
-    fn test_update_admin() {
-        let mut deps = mock_deps_babylon();
-        let init_admin = deps.api.addr_make(INIT_ADMIN);
-        let new_admin = deps.api.addr_make(NEW_ADMIN);
-        let random_user = deps.api.addr_make("random_user");
-        let bsn_id = "op-stack-l2-11155420".to_string();
-        let min_pub_rand = 100;
-
-        // Initialize contract
-        let instantiate_msg = InstantiateMsg {
-            admin: init_admin.to_string(),
-            bsn_id,
-            min_pub_rand,
-            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
-            rate_limiting_interval: RATE_LIMITING_INTERVAL,
-            allowed_finality_providers: None,
-        };
-        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
-        // Assert that no messages were sent
-        assert_eq!(0, res.messages.len());
-        // Use assert_admin to verify that the admin was set correctly
-        ADMIN.assert_admin(deps.as_ref(), &init_admin).unwrap();
-
-        // Test 1: Only admin can update admin
-        let update_admin_msg = ExecuteMsg::UpdateAdmin {
-            admin: new_admin.to_string(),
-        };
-
-        // Random user should fail
-        let random_info = message_info(&random_user, &[]);
-        let err = execute(
-            deps.as_mut(),
-            mock_env(),
-            random_info,
-            update_admin_msg.clone(),
-        )
-        .unwrap_err();
-        assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
-
-        // Creator should fail (not admin)
-        let creator_info = message_info(&deps.api.addr_make(CREATOR), &[]);
-        let err = execute(
-            deps.as_mut(),
-            mock_env(),
-            creator_info,
-            update_admin_msg.clone(),
-        )
-        .unwrap_err();
-        assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
-
-        // Current admin should succeed
-        let admin_info = message_info(&init_admin, &[]);
-        let res = execute(deps.as_mut(), mock_env(), admin_info, update_admin_msg).unwrap();
-        assert_eq!(0, res.messages.len());
-
-        let instantiate_msg = InstantiateMsg {
-            admin: valid_admin.to_string(),
-            bsn_id: empty_bsn_id.to_string(),
-            min_pub_rand,
-            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
-            rate_limiting_interval: RATE_LIMITING_INTERVAL,
-            allowed_finality_providers: None,
-        };
-
-        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-
-        // Call the instantiate function - should fail due to empty consumer ID
-        let err = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap_err();
-        assert!(matches!(err, ContractError::InvalidBsnId(_)));
-        // Verify admin was updated
-        ADMIN.assert_admin(deps.as_ref(), &new_admin).unwrap();
     }
 
     #[test]
