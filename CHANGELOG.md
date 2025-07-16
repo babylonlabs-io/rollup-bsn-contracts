@@ -102,3 +102,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
   add missing validations in handle_public_randomness_commit
 * [70](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/70) chore:
   new query for fetch all pub rand commit
+* [76](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/76) chore:
+  admin unit tests
