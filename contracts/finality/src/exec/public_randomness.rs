@@ -5,7 +5,7 @@ use crate::state::config::get_config;
 use crate::state::public_randomness::{insert_pub_rand_commit, PubRandCommit};
 use crate::state::rate_limiting::check_rate_limit_and_accumulate;
 use crate::utils::{
-    ensure_system_activated, get_fp_rand_commit_context_v0, query_finality_provider,
+    get_fp_rand_commit_context_v0, query_finality_provider,
 };
 use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{DepsMut, Env, Event, Response};
@@ -26,9 +26,6 @@ pub fn handle_public_randomness_commit(
 ) -> Result<Response<BabylonMsg>, ContractError> {
     // Load config first
     let config = get_config(deps.storage)?;
-
-    // Public randomness commits are not allowed before system activation
-    ensure_system_activated(start_height, config.bsn_activation_height)?;
 
     // Check if FP BTC PubKey is empty
     if fp_btc_pk_hex.is_empty() {
@@ -563,77 +560,6 @@ pub(crate) mod tests {
                 given: too_few_pub_rand,
                 required: min_pub_rand
             }
-        );
-    }
-
-    #[test]
-    fn test_system_activation_check() {
-        use crate::contract::instantiate;
-        use crate::contract::tests::{CREATOR, INIT_ADMIN};
-        use crate::msg::InstantiateMsg;
-        use crate::testutil::datagen::*;
-        use cosmwasm_std::testing::message_info;
-        use rand::{rng, Rng};
-
-        let mut deps = mock_deps_babylon();
-
-        // Configure the contract with activation height of 1000
-        let activation_height = 1000;
-        let admin = deps.api.addr_make(INIT_ADMIN);
-
-        let instantiate_msg = InstantiateMsg {
-            admin: admin.to_string(),
-            bsn_id: format!("test-{}", get_random_u64()),
-            min_pub_rand: 1, // Set to minimum to avoid other validation errors
-            max_msgs_per_interval: 100,
-            rate_limiting_interval: 10,
-            bsn_activation_height: activation_height,
-            finality_signature_interval: 1,
-        };
-
-        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
-
-        // Generate random 64-byte signature
-        let mut rng = rng();
-        let random_signature: Vec<u8> = (0..BIP340_SIGNATURE_LENGTH_BYTES)
-            .map(|_| rng.random())
-            .collect();
-
-        // FAIL CASE: Try to commit at height before activation
-        let before_activation_height = activation_height - 1;
-        let result = handle_public_randomness_commit(
-            deps.as_mut(),
-            &mock_env(),
-            &get_random_fp_pk_hex(),
-            before_activation_height, // Before activation should fail
-            1,
-            &get_random_block_hash(),
-            &random_signature,
-        );
-
-        assert_eq!(
-            result.unwrap_err(),
-            ContractError::BeforeSystemActivation(before_activation_height, activation_height),
-            "Should fail when height < activation_height"
-        );
-
-        // PASS CASE: Try to commit at activation height (should pass system activation check)
-        let result = handle_public_randomness_commit(
-            deps.as_mut(),
-            &mock_env(),
-            &get_random_fp_pk_hex(),
-            activation_height, // At activation height should pass
-            1,
-            &get_random_block_hash(),
-            &random_signature,
-        );
-
-        // Should fail at a later stage (FP not found), not at system activation
-        assert_ne!(
-            result.unwrap_err(),
-            ContractError::BeforeSystemActivation(activation_height, activation_height),
-            "Should pass system activation check when height >= activation_height"
         );
     }
 }

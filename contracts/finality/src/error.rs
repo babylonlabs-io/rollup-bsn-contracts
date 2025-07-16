@@ -49,8 +49,8 @@ pub enum ContractError {
     InvalidBsnActivationHeight(u64),
     #[error("Invalid finality_signature_interval value: {0}. Must be at least 1")]
     InvalidFinalitySignatureInterval(u64),
-    #[error("System not activated yet. Current height: {0}, activation height: {1}")]
-    BeforeSystemActivation(u64, u64),
+    #[error("BSN not activated yet. Current height: {0}, activation height: {1}")]
+    BeforeBSNActivation(u64, u64),
     #[error(
         "Finality signature not at scheduled height. Height {0} not allowed with interval {1}"
     )]

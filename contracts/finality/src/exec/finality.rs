@@ -8,7 +8,7 @@ use crate::state::public_randomness::{
     get_timestamped_pub_rand_commit_for_height, insert_pub_rand_value, PubRandCommit,
 };
 use crate::state::rate_limiting::check_rate_limit_and_accumulate;
-use crate::utils::{ensure_system_activated, get_fp_fin_vote_context_v0, query_finality_provider};
+use crate::utils::{get_fp_fin_vote_context_v0, query_finality_provider};
 use babylon_bindings::BabylonQuery;
 use babylon_merkle::Proof;
 use cosmwasm_std::{Deps, DepsMut, Env, Event, Response};
@@ -27,19 +27,8 @@ pub fn handle_finality_signature(
     block_hash: &[u8],
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
-    // Load config first
-    let config = get_config(deps.storage)?;
-
-    // Finality signatures are not allowed before system activation
-    ensure_system_activated(height, config.bsn_activation_height)?;
-
-    // Ensure finality signature interval is respected
-    if (height - config.bsn_activation_height) % config.finality_signature_interval != 0 {
-        return Err(ContractError::FinalitySignatureNotAtScheduledHeight(
-            height,
-            config.finality_signature_interval,
-        ));
-    }
+    // Ensure finality signatures are allowed (BSN activation + interval check)
+    ensure_finality_signature_allowed(deps.storage, height)?;
 
     // Ensure the finality provider exists and is not slashed
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
@@ -176,6 +165,32 @@ fn verify_finality_signature(
     if !pubkey.verify(pub_rand, &msg_hash, signature)? {
         return Err(ContractError::FailedSignatureVerification("EOTS".into()));
     }
+    Ok(())
+}
+
+/// Ensures finality signatures are allowed by checking both BSN activation and interval requirements
+fn ensure_finality_signature_allowed(
+    storage: &dyn cosmwasm_std::Storage,
+    rollup_height: u64,
+) -> Result<(), ContractError> {
+    let config = get_config(storage)?;
+
+    // Check BSN activation
+    if rollup_height < config.bsn_activation_height {
+        return Err(ContractError::BeforeBSNActivation(
+            rollup_height,
+            config.bsn_activation_height,
+        ));
+    }
+
+    // Check finality signature interval
+    if (rollup_height - config.bsn_activation_height) % config.finality_signature_interval != 0 {
+        return Err(ContractError::FinalitySignatureNotAtScheduledHeight(
+            rollup_height,
+            config.finality_signature_interval,
+        ));
+    }
+
     Ok(())
 }
 
@@ -407,7 +422,7 @@ pub(crate) mod tests {
 
         assert_eq!(
             result.unwrap_err(),
-            ContractError::BeforeSystemActivation(before_activation_height, activation_height),
+            ContractError::BeforeBSNActivation(before_activation_height, activation_height),
             "Should fail when height < activation_height"
         );
 
@@ -425,11 +440,11 @@ pub(crate) mod tests {
             &add_finality_signature.finality_sig,
         );
 
-        // Should fail at a later stage (FP not found), not at system activation
+        // Should fail at a later stage (FP not found), not at BSN activation
         assert_ne!(
             result.unwrap_err(),
-            ContractError::BeforeSystemActivation(activation_height, activation_height),
-            "Should pass system activation check when height >= activation_height"
+            ContractError::BeforeBSNActivation(activation_height, activation_height),
+            "Should pass BSN activation check when height >= activation_height"
         );
     }
 
@@ -522,8 +537,8 @@ pub(crate) mod tests {
             let error = result.unwrap_err();
             assert_ne!(
                 error,
-                ContractError::BeforeSystemActivation(valid_height, activation_height),
-                "Height {} should pass system activation check",
+                ContractError::BeforeBSNActivation(valid_height, activation_height),
+                "Height {} should pass BSN activation check",
                 valid_height
             );
             assert_ne!(
