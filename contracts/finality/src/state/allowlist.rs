@@ -3,8 +3,8 @@ use cw_storage_plus::Map;
 
 use crate::error::ContractError;
 
-/// Map of allowed finality provider BTC public keys (in hex format) to a boolean flag
-pub(crate) const ALLOWED_FINALITY_PROVIDERS: Map<String, bool> =
+/// Map of allowed finality provider BTC public keys (in hex format) to a unit value
+pub(crate) const ALLOWED_FINALITY_PROVIDERS: Map<String, ()> =
     Map::new("allowed_finality_providers");
 
 /// Check if a finality provider is in the allowlist
@@ -25,7 +25,7 @@ pub fn add_finality_provider_to_allowlist(
     storage: &mut dyn Storage,
     fp_btc_pk_hex: &str,
 ) -> StdResult<()> {
-    ALLOWED_FINALITY_PROVIDERS.save(storage, fp_btc_pk_hex.to_string(), &true)
+    ALLOWED_FINALITY_PROVIDERS.save(storage, fp_btc_pk_hex.to_string(), &())
 }
 
 /// Remove a finality provider from the allowlist
