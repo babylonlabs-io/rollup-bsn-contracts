@@ -170,6 +170,28 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn test_invalid_admin_address() {
+        let mut deps = mock_deps_babylon();
+        let invalid_admin = "invalid-address";
+        let bsn_id = "op-stack-l2-11155420".to_string();
+        let min_pub_rand = get_random_u64_range(1, 1000000);
+
+        let instantiate_msg = InstantiateMsg {
+            admin: invalid_admin.to_string(),
+            bsn_id,
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+        };
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+
+        // Call the instantiate function - should fail due to invalid admin address
+        let err = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap_err();
+        assert!(matches!(err, ContractError::StdError(_)));
+    }
+
+    #[test]
     fn test_update_admin() {
         let mut deps = mock_deps_babylon();
         let init_admin = deps.api.addr_make(INIT_ADMIN);
