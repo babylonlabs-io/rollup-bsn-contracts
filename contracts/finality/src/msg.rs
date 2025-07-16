@@ -281,4 +281,111 @@ mod tests {
         let err = msg.validate().unwrap_err();
         assert!(matches!(err, ContractError::InvalidMaxMsgsPerInterval(0)));
     }
+
+    #[test]
+    fn test_instantiate_msg_validation_min_pub_rand() {
+        // Test with random min_pub_rand values
+        for min_pub_rand in [0, 1, 100, 1000000] {
+            let msg = InstantiateMsg {
+                admin: "cosmos1admin".to_string(),
+                bsn_id: "op-stack-l2-11155420".to_string(),
+                min_pub_rand,
+                rate_limiting_interval: 10000,
+                max_msgs_per_interval: 100,
+            };
+
+            let result = msg.validate();
+
+            if min_pub_rand > 0 {
+                assert!(
+                    result.is_ok(),
+                    "Expected success for min_pub_rand = {}",
+                    min_pub_rand
+                );
+            } else {
+                assert!(result.is_err(), "Expected error for min_pub_rand = 0");
+                assert_eq!(result.unwrap_err(), ContractError::InvalidMinPubRand(0));
+            }
+        }
+    }
+
+    #[test]
+    fn test_instantiate_msg_validation_invalid_bsn_id() {
+        let invalid_bsn_id = "invalid@bsn#id"; // Contains invalid characters
+        let msg = InstantiateMsg {
+            admin: "cosmos1admin".to_string(),
+            bsn_id: invalid_bsn_id.to_string(),
+            min_pub_rand: 100,
+            rate_limiting_interval: 10000,
+            max_msgs_per_interval: 100,
+        };
+
+        let err = msg.validate().unwrap_err();
+        assert!(matches!(err, ContractError::InvalidBsnId(_)));
+    }
+
+    #[test]
+    fn test_instantiate_msg_validation_empty_bsn_id() {
+        let empty_bsn_id = "";
+        let msg = InstantiateMsg {
+            admin: "cosmos1admin".to_string(),
+            bsn_id: empty_bsn_id.to_string(),
+            min_pub_rand: 100,
+            rate_limiting_interval: 10000,
+            max_msgs_per_interval: 100,
+        };
+
+        let err = msg.validate().unwrap_err();
+        assert!(matches!(err, ContractError::InvalidBsnId(_)));
+    }
+
+    #[test]
+    fn test_instantiate_msg_validation_valid_bsn_id() {
+        let valid_bsn_ids = vec![
+            "op-stack-l2-11155420",
+            "valid-bsn_123",
+            "test_chain",
+            "chain-1",
+            "abc123",
+        ];
+
+        for bsn_id in valid_bsn_ids {
+            let msg = InstantiateMsg {
+                admin: "cosmos1admin".to_string(),
+                bsn_id: bsn_id.to_string(),
+                min_pub_rand: 100,
+                rate_limiting_interval: 10000,
+                max_msgs_per_interval: 100,
+            };
+
+            let result = msg.validate();
+            assert!(result.is_ok(), "Expected success for bsn_id = {}", bsn_id);
+        }
+    }
+
+    #[test]
+    fn test_instantiate_msg_validation_bsn_id_length() {
+        // Test maximum length
+        let long_bsn_id = "a".repeat(InstantiateMsg::MAX_BSN_ID_LENGTH);
+        let msg = InstantiateMsg {
+            admin: "cosmos1admin".to_string(),
+            bsn_id: long_bsn_id,
+            min_pub_rand: 100,
+            rate_limiting_interval: 10000,
+            max_msgs_per_interval: 100,
+        };
+        assert!(msg.validate().is_ok());
+
+        // Test exceeding maximum length
+        let too_long_bsn_id = "a".repeat(InstantiateMsg::MAX_BSN_ID_LENGTH + 1);
+        let msg = InstantiateMsg {
+            admin: "cosmos1admin".to_string(),
+            bsn_id: too_long_bsn_id,
+            min_pub_rand: 100,
+            rate_limiting_interval: 10000,
+            max_msgs_per_interval: 100,
+        };
+        let err = msg.validate().unwrap_err();
+        assert!(matches!(err, ContractError::InvalidBsnId(_)));
+    }
 }
