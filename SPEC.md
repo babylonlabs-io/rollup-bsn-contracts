@@ -928,11 +928,11 @@ contract implementation.
   ```
 
 **ALLOWED_FINALITY_PROVIDERS**: Allowlist of finality providers
-- Type: `Map<String, bool>`
+- Type: `Map<String, ()>`
 - Storage key: `"allowed_finality_providers"`
 - Key format: `fp_pubkey_hex` (BTC public key in hex format)
 - Purpose: Stores the set of finality providers that are allowed to submit finality signatures and public randomness commitments
-- Value: `true` for all entries (boolean flag for consistency)
+- Value: `()` for all entries (Unit type for no value)
 
 #### 4.8.2. Rate Limiting Storage
 
