@@ -29,6 +29,11 @@
           "type": "string"
         }
       },
+      "bsn_activation_height": {
+        "type": "integer",
+        "format": "uint64",
+        "minimum": 0.0
+      },
       "bsn_id": {
         "type": "string"
       },
