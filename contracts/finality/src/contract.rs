@@ -452,10 +452,10 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
             bsn_id,
             min_pub_rand,
-            rate_limiting_interval: RATE_LIMITING_INTERVAL,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
             bsn_activation_height: 1,
-            finality_signature_interval: 1,
+            finality_signature_interval: 100,
             allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -515,8 +515,8 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
             bsn_id,
             min_pub_rand,
-            rate_limiting_interval: RATE_LIMITING_INTERVAL,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
             bsn_activation_height: 1,
             finality_signature_interval: 1,
             allowed_finality_providers: None,
@@ -576,10 +576,10 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
             bsn_id,
             min_pub_rand,
-            rate_limiting_interval: RATE_LIMITING_INTERVAL,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
             bsn_activation_height: 1,
-            finality_signature_interval: 1,
+            finality_signature_interval: 100,
             allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -646,10 +646,10 @@ pub(crate) mod tests {
             admin: init_admin.to_string(),
             bsn_id,
             min_pub_rand,
-            rate_limiting_interval: RATE_LIMITING_INTERVAL,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
             bsn_activation_height: 1,
-            finality_signature_interval: 1,
+            finality_signature_interval: 100,
             allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
