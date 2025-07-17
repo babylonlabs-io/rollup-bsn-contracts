@@ -393,6 +393,9 @@ pub(crate) mod tests {
         let activation_height = 1000;
         let admin = deps.api.addr_make(INIT_ADMIN);
 
+        // Use a consistent finality provider key for this test
+        let fp_pk_hex = get_random_fp_pk_hex();
+
         let instantiate_msg = InstantiateMsg {
             admin: admin.to_string(),
             bsn_id: format!("test-{}", get_random_u64()),
@@ -401,7 +404,7 @@ pub(crate) mod tests {
             rate_limiting_interval: 10,
             bsn_activation_height: activation_height,
             finality_signature_interval: 5,
-            allowed_finality_providers: None,
+            allowed_finality_providers: Some(vec![fp_pk_hex.clone()]),
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -415,7 +418,7 @@ pub(crate) mod tests {
         let result = handle_finality_signature(
             deps.as_mut(),
             &mock_env(),
-            &get_random_fp_pk_hex(),
+            &fp_pk_hex,
             None,
             None,
             before_activation_height, // Before activation should fail
@@ -435,7 +438,7 @@ pub(crate) mod tests {
         let result = handle_finality_signature(
             deps.as_mut(),
             &mock_env(),
-            &get_random_fp_pk_hex(),
+            &fp_pk_hex,
             None,
             None,
             activation_height, // At activation height should pass
@@ -468,6 +471,9 @@ pub(crate) mod tests {
         let interval = 5;
         let admin = deps.api.addr_make(INIT_ADMIN);
 
+        // Use a consistent finality provider key for this test
+        let fp_pk_hex = get_random_fp_pk_hex();
+
         let instantiate_msg = InstantiateMsg {
             admin: admin.to_string(),
             bsn_id: format!("test-{}", get_random_u64()),
@@ -476,7 +482,7 @@ pub(crate) mod tests {
             rate_limiting_interval: 10,
             bsn_activation_height: activation_height,
             finality_signature_interval: interval,
-            allowed_finality_providers: None,
+            allowed_finality_providers: Some(vec![fp_pk_hex.clone()]),
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -499,7 +505,7 @@ pub(crate) mod tests {
             let result = handle_finality_signature(
                 deps.as_mut(),
                 &mock_env(),
-                &get_random_fp_pk_hex(),
+                &fp_pk_hex,
                 None,
                 None,
                 invalid_height,
@@ -529,7 +535,7 @@ pub(crate) mod tests {
             let result = handle_finality_signature(
                 deps.as_mut(),
                 &mock_env(),
-                &get_random_fp_pk_hex(),
+                &fp_pk_hex,
                 None,
                 None,
                 valid_height,
