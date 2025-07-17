@@ -40,7 +40,7 @@ fn instantiate_works() {
         min_pub_rand: 100,
         max_msgs_per_interval: 100,
         rate_limiting_interval: 10000,
-        bsn_activation_height: 1,
+        bsn_activation_height: 0,
         finality_signature_interval: 1,
         allowed_finality_providers: None,
     };

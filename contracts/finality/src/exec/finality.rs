@@ -401,6 +401,7 @@ pub(crate) mod tests {
             rate_limiting_interval: 10,
             bsn_activation_height: activation_height,
             finality_signature_interval: 5,
+            allowed_finality_providers: None,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -475,6 +476,7 @@ pub(crate) mod tests {
             rate_limiting_interval: 10,
             bsn_activation_height: activation_height,
             finality_signature_interval: interval,
+            allowed_finality_providers: None,
         };
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);

@@ -301,7 +301,7 @@ mod tests {
             min_pub_rand: 1,
             rate_limiting_interval: 0,
             max_msgs_per_interval: 10,
-            bsn_activation_height: 1,
+            bsn_activation_height: 0,
             finality_signature_interval: 1,
             allowed_finality_providers: None,
         };
@@ -318,7 +318,7 @@ mod tests {
             min_pub_rand: 1,
             rate_limiting_interval: 1000,
             max_msgs_per_interval: 0,
-            bsn_activation_height: 1,
+            bsn_activation_height: 0,
             finality_signature_interval: 1,
             allowed_finality_providers: None,
         };
@@ -337,6 +337,8 @@ mod tests {
                 min_pub_rand,
                 rate_limiting_interval: 10000,
                 max_msgs_per_interval: 100,
+                bsn_activation_height: 0,
+                finality_signature_interval: 1,
                 allowed_finality_providers: None,
             };
 
@@ -363,6 +365,8 @@ mod tests {
             min_pub_rand: 100,
             rate_limiting_interval: 10000,
             max_msgs_per_interval: 100,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
             allowed_finality_providers: None,
         };
 
@@ -379,6 +383,8 @@ mod tests {
             min_pub_rand: 100,
             rate_limiting_interval: 10000,
             max_msgs_per_interval: 100,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
             allowed_finality_providers: None,
         };
 
@@ -403,6 +409,8 @@ mod tests {
                 min_pub_rand: 100,
                 rate_limiting_interval: 10000,
                 max_msgs_per_interval: 100,
+                bsn_activation_height: 0,
+                finality_signature_interval: 1,
                 allowed_finality_providers: None,
             };
 
@@ -421,6 +429,8 @@ mod tests {
             min_pub_rand: 100,
             rate_limiting_interval: 10000,
             max_msgs_per_interval: 100,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
             allowed_finality_providers: None,
         };
         assert!(msg.validate().is_ok());
@@ -433,6 +443,8 @@ mod tests {
             min_pub_rand: 100,
             rate_limiting_interval: 10000,
             max_msgs_per_interval: 100,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
             allowed_finality_providers: None,
         };
         let err = msg.validate().unwrap_err();
