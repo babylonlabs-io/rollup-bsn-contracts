@@ -366,6 +366,8 @@ pub struct InstantiateMsg {
   "min_pub_rand": 100,
   "rate_limiting_interval": 500,
   "max_msgs_per_interval": 10,
+  "bsn_activation_height": 0,
+  "finality_signature_interval": 1,
   "allowed_finality_providers": [
     "02a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7",
     "03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7"
@@ -389,21 +391,25 @@ parameters must be provided:
   per interval (must be ≥ 1)
 - `bsn_activation_height`: u64 - The block height at which the BSN system is
   activated and begins accepting finality signatures. Setting this to 0 means
-  "activate immediately from genesis"
+  "activate immediately from genesis". **Note**: This parameter only affects
+  `SubmitFinalitySignature` messages; `CommitPublicRandomness` messages are
+  unaffected by BSN activation height
 - `finality_signature_interval`: u64 - The interval between allowed finality
   signature submissions to prevent spam (must be ≥ 1)
 
 **Validation Requirements:**
-1. **Admin Address Validation**: The `admin` parameter MUST be a valid Babylon address
+1. **Admin Address Validation**: The `admin` parameter MUST be a valid Babylon
+   address
 2. **BSN ID Validation**: The `bsn_id` parameter MUST:
    - Not be empty
    - Contain only alphanumeric characters, hyphens, and underscores
    - Not exceed 100 characters in length
 3. **Min Pub Rand Validation**: The `min_pub_rand` parameter MUST be ≥ 1
 4. **Rate Limiting Validation**: Both `rate_limiting_interval` and
-5. **Allowlist Validation**: If `allowed_finality_providers` is provided, all keys MUST be non-empty strings. If any are empty, instantiation MUST fail.
    `max_msgs_per_interval` MUST be ≥ 1
-5. **Finality Signature Interval Validation**: The `finality_signature_interval`
+5. **Allowlist Validation**: If `allowed_finality_providers` is provided, all
+   keys MUST be non-empty strings. If any are empty, instantiation MUST fail.
+6. **Finality Signature Interval Validation**: The `finality_signature_interval`
    parameter MUST be ≥ 1
 
 **Instantiation Process:**
@@ -712,22 +718,21 @@ following verification logic:
    - This check MUST occur before any other validation to prevent resource
      consumption
 
-3. **System Activation Check**: Ensure the BSN system is activated before
-   processing finality signatures:
-   - Load the contract configuration to get `bsn_activation_height`
+3. **BSN Activation and Interval Check**: Ensure finality signatures are
+   allowed by validating both BSN activation status and scheduled intervals:
+   - Load the contract configuration to get `bsn_activation_height` and
+     `finality_signature_interval`
    - Verify that `height >= bsn_activation_height`
-   - Return `ContractError::BeforeBSNActivation` if the height is before BSN
-     activation
-
-4. **Finality Signature Interval Check**: Ensure finality signatures are only
-   submitted at scheduled intervals to prevent spam:
-   - Load the contract configuration to get `finality_signature_interval`
    - Verify that `(height - bsn_activation_height) % finality_signature_interval
      == 0`
+   - Return `ContractError::BeforeBSNActivation` if the height is before BSN
+     activation
    - Return `ContractError::FinalitySignatureNotAtScheduledHeight` if the
      signature is not at a scheduled height
+   - **Note**: This validation is typically implemented as a single function
+     that performs both checks together
 
-5. **Finality Provider Existence Check**: Verify that the finality provider
+4. **Finality Provider Existence Check**: Verify that the finality provider
    exists and is not slashed by querying the Babylon Genesis chain through gRPC:
    - Use `query_grpc` to call `/babylon.btcstaking.v1.Query/FinalityProvider`
      with the `fp_pubkey_hex` parameters
@@ -736,14 +741,14 @@ following verification logic:
    - Ensure the finality provider has not been slashed (`slashed_babylon_height`
      and `slashed_btc_height` are both 0)
 
-6. **Duplicate Vote Check**: Check if an identical vote already exists:
+5. **Duplicate Vote Check**: Check if an identical vote already exists:
    - Query finality signature state using key `(height, fp_pubkey_hex)`
    - If the same signature exists for the same block hash, return success
      (duplicate vote)
    - If a different signature exists for the same height, proceed to
      equivocation handling
 
-7. **Public Randomness Commitment Retrieval**: Find the public randomness
+6. **Public Randomness Commitment Retrieval**: Find the public randomness
    commitment that covers the target height:
    - Query public randomness commitment state to find commitment where
      `start_height <= height <= start_height + num_pub_rand - 1`
@@ -752,7 +757,7 @@ following verification logic:
      last finalized epoch
    - Use the commitment for subsequent verification steps
 
-8. **Finality Signature Verification**:
+7. **Finality Signature Verification**:
    - Verify `height == pr_commit.start_height + proof.index`
    - Verify `proof.total == pr_commit.num_pub_rand`
    - Verify the inclusion proof for the public randomness value against
@@ -765,7 +770,7 @@ following verification logic:
        format)
      - Public randomness value and EOTS signature
 
-9. **Equivocation Detection and Handling**: Check if the finality provider has
+8. **Equivocation Detection and Handling**: Check if the finality provider has
    already voted for a different block at this height:
    - If existing signature differs from current block hash:
      - Extract the secret key using EOTS from the two different signatures
@@ -773,7 +778,7 @@ following verification logic:
        Genesis
      - Emit `slashed_finality_provider` event with extracted secret key
 
-10. **Storage Operations**: Store the finality signature and related data
+9. **Storage Operations**: Store the finality signature and related data
    atomically:
    - Use the `insert_finality_sig_and_signatory` helper function to perform all
      storage operations atomically
@@ -959,7 +964,8 @@ contract implementation.
 - Type: `Map<String, ()>`
 - Storage key: `"allowed_finality_providers"`
 - Key format: `fp_pubkey_hex` (BTC public key in hex format)
-- Purpose: Stores the set of finality providers that are allowed to submit finality signatures and public randomness commitments
+- Purpose: Stores the set of finality providers that are allowed to submit
+  finality signatures and public randomness commitments
 - Value: `()` for all entries (Unit type for no value)
 
 #### 4.8.2. Rate Limiting Storage
