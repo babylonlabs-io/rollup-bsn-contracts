@@ -699,7 +699,7 @@ following verification logic:
 2. **Finality Provider Existence Check**: Verify that the finality provider
    exists and is not slashed by querying the Babylon Genesis chain through gRPC:
    - Use `query_grpc` to call `/babylon.btcstaking.v1.Query/FinalityProvider`
-     with the `bsn_id` parameters
+     with the `fp_pubkey_hex` parameters
    - Verify the response contains a valid finality provider
    - Ensure the finality provider is associated with this BSN
    - Ensure the finality provider has not been slashed (`slashed_babylon_height`
@@ -1015,6 +1015,11 @@ pub struct BlockVoterInfo {
 pub enum QueryMsg {    
     // MUST: Core finality queries
     #[returns(Option<Vec<BlockVoterInfo>>)]
+    /// `BlockVoters` the list of finality providers and their signatures for the
+    /// specified block, if any.
+    ///
+    /// `height` is the block height to query voters for
+    /// `hash_hex` is the block hash in hex format
     BlockVoters { height: u64, hash_hex: String },
     /// `FirstPubRandCommit` returns the first public random commitment (if any) for a given FP.
     ///
@@ -1078,23 +1083,23 @@ signature information:
 1. Decode hash_hex from hex string to bytes
    - IF decode fails: RETURN error with `QueryBlockVoterError`
 
-2. Query signatories storage using key (height, hash_bytes)
+2. Query signatories storage using key `(height, hash_bytes)`
    - Access the stored set of finality provider public keys from
      `SIGNATORIES_BY_BLOCK_HASH`
 
 3. For each finality provider in the set:
-   - Query the `FINALITY_SIGNATURES` storage using key (height, fp_pubkey_bytes)
+   - Query the `FINALITY_SIGNATURES` storage using key `(height, fp_pubkey_bytes)`
    - IF signature not found: RETURN error with `QueryBlockVoterError`
-   - Query the `PUB_RAND_VALUES` storage using key (fp_pubkey_bytes, height)
+   - Query the `PUB_RAND_VALUES` storage using key `(fp_pubkey_bytes, height)`
    - IF public randomness not found: RETURN error with `QueryBlockVoterError`
-   - Create BlockVoterInfo with fp_btc_pk_hex, pub_rand, and FinalitySigInfo
+   - Create `BlockVoterInfo` with `fp_btc_pk_hex`, `pub_rand`, and `FinalitySigInfo`
 
 4. Return the list of BlockVoterInfo
    - IF no votes found: RETURN `None`
    - IF votes exist: RETURN `Some(Vec<BlockVoterInfo>)` with all voter
      information
 
-WHERE BlockVoterInfo contains:
+WHERE `BlockVoterInfo` contains:
 - `fp_btc_pk_hex`: `String` - The finality provider's BTC public key in hex
   format
 - `pub_rand`: `Vec<u8>` - The public randomness value for the block
@@ -1116,17 +1121,17 @@ commitment or None if not found
 **Expected Behaviour:** Finality contracts MUST implement this query to return
 the first public randomness commitment for a given finality provider:
 
-1. Query public randomness commitments storage with prefix btc_pk_hex
+1. Query public randomness commitments storage with prefix `btc_pk_hex`
    - Search for all commitments belonging to this finality provider
 
-2. Sort commitments by start_height in ascending order
-   - Find the commitment with the lowest start_height
+2. Sort commitments by `start_height` in ascending order
+   - Find the commitment with the lowest `start_height`
 
 3. Return the first commitment
    - IF no commitments found: RETURN `None`
    - IF commitments exist: RETURN `Some(first_commitment)`
 
-WHERE PubRandCommit contains:
+WHERE `PubRandCommit` contains:
 - `start_height`: `u64`
 - `num_pub_rand`: `u64`
 - `babylon_epoch`: `u64`
@@ -1147,17 +1152,17 @@ or `None` if not found
 **Expected Behaviour:** Finality contracts MUST implement this query to return
 the last public randomness commitment for a given finality provider:
 
-1. Query public randomness commitments storage with prefix btc_pk_hex
+1. Query public randomness commitments storage with prefix `btc_pk_hex`
    - Search for all commitments belonging to this finality provider
 
-2. Sort commitments by start_height in descending order
-   - Find the commitment with the highest start_height
+2. Sort commitments by `start_height` in descending order
+   - Find the commitment with the highest `start_height`
 
 3. Return the last commitment
    - IF no commitments found: RETURN `None`
    - IF commitments exist: RETURN `Some(last_commitment)`
 
-WHERE PubRandCommit contains:
+WHERE `PubRandCommit` contains:
 - `start_height`: `u64`
 - `num_pub_rand`: `u64`
 - `babylon_epoch`: `u64`
@@ -1181,20 +1186,20 @@ commitments, or empty vector if none found
 **Expected Behaviour:** Finality contracts MUST implement this query to return a
 paginated list of public randomness commitments for a given finality provider:
 
-1. Query public randomness commitments storage with prefix btc_pk_hex
+1. Query public randomness commitments storage with prefix `btc_pk_hex`
    - Search for all commitments belonging to this finality provider
-   - Apply pagination using start_after as exclusive boundary if provided
+   - Apply pagination using `start_after` as exclusive boundary if provided
 
 2. Apply sorting and limiting
-   - Sort commitments by start_height in ascending order (or descending if
-     reverse=true)
+   - Sort commitments by `start_height` in ascending order (or descending if
+     `reverse=true`)
    - Limit results to the specified limit (default 10, max 30)
 
 3. Return the paginated results
    - IF no commitments found: RETURN empty vector
    - IF commitments exist: RETURN `Vec<PubRandCommit>` with matching commitments
 
-WHERE PubRandCommit contains:
+WHERE `PubRandCommit` contains:
 - `start_height`: `u64`
 - `num_pub_rand`: `u64`
 - `babylon_epoch`: `u64`
@@ -1238,7 +1243,7 @@ query to return the contract configuration:
    - Access all stored configuration parameters
 
 2. Return configuration information
-   - Return Config struct with all configuration values
+   - Return `Config` struct with all configuration values
    - All configuration fields should be populated
 
 WHERE Config contains:
