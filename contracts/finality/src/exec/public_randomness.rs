@@ -23,9 +23,6 @@ pub fn handle_public_randomness_commit(
     commitment: &[u8],
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
-    // Load config first
-    let config = get_config(deps.storage)?;
-
     // Check if FP BTC PubKey is empty
     if fp_btc_pk_hex.is_empty() {
         return Err(ContractError::EmptyFpBtcPubKey);
@@ -43,6 +40,8 @@ pub fn handle_public_randomness_commit(
             actual: signature.len(),
         });
     }
+
+    let config = get_config(deps.storage)?;
 
     // Validate the commitment parameters
     validate_pub_rand_commit(start_height, num_pub_rand, commitment, config.min_pub_rand)?;
