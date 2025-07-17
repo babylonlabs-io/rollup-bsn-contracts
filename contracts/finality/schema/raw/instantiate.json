@@ -15,10 +15,15 @@
     "admin": {
       "type": "string"
     },
-    "bsn_activation_height": {
-      "type": "integer",
-      "format": "uint64",
-      "minimum": 0.0
+    "allowed_finality_providers": {
+      "description": "Optional list of BTC public keys (hex) to pre-populate the allowlist at instantiation",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
     },
     "bsn_id": {
       "type": "string"

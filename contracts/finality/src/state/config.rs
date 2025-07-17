@@ -1,8 +1,9 @@
-use babylon_bindings::BabylonQuery;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Deps, StdResult, Storage};
 use cw_controllers::{Admin, AdminResponse};
 use cw_storage_plus::Item;
+
+use babylon_bindings::BabylonQuery;
 
 pub(crate) const ADMIN: Admin = Admin::new("admin");
 pub(crate) const CONFIG: Item<Config> = Item::new("config");

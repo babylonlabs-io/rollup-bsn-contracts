@@ -42,6 +42,7 @@ fn instantiate_works() {
         rate_limiting_interval: 10000,
         bsn_activation_height: 1,
         finality_signature_interval: 1,
+        allowed_finality_providers: None,
     };
     let info = mock_info(CREATOR, &[]);
     let res: ContractResult<Response> = instantiate(&mut deps, mock_env(), info, msg.clone());

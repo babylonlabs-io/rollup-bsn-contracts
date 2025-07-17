@@ -1,6 +1,7 @@
 use crate::custom_queries::get_current_epoch;
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
+use crate::state::allowlist::ensure_fp_in_allowlist;
 use crate::state::config::get_config;
 use crate::state::public_randomness::{insert_pub_rand_commit, PubRandCommit};
 use crate::state::rate_limiting::check_rate_limit_and_accumulate;
@@ -45,6 +46,9 @@ pub fn handle_public_randomness_commit(
 
     // Validate the commitment parameters
     validate_pub_rand_commit(start_height, num_pub_rand, commitment, config.min_pub_rand)?;
+
+    // Check if the finality provider is in the allowlist
+    ensure_fp_in_allowlist(deps.storage, fp_btc_pk_hex)?;
 
     // Ensure the finality provider is registered and not slashed
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;

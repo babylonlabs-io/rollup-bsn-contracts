@@ -146,10 +146,7 @@ mod tests {
                 let result = check_rate_limit_and_accumulate(&mut storage, &env, &fp_btc_pk);
                 assert!(
                     result.is_ok(),
-                    "Iteration {}: Message {} should succeed within limit of {}",
-                    iteration,
-                    i,
-                    max_msgs
+                    "Iteration {iteration}: Message {i} should succeed within limit of {max_msgs}"
                 );
 
                 let info = get_rate_limit_info(&storage, &fp_btc_pk).unwrap().unwrap();
@@ -161,8 +158,7 @@ mod tests {
             let result = check_rate_limit_and_accumulate(&mut storage, &env, &fp_btc_pk);
             assert!(
                 result.is_err(),
-                "Iteration {}: Message beyond limit should fail",
-                iteration
+                "Iteration {iteration}: Message beyond limit should fail"
             );
             assert!(matches!(
                 result.unwrap_err(),
@@ -176,8 +172,7 @@ mod tests {
             let result = check_rate_limit_and_accumulate(&mut storage, &env, &fp_btc_pk);
             assert!(
                 result.is_ok(),
-                "Iteration {}: First message in new interval should succeed",
-                iteration
+                "Iteration {iteration}: First message in new interval should succeed"
             );
 
             let info = get_rate_limit_info(&storage, &fp_btc_pk).unwrap().unwrap();
@@ -262,7 +257,7 @@ mod tests {
             let max_msgs = if rng.random_range(0..2) == 0 {
                 1
             } else {
-                rng.random_range(1..=u32::MAX.min(1000))
+                rng.random_range(1..=1000)
             };
             let block_interval = rng.random_range(1..=100);
             let block_height = rng.random_range(0..=1000);
@@ -309,8 +304,7 @@ mod tests {
             let info = get_rate_limit_info(&storage, &fp_btc_pk).unwrap().unwrap();
             assert_eq!(
                 info.0, expected_interval,
-                "Block {} with interval {} should be in interval {}",
-                block_height, block_interval, expected_interval
+                "Block {block_height} with interval {block_interval} should be in interval {expected_interval}"
             );
         }
     }
