@@ -9,11 +9,7 @@ use {
     crate::state::public_randomness::PubRandCommit, cw_controllers::AdminResponse,
 };
 
-/// Message for instantiating a new finality contract.
-/// 
-/// This message contains all the configuration parameters needed to deploy and initialize
-/// a finality contract that integrates with Babylon's Bitcoin staking protocol.
-/// All parameters are validated during instantiation and stored in the contract's configuration.
+/// Contract instantiation message containing all configuration parameters.
 #[cw_serde]
 pub struct InstantiateMsg {
     /// Initial admin address for the contract who can update settings

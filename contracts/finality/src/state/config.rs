@@ -17,11 +17,7 @@ pub struct RateLimitingConfig {
     pub block_interval: u64,
 }
 
-/// Configuration parameters for the finality contract.
-///
-/// This struct stores all operational settings that control the behavior of the finality contract.
-/// These values are set at instantiation and define how the contract validates and processes
-/// finality signatures and public randomness commitments.
+/// Contract configuration parameters set at instantiation.
 #[cw_serde]
 pub struct Config {
     /// Unique identifier for the BSN (Bitcoin Supercharged Network) that this contract secures
