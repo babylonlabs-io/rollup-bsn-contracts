@@ -33,6 +33,7 @@
     - [4.9.4. ListPubRandCommit (MUST)](#494-listpubrandcommit-must)
     - [4.9.5. Admin (SHOULD)](#495-admin-should)
     - [4.9.6. Config (SHOULD)](#496-config-should)
+    - [4.9.7. AllowedFinalityProviders (SHOULD)](#497-allowedfinalityproviders-should)
 - [5. Implementation status](#5-implementation-status)
   - [5.1. Babylon implementation status](#51-babylon-implementation-status)
   - [5.2. Finality contract implementation status](#52-finality-contract-implementation-status)
@@ -348,6 +349,25 @@ pub struct InstantiateMsg {
     pub min_pub_rand: u64,
     pub rate_limiting_interval: u64,
     pub max_msgs_per_interval: u32,
+    pub allowed_finality_providers: Option<Vec<String>>,
+}
+```
+
+**New Optional Parameter:**
+- `allowed_finality_providers`: `Option<Vec<String>>` — An optional list of BTC public keys (hex-encoded) to pre-populate the allowlist at contract instantiation. If provided, each key must be non-empty. Any empty key will cause instantiation to fail. If omitted or empty, the allowlist will start empty.
+
+**Example:**
+```json
+{
+  "admin": "babylon1...",
+  "bsn_id": "op-stack-l2-11155420",
+  "min_pub_rand": 100,
+  "rate_limiting_interval": 500,
+  "max_msgs_per_interval": 10,
+  "allowed_finality_providers": [
+    "02a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7",
+    "03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7"
+  ]
 }
 ```
 
@@ -374,6 +394,7 @@ parameters must be provided:
    - Not exceed 100 characters in length
 3. **Min Pub Rand Validation**: The `min_pub_rand` parameter MUST be ≥ 1
 4. **Rate Limiting Validation**: Both `rate_limiting_interval` and
+5. **Allowlist Validation**: If `allowed_finality_providers` is provided, all keys MUST be non-empty strings. If any are empty, instantiation MUST fail.
    `max_msgs_per_interval` MUST be ≥ 1
 
 **Instantiation Process:**
@@ -381,8 +402,9 @@ parameters must be provided:
    requirements above
 2. **Admin Setup**: Set the provided admin address as the contract administrator
 3. **Configuration Storage**: Save the bsn_id, min_pub_rand, and rate limiting
+4. **Allowlist Setup**: If provided, add all valid keys to the allowlist
    configuration in the contract configuration
-4. **Response**: Return a success response with instantiation attributes
+5. **Response**: Return a success response with instantiation attributes
 
 ### 4.5. Signing Context
 
@@ -554,6 +576,23 @@ pub enum ExecuteMsg {
     UpdateAdmin {
         admin: String,
     },
+    /// Add a finality provider to the allowlist.
+    ///
+    /// This message can be called by the admin only.
+    /// Only finality providers in the allowlist can submit finality signatures and public randomness commitments.
+    AddToAllowlist {
+        /// The BTC public key of the finality provider to add to the allowlist (in hex format)
+        fp_pubkey_hex: String,
+    },
+    /// Remove a finality provider from the allowlist.
+    ///
+    /// This message can be called by the admin only.
+    /// Removing a finality provider from the allowlist will prevent them from submitting
+    /// new finality signatures and public randomness commitments.
+    RemoveFromAllowlist {
+        /// The BTC public key of the finality provider to remove from the allowlist (in hex format)
+        fp_pubkey_hex: String,
+    },
 }
 ```
 
@@ -588,6 +627,10 @@ following verification logic:
    - Ensure the finality provider is associated with this BSN
    - Ensure the finality provider has not been slashed (`slashed_babylon_height`
      and `slashed_btc_height` are both 0)
+
+2. **Allowlist Check**: Verify that the finality provider is in the allowlist:
+   - Query the allowlist storage to check if the finality provider's BTC public key is allowed
+   - If the finality provider is not in the allowlist, return `FinalityProviderNotAllowed` error
 
 3. **Signature Verification**: Verify the commitment signature using Schnorr
    signature verification:
@@ -656,11 +699,15 @@ following verification logic:
 2. **Finality Provider Existence Check**: Verify that the finality provider
    exists and is not slashed by querying the Babylon Genesis chain through gRPC:
    - Use `query_grpc` to call `/babylon.btcstaking.v1.Query/FinalityProvider`
-     with the `bsn_id` parameters
+     with the `fp_pubkey_hex` parameters
    - Verify the response contains a valid finality provider
    - Ensure the finality provider is associated with this BSN
    - Ensure the finality provider has not been slashed (`slashed_babylon_height`
      and `slashed_btc_height` are both 0)
+
+2. **Allowlist Check**: Verify that the finality provider is in the allowlist:
+   - Query the allowlist storage to check if the finality provider's BTC public key is allowed
+   - If the finality provider is not in the allowlist, return `FinalityProviderNotAllowed` error
 
 3. **Duplicate Vote Check**: Check if an identical vote already exists:
    - Query finality signature state using key `(height, fp_pubkey_hex)`
@@ -737,6 +784,56 @@ handler with the following verification logic:
    - Update the admin address using the cw-controllers Admin functionality
    - The new admin address from `admin` parameter replaces the current admin
    - Return success response
+
+#### 4.5.4. AddToAllowlist (SHOULD)
+
+**Message Structure:**
+```rust
+AddToAllowlist {
+    fp_pubkey_hex: String,
+}
+```
+
+**Expected Behaviour:** Finality contracts SHOULD implement this administrative
+handler with the following verification logic:
+
+1. **Admin Authorization**: Verify that the caller is the current contract
+   admin:
+   - Query the current admin address
+   - Verify that the message sender matches the current admin address
+
+2. **Parameter Validation**: Validate the finality provider public key:
+   - Ensure the `fp_pubkey_hex` parameter is not empty
+   - If empty, return `EmptyFpBtcPubKey` error
+
+3. **Storage Operations**: Add the finality provider to the allowlist:
+   - Add the finality provider's BTC public key to the allowlist storage
+   - Return success response with action attributes
+
+#### 4.5.5. RemoveFromAllowlist (SHOULD)
+
+**Message Structure:**
+```rust
+RemoveFromAllowlist {
+    fp_pubkey_hex: String,
+}
+```
+
+**Expected Behaviour:** Finality contracts SHOULD implement this administrative
+handler with the following verification logic:
+
+1. **Admin Authorization**: Verify that the caller is the current contract
+   admin:
+   - Query the current admin address
+   - Verify that the message sender matches the current admin address
+
+2. **Parameter Validation**: Validate the finality provider public key:
+   - Ensure the `fp_pubkey_hex` parameter is not empty
+   - If empty, return `EmptyFpBtcPubKey` error
+
+3. **Storage Operations**: Remove the finality provider from the allowlist:
+   - Remove the finality provider's BTC public key from the allowlist storage
+   - Return success response with action attributes
 
 #### 4.7.4. PruneData (SHOULD)
 
@@ -830,7 +927,12 @@ contract implementation.
   }
   ```
 
-
+**ALLOWED_FINALITY_PROVIDERS**: Allowlist of finality providers
+- Type: `Map<String, ()>`
+- Storage key: `"allowed_finality_providers"`
+- Key format: `fp_pubkey_hex` (BTC public key in hex format)
+- Purpose: Stores the set of finality providers that are allowed to submit finality signatures and public randomness commitments
+- Value: `()` for all entries (Unit type for no value)
 
 #### 4.8.2. Rate Limiting Storage
 
@@ -913,6 +1015,11 @@ pub struct BlockVoterInfo {
 pub enum QueryMsg {    
     // MUST: Core finality queries
     #[returns(Option<Vec<BlockVoterInfo>>)]
+    /// `BlockVoters` the list of finality providers and their signatures for the
+    /// specified block, if any.
+    ///
+    /// `height` is the block height to query voters for
+    /// `hash_hex` is the block hash in hex format
     BlockVoters { height: u64, hash_hex: String },
     /// `FirstPubRandCommit` returns the first public random commitment (if any) for a given FP.
     ///
@@ -946,6 +1053,12 @@ pub enum QueryMsg {
     Admin {},
     #[returns(Config)]
     Config {},
+    /// Get the list of all allowed finality providers.
+    ///
+    /// Returns a list of BTC public keys (in hex format) of finality providers
+    /// that are allowed to submit finality signatures and public randomness commitments.
+    #[returns(Vec<String>)]
+    AllowedFinalityProviders {},
 
 }
 ```
@@ -970,23 +1083,23 @@ signature information:
 1. Decode hash_hex from hex string to bytes
    - IF decode fails: RETURN error with `QueryBlockVoterError`
 
-2. Query signatories storage using key (height, hash_bytes)
+2. Query signatories storage using key `(height, hash_bytes)`
    - Access the stored set of finality provider public keys from
      `SIGNATORIES_BY_BLOCK_HASH`
 
 3. For each finality provider in the set:
-   - Query the `FINALITY_SIGNATURES` storage using key (height, fp_pubkey_bytes)
+   - Query the `FINALITY_SIGNATURES` storage using key `(height, fp_pubkey_bytes)`
    - IF signature not found: RETURN error with `QueryBlockVoterError`
-   - Query the `PUB_RAND_VALUES` storage using key (fp_pubkey_bytes, height)
+   - Query the `PUB_RAND_VALUES` storage using key `(fp_pubkey_bytes, height)`
    - IF public randomness not found: RETURN error with `QueryBlockVoterError`
-   - Create BlockVoterInfo with fp_btc_pk_hex, pub_rand, and FinalitySigInfo
+   - Create `BlockVoterInfo` with `fp_btc_pk_hex`, `pub_rand`, and `FinalitySigInfo`
 
 4. Return the list of BlockVoterInfo
    - IF no votes found: RETURN `None`
    - IF votes exist: RETURN `Some(Vec<BlockVoterInfo>)` with all voter
      information
 
-WHERE BlockVoterInfo contains:
+WHERE `BlockVoterInfo` contains:
 - `fp_btc_pk_hex`: `String` - The finality provider's BTC public key in hex
   format
 - `pub_rand`: `Vec<u8>` - The public randomness value for the block
@@ -1008,17 +1121,17 @@ commitment or None if not found
 **Expected Behaviour:** Finality contracts MUST implement this query to return
 the first public randomness commitment for a given finality provider:
 
-1. Query public randomness commitments storage with prefix btc_pk_hex
+1. Query public randomness commitments storage with prefix `btc_pk_hex`
    - Search for all commitments belonging to this finality provider
 
-2. Sort commitments by start_height in ascending order
-   - Find the commitment with the lowest start_height
+2. Sort commitments by `start_height` in ascending order
+   - Find the commitment with the lowest `start_height`
 
 3. Return the first commitment
    - IF no commitments found: RETURN `None`
    - IF commitments exist: RETURN `Some(first_commitment)`
 
-WHERE PubRandCommit contains:
+WHERE `PubRandCommit` contains:
 - `start_height`: `u64`
 - `num_pub_rand`: `u64`
 - `babylon_epoch`: `u64`
@@ -1039,17 +1152,17 @@ or `None` if not found
 **Expected Behaviour:** Finality contracts MUST implement this query to return
 the last public randomness commitment for a given finality provider:
 
-1. Query public randomness commitments storage with prefix btc_pk_hex
+1. Query public randomness commitments storage with prefix `btc_pk_hex`
    - Search for all commitments belonging to this finality provider
 
-2. Sort commitments by start_height in descending order
-   - Find the commitment with the highest start_height
+2. Sort commitments by `start_height` in descending order
+   - Find the commitment with the highest `start_height`
 
 3. Return the last commitment
    - IF no commitments found: RETURN `None`
    - IF commitments exist: RETURN `Some(last_commitment)`
 
-WHERE PubRandCommit contains:
+WHERE `PubRandCommit` contains:
 - `start_height`: `u64`
 - `num_pub_rand`: `u64`
 - `babylon_epoch`: `u64`
@@ -1073,20 +1186,20 @@ commitments, or empty vector if none found
 **Expected Behaviour:** Finality contracts MUST implement this query to return a
 paginated list of public randomness commitments for a given finality provider:
 
-1. Query public randomness commitments storage with prefix btc_pk_hex
+1. Query public randomness commitments storage with prefix `btc_pk_hex`
    - Search for all commitments belonging to this finality provider
-   - Apply pagination using start_after as exclusive boundary if provided
+   - Apply pagination using `start_after` as exclusive boundary if provided
 
 2. Apply sorting and limiting
-   - Sort commitments by start_height in ascending order (or descending if
-     reverse=true)
+   - Sort commitments by `start_height` in ascending order (or descending if
+     `reverse=true`)
    - Limit results to the specified limit (default 10, max 30)
 
 3. Return the paginated results
    - IF no commitments found: RETURN empty vector
    - IF commitments exist: RETURN `Vec<PubRandCommit>` with matching commitments
 
-WHERE PubRandCommit contains:
+WHERE `PubRandCommit` contains:
 - `start_height`: `u64`
 - `num_pub_rand`: `u64`
 - `babylon_epoch`: `u64`
@@ -1130,7 +1243,7 @@ query to return the contract configuration:
    - Access all stored configuration parameters
 
 2. Return configuration information
-   - Return Config struct with all configuration values
+   - Return `Config` struct with all configuration values
    - All configuration fields should be populated
 
 WHERE Config contains:
@@ -1138,6 +1251,28 @@ WHERE Config contains:
 - `min_pub_rand`: `u64` - Minimum public randomness requirement for commitments
 - `rate_limiting`: `RateLimitingConfig` - Rate limiting configuration including
   `max_msgs_per_interval` and `block_interval`
+
+#### 4.9.7. AllowedFinalityProviders (SHOULD)
+
+**Query Structure:**
+```rust
+AllowedFinalityProviders {}    // No parameters required
+```
+
+**Return Type:** `Vec<String>` - List of BTC public keys (in hex format) of allowed finality providers
+
+**Expected Behaviour:** Finality contracts SHOULD implement this administrative
+query to return the list of all allowed finality providers:
+
+1. Query allowlist storage to retrieve all allowed finality providers
+   - Access all entries in the `ALLOWED_FINALITY_PROVIDERS` storage
+
+2. Return allowlist information
+   - Return a vector of BTC public keys (in hex format) for all allowed finality providers
+   - If no finality providers are in the allowlist, return an empty vector
+
+WHERE the return value contains:
+- `Vec<String>` - List of BTC public keys in hex format for all allowed finality providers
 
 ## 5. Implementation status
 

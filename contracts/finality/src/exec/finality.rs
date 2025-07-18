@@ -1,5 +1,6 @@
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
+use crate::state::allowlist::ensure_fp_in_allowlist;
 use crate::state::config::get_config;
 use crate::state::finality::{
     insert_finality_sig_and_signatory, list_finality_signatures, FinalitySigInfo,
@@ -27,6 +28,9 @@ pub fn handle_finality_signature(
     block_hash: &[u8],
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
+    // Check if the finality provider is in the allowlist
+    ensure_fp_in_allowlist(deps.storage, fp_btc_pk_hex)?;
+
     // Ensure the finality provider exists and is not slashed
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
 

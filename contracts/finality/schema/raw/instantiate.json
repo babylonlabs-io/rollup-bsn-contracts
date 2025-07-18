@@ -13,6 +13,16 @@
     "admin": {
       "type": "string"
     },
+    "allowed_finality_providers": {
+      "description": "Optional list of BTC public keys (hex) to pre-populate the allowlist at instantiation",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
     "bsn_id": {
       "type": "string"
     },

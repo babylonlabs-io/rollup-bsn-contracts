@@ -64,8 +64,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 * [#75](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/75) chore:
   store conflicting finality sigs in storage
 
+
 ### Improvements
 
+* [#84](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/84) chore: consolidate tests for InstantiateMsg
+* [#81](https://github.com/babylonlabs-io/rollup-bsn-contracts/issues/81) Add
+  allowlist functionality for finality providers.
+* [76](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/76) chore:
+  admin unit tests
 * [#71](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/71) chore:
   fix signing context
 * [#69](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/69) Define

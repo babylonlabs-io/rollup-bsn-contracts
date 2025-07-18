@@ -16,6 +16,8 @@ pub struct InstantiateMsg {
     pub min_pub_rand: u64,
     pub rate_limiting_interval: u64,
     pub max_msgs_per_interval: u32,
+    /// Optional list of BTC public keys (hex) to pre-populate the allowlist at instantiation
+    pub allowed_finality_providers: Option<Vec<String>>,
 }
 
 impl InstantiateMsg {
@@ -119,6 +121,12 @@ pub enum QueryMsg {
     Admin {},
     #[returns(Config)]
     Config {},
+    /// Get the list of all allowed finality providers.
+    ///
+    /// Returns a list of BTC public keys (in hex format) of finality providers
+    /// that are allowed to submit finality signatures and public randomness commitments.
+    #[returns(Vec<String>)]
+    AllowedFinalityProviders {},
 }
 
 // Note: Adapted from packages/apis/src/btc_staking_api.rs / packages/apis/src/finality_api.rs
@@ -207,6 +215,23 @@ pub enum ExecuteMsg {
         /// If not provided, the default value is 50.
         max_pub_rand_values_to_prune: Option<u32>,
     },
+    /// Add a finality provider to the allowlist.
+    ///
+    /// This message can be called by the admin only.
+    /// Only finality providers in the allowlist can submit finality signatures and public randomness commitments.
+    AddToAllowlist {
+        /// The BTC public keys of the finality providers to add to the allowlist (in hex format)
+        fp_pubkey_hex_list: Vec<String>,
+    },
+    /// Remove a finality provider from the allowlist.
+    ///
+    /// This message can be called by the admin only.
+    /// Removing a finality provider from the allowlist will prevent them from submitting
+    /// new finality signatures and public randomness commitments.
+    RemoveFromAllowlist {
+        /// The BTC public keys of the finality providers to remove from the allowlist (in hex format)
+        fp_pubkey_hex_list: Vec<String>,
+    },
 }
 
 #[cw_serde]
@@ -262,6 +287,7 @@ mod tests {
             min_pub_rand: 1,
             rate_limiting_interval: 0,
             max_msgs_per_interval: 10,
+            allowed_finality_providers: None,
         };
 
         let err = msg.validate().unwrap_err();
@@ -276,9 +302,122 @@ mod tests {
             min_pub_rand: 1,
             rate_limiting_interval: 1000,
             max_msgs_per_interval: 0,
+            allowed_finality_providers: None,
         };
 
         let err = msg.validate().unwrap_err();
         assert!(matches!(err, ContractError::InvalidMaxMsgsPerInterval(0)));
+    }
+
+    #[test]
+    fn test_instantiate_msg_validation_min_pub_rand() {
+        // Test with random min_pub_rand values
+        for min_pub_rand in [0, 1, 100, 1000000] {
+            let msg = InstantiateMsg {
+                admin: "cosmos1admin".to_string(),
+                bsn_id: "op-stack-l2-11155420".to_string(),
+                min_pub_rand,
+                rate_limiting_interval: 10000,
+                max_msgs_per_interval: 100,
+                allowed_finality_providers: None,
+            };
+
+            let result = msg.validate();
+
+            if min_pub_rand > 0 {
+                assert!(
+                    result.is_ok(),
+                    "Expected success for min_pub_rand = {min_pub_rand}"
+                );
+            } else {
+                assert!(result.is_err(), "Expected error for min_pub_rand = 0");
+                assert_eq!(result.unwrap_err(), ContractError::InvalidMinPubRand(0));
+            }
+        }
+    }
+
+    #[test]
+    fn test_instantiate_msg_validation_invalid_bsn_id() {
+        let invalid_bsn_id = "invalid@bsn#id"; // Contains invalid characters
+        let msg = InstantiateMsg {
+            admin: "cosmos1admin".to_string(),
+            bsn_id: invalid_bsn_id.to_string(),
+            min_pub_rand: 100,
+            rate_limiting_interval: 10000,
+            max_msgs_per_interval: 100,
+            allowed_finality_providers: None,
+        };
+
+        let err = msg.validate().unwrap_err();
+        assert!(matches!(err, ContractError::InvalidBsnId(_)));
+    }
+
+    #[test]
+    fn test_instantiate_msg_validation_empty_bsn_id() {
+        let empty_bsn_id = "";
+        let msg = InstantiateMsg {
+            admin: "cosmos1admin".to_string(),
+            bsn_id: empty_bsn_id.to_string(),
+            min_pub_rand: 100,
+            rate_limiting_interval: 10000,
+            max_msgs_per_interval: 100,
+            allowed_finality_providers: None,
+        };
+
+        let err = msg.validate().unwrap_err();
+        assert!(matches!(err, ContractError::InvalidBsnId(_)));
+    }
+
+    #[test]
+    fn test_instantiate_msg_validation_valid_bsn_id() {
+        let valid_bsn_ids = vec![
+            "op-stack-l2-11155420",
+            "valid-bsn_123",
+            "test_chain",
+            "chain-1",
+            "abc123",
+        ];
+
+        for bsn_id in valid_bsn_ids {
+            let msg = InstantiateMsg {
+                admin: "cosmos1admin".to_string(),
+                bsn_id: bsn_id.to_string(),
+                min_pub_rand: 100,
+                rate_limiting_interval: 10000,
+                max_msgs_per_interval: 100,
+                allowed_finality_providers: None,
+            };
+
+            let result = msg.validate();
+            assert!(result.is_ok(), "Expected success for bsn_id = {bsn_id}");
+        }
+    }
+
+    #[test]
+    fn test_instantiate_msg_validation_bsn_id_length() {
+        // Test maximum length
+        let long_bsn_id = "a".repeat(InstantiateMsg::MAX_BSN_ID_LENGTH);
+        let msg = InstantiateMsg {
+            admin: "cosmos1admin".to_string(),
+            bsn_id: long_bsn_id,
+            min_pub_rand: 100,
+            rate_limiting_interval: 10000,
+            max_msgs_per_interval: 100,
+            allowed_finality_providers: None,
+        };
+        assert!(msg.validate().is_ok());
+
+        // Test exceeding maximum length
+        let too_long_bsn_id = "a".repeat(InstantiateMsg::MAX_BSN_ID_LENGTH + 1);
+        let msg = InstantiateMsg {
+            admin: "cosmos1admin".to_string(),
+            bsn_id: too_long_bsn_id,
+            min_pub_rand: 100,
+            rate_limiting_interval: 10000,
+            max_msgs_per_interval: 100,
+            allowed_finality_providers: None,
+        };
+        let err = msg.validate().unwrap_err();
+        assert!(matches!(err, ContractError::InvalidBsnId(_)));
     }
 }
