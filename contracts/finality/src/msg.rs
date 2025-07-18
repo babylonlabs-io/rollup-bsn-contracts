@@ -9,14 +9,30 @@ use {
     crate::state::public_randomness::PubRandCommit, cw_controllers::AdminResponse,
 };
 
+/// Contract instantiation message containing all configuration parameters.
 #[cw_serde]
 pub struct InstantiateMsg {
+    /// Initial admin address for the contract who can update settings
     pub admin: String,
+    /// Unique identifier for the BSN (Bitcoin Supercharged Network) this
+    /// contract secures
     pub bsn_id: String,
+    /// Minimum number of public randomness values required in commitments
     pub min_pub_rand: u64,
+    /// Number of Babylon blocks in each interval
     pub rate_limiting_interval: u64,
+    /// Maximum messages allowed per finality provider per interval
     pub max_msgs_per_interval: u32,
-    /// Optional list of BTC public keys (hex) to pre-populate the allowlist at instantiation
+    /// Rollup block height at which the BSN system is activated (0 =
+    /// immediate activation). Only affects `SubmitFinalitySignature` messages.
+    pub bsn_activation_height: u64,
+    /// Interval between allowed finality signature submissions. Signatures can
+    /// only be submitted at rollup block heights where `(height -
+    /// bsn_activation_height) % interval == 0`.
+    #[schemars(range(min = 1))]
+    pub finality_signature_interval: u64,
+    /// Optional list of BTC public keys (hex) to pre-populate the allowlist at
+    /// instantiation
     pub allowed_finality_providers: Option<Vec<String>>,
 }
 
@@ -74,6 +90,15 @@ impl InstantiateMsg {
         Ok(())
     }
 
+    fn validate_finality_signature_interval(&self) -> Result<(), ContractError> {
+        if self.finality_signature_interval == 0 {
+            return Err(ContractError::InvalidFinalitySignatureInterval(
+                self.finality_signature_interval,
+            ));
+        }
+        Ok(())
+    }
+
     pub fn validate(&self) -> Result<(), ContractError> {
         // Validate min_pub_rand
         self.validate_min_pub_rand()?;
@@ -81,6 +106,8 @@ impl InstantiateMsg {
         self.validate_bsn_id_format()?;
         // Validate rate limiting settings
         self.validate_rate_limiting()?;
+        // Validate finality signature interval
+        self.validate_finality_signature_interval()?;
 
         Ok(())
     }
@@ -287,6 +314,8 @@ mod tests {
             min_pub_rand: 1,
             rate_limiting_interval: 0,
             max_msgs_per_interval: 10,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
             allowed_finality_providers: None,
         };
 
@@ -302,6 +331,8 @@ mod tests {
             min_pub_rand: 1,
             rate_limiting_interval: 1000,
             max_msgs_per_interval: 0,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
             allowed_finality_providers: None,
         };
 
@@ -319,6 +350,8 @@ mod tests {
                 min_pub_rand,
                 rate_limiting_interval: 10000,
                 max_msgs_per_interval: 100,
+                bsn_activation_height: 0,
+                finality_signature_interval: 1,
                 allowed_finality_providers: None,
             };
 
@@ -345,6 +378,8 @@ mod tests {
             min_pub_rand: 100,
             rate_limiting_interval: 10000,
             max_msgs_per_interval: 100,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
             allowed_finality_providers: None,
         };
 
@@ -361,6 +396,8 @@ mod tests {
             min_pub_rand: 100,
             rate_limiting_interval: 10000,
             max_msgs_per_interval: 100,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
             allowed_finality_providers: None,
         };
 
@@ -385,6 +422,8 @@ mod tests {
                 min_pub_rand: 100,
                 rate_limiting_interval: 10000,
                 max_msgs_per_interval: 100,
+                bsn_activation_height: 0,
+                finality_signature_interval: 1,
                 allowed_finality_providers: None,
             };
 
@@ -403,6 +442,8 @@ mod tests {
             min_pub_rand: 100,
             rate_limiting_interval: 10000,
             max_msgs_per_interval: 100,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
             allowed_finality_providers: None,
         };
         assert!(msg.validate().is_ok());
@@ -415,6 +456,8 @@ mod tests {
             min_pub_rand: 100,
             rate_limiting_interval: 10000,
             max_msgs_per_interval: 100,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
             allowed_finality_providers: None,
         };
         let err = msg.validate().unwrap_err();

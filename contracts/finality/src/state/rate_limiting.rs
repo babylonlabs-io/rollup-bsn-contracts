@@ -103,6 +103,8 @@ mod tests {
                 max_msgs_per_interval,
                 block_interval,
             },
+            bsn_activation_height: 1,
+            finality_signature_interval: 1,
         };
         set_config(&mut storage, &config).unwrap();
 

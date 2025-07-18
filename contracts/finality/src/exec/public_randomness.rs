@@ -5,8 +5,7 @@ use crate::state::allowlist::ensure_fp_in_allowlist;
 use crate::state::config::get_config;
 use crate::state::public_randomness::{insert_pub_rand_commit, PubRandCommit};
 use crate::state::rate_limiting::check_rate_limit_and_accumulate;
-use crate::utils::get_fp_rand_commit_context_v0;
-use crate::utils::query_finality_provider;
+use crate::utils::{get_fp_rand_commit_context_v0, query_finality_provider};
 use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{DepsMut, Env, Event, Response};
 use k256::ecdsa::signature::Verifier;
@@ -178,7 +177,6 @@ fn ensure_fp_exists_and_not_slashed(
 pub(crate) mod tests {
     use super::*;
     use crate::contract::tests::mock_deps_babylon;
-    use crate::state::config::{Config, RateLimitingConfig, CONFIG};
     use babylon_test_utils::get_public_randomness_commitment;
     use cosmwasm_std::testing::mock_env;
 
@@ -209,21 +207,32 @@ pub(crate) mod tests {
 
     #[test]
     fn test_empty_fp_btc_pk_fails() {
+        use crate::contract::instantiate;
+        use crate::contract::tests::{CREATOR, INIT_ADMIN};
+        use crate::msg::InstantiateMsg;
         use crate::testutil::datagen::*;
+        use cosmwasm_std::testing::message_info;
         use rand::{rng, Rng};
 
         let mut deps = mock_deps_babylon();
 
         // Configure the contract with random min_pub_rand
-        let config = Config {
+        let admin = deps.api.addr_make(INIT_ADMIN);
+        let min_pub_rand = get_random_u64();
+
+        let instantiate_msg = InstantiateMsg {
+            admin: admin.to_string(),
             bsn_id: format!("test-{}", get_random_u64()),
-            min_pub_rand: get_random_u64(),
-            rate_limiting: RateLimitingConfig {
-                max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
-                block_interval: RATE_LIMITING_INTERVAL,
-            },
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
+            allowed_finality_providers: None,
         };
-        CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
 
         // Generate random 64-byte signature
         let mut rng = rng();
@@ -246,21 +255,32 @@ pub(crate) mod tests {
 
     #[test]
     fn test_invalid_commitment_length_fails() {
+        use crate::contract::instantiate;
+        use crate::contract::tests::{CREATOR, INIT_ADMIN};
+        use crate::msg::InstantiateMsg;
         use crate::testutil::datagen::*;
+        use cosmwasm_std::testing::message_info;
         use rand::{rng, Rng};
 
         let mut deps = mock_deps_babylon();
 
         // Configure the contract with random min_pub_rand
-        let config = Config {
+        let admin = deps.api.addr_make(INIT_ADMIN);
+        let min_pub_rand = get_random_u64();
+
+        let instantiate_msg = InstantiateMsg {
+            admin: admin.to_string(),
             bsn_id: format!("test-{}", get_random_u64()),
-            min_pub_rand: get_random_u64(),
-            rate_limiting: RateLimitingConfig {
-                max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
-                block_interval: RATE_LIMITING_INTERVAL,
-            },
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
+            allowed_finality_providers: None,
         };
-        CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
 
         let fp_btc_pk_hex = get_random_fp_pk_hex();
         let start_height = get_random_u64();
@@ -319,20 +339,31 @@ pub(crate) mod tests {
 
     #[test]
     fn test_empty_signature_fails() {
+        use crate::contract::instantiate;
+        use crate::contract::tests::{CREATOR, INIT_ADMIN};
+        use crate::msg::InstantiateMsg;
         use crate::testutil::datagen::*;
+        use cosmwasm_std::testing::message_info;
 
         let mut deps = mock_deps_babylon();
 
         // Configure the contract with random min_pub_rand
-        let config = Config {
+        let admin = deps.api.addr_make(INIT_ADMIN);
+        let min_pub_rand = get_random_u64();
+
+        let instantiate_msg = InstantiateMsg {
+            admin: admin.to_string(),
             bsn_id: format!("test-{}", get_random_u64()),
-            min_pub_rand: get_random_u64(),
-            rate_limiting: RateLimitingConfig {
-                max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
-                block_interval: RATE_LIMITING_INTERVAL,
-            },
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
+            allowed_finality_providers: None,
         };
-        CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
 
         let result = handle_public_randomness_commit(
             deps.as_mut(),
@@ -349,21 +380,32 @@ pub(crate) mod tests {
 
     #[test]
     fn test_invalid_signature_length_fails() {
+        use crate::contract::instantiate;
+        use crate::contract::tests::{CREATOR, INIT_ADMIN};
+        use crate::msg::InstantiateMsg;
         use crate::testutil::datagen::*;
+        use cosmwasm_std::testing::message_info;
         use rand::{rng, Rng};
 
         let mut deps = mock_deps_babylon();
 
         // Configure the contract with random min_pub_rand
-        let config = Config {
+        let admin = deps.api.addr_make(INIT_ADMIN);
+        let min_pub_rand = get_random_u64();
+
+        let instantiate_msg = InstantiateMsg {
+            admin: admin.to_string(),
             bsn_id: format!("test-{}", get_random_u64()),
-            min_pub_rand: get_random_u64(),
-            rate_limiting: RateLimitingConfig {
-                max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
-                block_interval: RATE_LIMITING_INTERVAL,
-            },
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
+            allowed_finality_providers: None,
         };
-        CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
 
         let fp_btc_pk_hex = get_random_fp_pk_hex();
         let start_height = get_random_u64();
@@ -419,21 +461,32 @@ pub(crate) mod tests {
 
     #[test]
     fn test_overflow_protection_fails() {
+        use crate::contract::instantiate;
+        use crate::contract::tests::{CREATOR, INIT_ADMIN};
+        use crate::msg::InstantiateMsg;
         use crate::testutil::datagen::*;
+        use cosmwasm_std::testing::message_info;
         use rand::{rng, Rng};
 
         let mut deps = mock_deps_babylon();
 
         // Configure the contract with random min_pub_rand
-        let config = Config {
+        let admin = deps.api.addr_make(INIT_ADMIN);
+        let min_pub_rand = get_random_u64();
+
+        let instantiate_msg = InstantiateMsg {
+            admin: admin.to_string(),
             bsn_id: format!("test-{}", get_random_u64()),
-            min_pub_rand: get_random_u64(),
-            rate_limiting: RateLimitingConfig {
-                max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
-                block_interval: RATE_LIMITING_INTERVAL,
-            },
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
+            allowed_finality_providers: None,
         };
-        CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
 
         // Generate random 64-byte signature
         let mut rng = rng();
@@ -462,22 +515,32 @@ pub(crate) mod tests {
 
     #[test]
     fn test_minimum_pub_rand_validation_fails() {
+        use crate::contract::instantiate;
+        use crate::contract::tests::{CREATOR, INIT_ADMIN};
+        use crate::msg::InstantiateMsg;
         use crate::testutil::datagen::*;
+        use cosmwasm_std::testing::message_info;
         use rand::{rng, Rng};
 
         let mut deps = mock_deps_babylon();
 
         // Configure the contract with random min_pub_rand
+        let admin = deps.api.addr_make(INIT_ADMIN);
         let min_pub_rand = get_random_u64().max(10); // Ensure it's at least 10
-        let config = Config {
+
+        let instantiate_msg = InstantiateMsg {
+            admin: admin.to_string(),
             bsn_id: format!("test-{}", get_random_u64()),
             min_pub_rand,
-            rate_limiting: RateLimitingConfig {
-                max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
-                block_interval: RATE_LIMITING_INTERVAL,
-            },
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
+            allowed_finality_providers: None,
         };
-        CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
 
         // Generate random 64-byte signature
         let mut rng = rng();

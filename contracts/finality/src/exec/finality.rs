@@ -12,7 +12,7 @@ use crate::state::rate_limiting::check_rate_limit_and_accumulate;
 use crate::utils::{get_fp_fin_vote_context_v0, query_finality_provider};
 use babylon_bindings::BabylonQuery;
 use babylon_merkle::Proof;
-use cosmwasm_std::{Deps, DepsMut, Env, Event, Response};
+use cosmwasm_std::{Deps, DepsMut, Env, Event, Response, Storage};
 use k256::sha2::{Digest, Sha256};
 
 #[allow(clippy::too_many_arguments)]
@@ -30,6 +30,9 @@ pub fn handle_finality_signature(
 ) -> Result<Response<BabylonMsg>, ContractError> {
     // Check if the finality provider is in the allowlist
     ensure_fp_in_allowlist(deps.storage, fp_btc_pk_hex)?;
+
+    // Ensure finality signatures are allowed (BSN activation + interval check)
+    ensure_finality_signature_allowed(deps.storage, height)?;
 
     // Ensure the finality provider exists and is not slashed
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
@@ -166,6 +169,32 @@ fn verify_finality_signature(
     if !pubkey.verify(pub_rand, &msg_hash, signature)? {
         return Err(ContractError::FailedSignatureVerification("EOTS".into()));
     }
+    Ok(())
+}
+
+/// Ensures finality signatures are allowed by checking both BSN activation and interval requirements
+fn ensure_finality_signature_allowed(
+    storage: &dyn Storage,
+    rollup_height: u64,
+) -> Result<(), ContractError> {
+    let config = get_config(storage)?;
+
+    // Check BSN activation
+    if rollup_height < config.bsn_activation_height {
+        return Err(ContractError::BeforeBSNActivation(
+            rollup_height,
+            config.bsn_activation_height,
+        ));
+    }
+
+    // Check finality signature interval
+    if (rollup_height - config.bsn_activation_height) % config.finality_signature_interval != 0 {
+        return Err(ContractError::FinalitySignatureNotAtScheduledHeight(
+            rollup_height,
+            config.finality_signature_interval,
+        ));
+    }
+
     Ok(())
 }
 
@@ -347,6 +376,135 @@ pub(crate) mod tests {
                 );
                 assert_eq!(signing_context, "");
             }
+        }
+    }
+
+    #[test]
+    fn test_ensure_finality_signature_allowed() {
+        use crate::contract::instantiate;
+        use crate::contract::tests::{mock_deps_babylon, CREATOR, INIT_ADMIN};
+        use crate::msg::InstantiateMsg;
+        use crate::testutil::datagen::*;
+        use cosmwasm_std::testing::message_info;
+
+        let mut deps = mock_deps_babylon();
+
+        // Configure the contract with activation height of 1000 and interval of 5
+        let activation_height = 1000;
+        let interval = 5;
+        let admin = deps.api.addr_make(INIT_ADMIN);
+
+        // Use a consistent finality provider key for this test
+        let fp_pk_hex = get_random_fp_pk_hex();
+
+        let instantiate_msg = InstantiateMsg {
+            admin: admin.to_string(),
+            bsn_id: format!("test-{}", get_random_u64()),
+            min_pub_rand: 1,
+            max_msgs_per_interval: 100,
+            rate_limiting_interval: 10,
+            bsn_activation_height: activation_height,
+            finality_signature_interval: interval,
+            allowed_finality_providers: Some(vec![fp_pk_hex.clone()]),
+        };
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+
+        let add_finality_signature = get_add_finality_sig();
+        let proof = add_finality_signature.proof.unwrap().into();
+
+        // TEST 1: BSN Activation Check
+        // FAIL CASE: Try to submit finality signature before activation
+        let before_activation_height = activation_height - 1;
+        let result = handle_finality_signature(
+            deps.as_mut(),
+            &mock_env(),
+            &fp_pk_hex,
+            None,
+            None,
+            before_activation_height,
+            &add_finality_signature.pub_rand,
+            &proof,
+            &add_finality_signature.block_app_hash,
+            &add_finality_signature.finality_sig,
+        );
+
+        assert_eq!(
+            result.unwrap_err(),
+            ContractError::BeforeBSNActivation(before_activation_height, activation_height),
+            "Should fail when height < activation_height"
+        );
+
+        // TEST 2: Interval Check
+        // FAIL CASE: Invalid interval heights should fail with interval error
+        let invalid_heights = vec![
+            activation_height + 1, // 1001: (1001-1000) % 5 = 1 ≠ 0
+            activation_height + 2, // 1002: (1002-1000) % 5 = 2 ≠ 0
+            activation_height + 3, // 1003: (1003-1000) % 5 = 3 ≠ 0
+            activation_height + 4, // 1004: (1004-1000) % 5 = 4 ≠ 0
+            activation_height + 6, // 1006: (1006-1000) % 5 = 1 ≠ 0
+        ];
+
+        for invalid_height in invalid_heights {
+            let result = handle_finality_signature(
+                deps.as_mut(),
+                &mock_env(),
+                &fp_pk_hex,
+                None,
+                None,
+                invalid_height,
+                &add_finality_signature.pub_rand,
+                &proof,
+                &add_finality_signature.block_app_hash,
+                &add_finality_signature.finality_sig,
+            );
+
+            assert_eq!(
+                result.unwrap_err(),
+                ContractError::FinalitySignatureNotAtScheduledHeight(invalid_height, interval),
+                "Height {} should fail interval check",
+                invalid_height
+            );
+        }
+
+        // PASS CASE: Valid interval heights should pass both activation and interval checks
+        let valid_heights = vec![
+            activation_height,      // 1000: (1000-1000) % 5 = 0 ✅
+            activation_height + 5,  // 1005: (1005-1000) % 5 = 0 ✅
+            activation_height + 10, // 1010: (1010-1000) % 5 = 0 ✅
+            activation_height + 15, // 1015: (1015-1000) % 5 = 0 ✅
+        ];
+
+        for valid_height in valid_heights {
+            let result = handle_finality_signature(
+                deps.as_mut(),
+                &mock_env(),
+                &fp_pk_hex,
+                None,
+                None,
+                valid_height,
+                &add_finality_signature.pub_rand,
+                &proof,
+                &add_finality_signature.block_app_hash,
+                &add_finality_signature.finality_sig,
+            );
+
+            // Should pass both BSN activation and interval checks
+            // but fail at later validation stage (FP not found on Babylon)
+            let error = result.unwrap_err();
+            assert_ne!(
+                error,
+                ContractError::BeforeBSNActivation(valid_height, activation_height),
+                "Height {} should pass BSN activation check",
+                valid_height
+            );
+            assert_ne!(
+                error,
+                ContractError::FinalitySignatureNotAtScheduledHeight(valid_height, interval),
+                "Height {} should pass interval check",
+                valid_height
+            );
         }
     }
 }

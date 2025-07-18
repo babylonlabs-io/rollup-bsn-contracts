@@ -45,6 +45,14 @@ pub enum ContractError {
     InvalidNumPubRand(u64),
     #[error("Invalid min_pub_rand value: {0}. Must be at least 1")]
     InvalidMinPubRand(u64),
+    #[error("Invalid finality_signature_interval value: {0}. Must be at least 1")]
+    InvalidFinalitySignatureInterval(u64),
+    #[error("BSN not activated yet. Current height: {0}, activation height: {1}")]
+    BeforeBSNActivation(u64, u64),
+    #[error(
+        "Finality signature not at scheduled height. Height {0} not allowed with interval {1}"
+    )]
+    FinalitySignatureNotAtScheduledHeight(u64, u64),
     #[error("{0}")]
     MerkleError(#[from] MerkleError),
     #[error("Public randomness not found for finality provider {0} at height {1}")]

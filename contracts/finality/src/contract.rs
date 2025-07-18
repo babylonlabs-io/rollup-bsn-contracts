@@ -36,6 +36,8 @@ pub fn instantiate(
             max_msgs_per_interval: msg.max_msgs_per_interval,
             block_interval: msg.rate_limiting_interval,
         },
+        bsn_activation_height: msg.bsn_activation_height,
+        finality_signature_interval: msg.finality_signature_interval,
     };
     set_config(deps.storage, &config)?;
 
@@ -207,6 +209,8 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 1000,
+            finality_signature_interval: 100,
             allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -258,6 +262,8 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
             allowed_finality_providers: None,
         };
 
@@ -277,6 +283,8 @@ pub(crate) mod tests {
 
         let min_pub_rand = get_random_u64_range(0, 1000000);
         let bsn_id = "op-stack-l2-11155420".to_string();
+        let bsn_activation_height = get_random_u64_range(0, 1000000);
+        let finality_signature_interval = get_random_u64_range(1, 1000000);
 
         let msg = InstantiateMsg {
             admin: init_admin.to_string(),
@@ -284,6 +292,8 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height,
+            finality_signature_interval,
             allowed_finality_providers: None,
         };
 
@@ -314,6 +324,11 @@ pub(crate) mod tests {
             let config: Config = from_json(config_query).unwrap();
             assert_eq!(config.bsn_id, bsn_id);
             assert_eq!(config.min_pub_rand, min_pub_rand);
+            assert_eq!(config.bsn_activation_height, bsn_activation_height);
+            assert_eq!(
+                config.finality_signature_interval,
+                finality_signature_interval
+            );
         } else {
             // Should fail with specific error
             assert!(result.is_err(), "Expected error for min_pub_rand = 0");
@@ -327,6 +342,8 @@ pub(crate) mod tests {
         let invalid_admin = "invalid-address";
         let bsn_id = "op-stack-l2-11155420".to_string();
         let min_pub_rand = get_random_u64_range(1, 1000000);
+        let bsn_activation_height = get_random_u64_range(0, 1000000);
+        let finality_signature_interval = get_random_u64_range(1, 1000000);
 
         let instantiate_msg = InstantiateMsg {
             admin: invalid_admin.to_string(),
@@ -334,6 +351,8 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height,
+            finality_signature_interval,
             allowed_finality_providers: None,
         };
 
@@ -349,7 +368,9 @@ pub(crate) mod tests {
         let mut deps = mock_deps_babylon();
         let init_admin = deps.api.addr_make(INIT_ADMIN);
         let bsn_id = "op-stack-l2-11155420".to_string();
-        let min_pub_rand = 100;
+        let min_pub_rand = get_random_u64_range(1, 1000000);
+        let bsn_activation_height = get_random_u64_range(0, 1000000);
+        let finality_signature_interval = get_random_u64_range(1, 1000000);
 
         // Initialize contract
         let instantiate_msg = InstantiateMsg {
@@ -358,6 +379,8 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height,
+            finality_signature_interval,
             allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -431,6 +454,8 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 1,
+            finality_signature_interval: 100,
             allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -492,6 +517,8 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 1,
+            finality_signature_interval: 1,
             allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -551,6 +578,8 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 1,
+            finality_signature_interval: 100,
             allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -619,6 +648,8 @@ pub(crate) mod tests {
             min_pub_rand,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 1,
+            finality_signature_interval: 100,
             allowed_finality_providers: None,
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -1022,6 +1053,8 @@ pub(crate) mod tests {
             min_pub_rand: 100,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
             allowed_finality_providers: Some(initial_fps.clone()),
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
@@ -1138,6 +1171,8 @@ pub(crate) mod tests {
             min_pub_rand: 100,
             max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
             rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
             allowed_finality_providers: Some(vec![initial_fp.clone()]),
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);

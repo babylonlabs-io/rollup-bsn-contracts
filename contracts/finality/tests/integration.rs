@@ -40,6 +40,8 @@ fn instantiate_works() {
         min_pub_rand: 100,
         max_msgs_per_interval: 100,
         rate_limiting_interval: 10000,
+        bsn_activation_height: 0,
+        finality_signature_interval: 1,
         allowed_finality_providers: None,
     };
     let info = mock_info(CREATOR, &[]);
@@ -52,6 +54,11 @@ fn instantiate_works() {
         from_json(query(&mut deps, mock_env(), QueryMsg::Config {}).unwrap()).unwrap();
     assert_eq!(msg.bsn_id, res.bsn_id);
     assert_eq!(msg.min_pub_rand, res.min_pub_rand);
+    assert_eq!(msg.bsn_activation_height, res.bsn_activation_height);
+    assert_eq!(
+        msg.finality_signature_interval,
+        res.finality_signature_interval
+    );
 
     // Check the admin is properly stored in the state and returned
     let res: AdminResponse =
