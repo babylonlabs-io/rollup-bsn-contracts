@@ -382,7 +382,7 @@ func (s *FinalityContractTestSuite) deployContracts(
 	minPubRand := uint64(100)
 	rateLimitingInterval := uint64(10000)
 	maxMsgsPerInterval := uint32(100)
-	bsnActivationHeight := uint64(1)       // System activates at height 1
+	bsnActivationHeight := uint64(0)       // System activates at rollup height 0
 	finalitySignatureInterval := uint64(1) // Allow finality signatures at every height
 	initMsg := NewInitMsg(s.owner.String(), bsnID, minPubRand, rateLimitingInterval, maxMsgsPerInterval, bsnActivationHeight, finalitySignatureInterval)
 	initMsgBz := []byte(initMsg)
