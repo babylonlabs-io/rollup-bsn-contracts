@@ -12,7 +12,7 @@ use crate::state::rate_limiting::check_rate_limit_and_accumulate;
 use crate::utils::{get_fp_fin_vote_context_v0, query_finality_provider};
 use babylon_bindings::BabylonQuery;
 use babylon_merkle::Proof;
-use cosmwasm_std::{Deps, DepsMut, Env, Event, Response};
+use cosmwasm_std::{Deps, DepsMut, Env, Event, Response, Storage};
 use k256::sha2::{Digest, Sha256};
 
 #[allow(clippy::too_many_arguments)]
@@ -174,7 +174,7 @@ fn verify_finality_signature(
 
 /// Ensures finality signatures are allowed by checking both BSN activation and interval requirements
 fn ensure_finality_signature_allowed(
-    storage: &dyn cosmwasm_std::Storage,
+    storage: &dyn Storage,
     rollup_height: u64,
 ) -> Result<(), ContractError> {
     let config = get_config(storage)?;
