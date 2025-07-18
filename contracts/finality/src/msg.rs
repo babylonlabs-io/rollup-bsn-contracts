@@ -9,14 +9,28 @@ use {
     crate::state::public_randomness::PubRandCommit, cw_controllers::AdminResponse,
 };
 
+/// Message for instantiating a new finality contract.
+/// 
+/// This message contains all the configuration parameters needed to deploy and initialize
+/// a finality contract that integrates with Babylon's Bitcoin staking protocol.
+/// All parameters are validated during instantiation and stored in the contract's configuration.
 #[cw_serde]
 pub struct InstantiateMsg {
+    /// Initial admin address for the contract who can update settings
     pub admin: String,
+    /// Unique identifier for the BSN (Bitcoin Supercharged Network) this contract secures
     pub bsn_id: String,
+    /// Minimum number of public randomness values required in commitments
     pub min_pub_rand: u64,
+    /// Number of Babylon blocks in each interval
     pub rate_limiting_interval: u64,
+    /// Maximum messages allowed per finality provider per interval
     pub max_msgs_per_interval: u32,
+    /// Block height at which the BSN system is activated (0 = immediate activation).
+    /// Only affects `SubmitFinalitySignature` messages.
     pub bsn_activation_height: u64,
+    /// Interval between allowed finality signature submissions.
+    /// Signatures can only be submitted at heights where `(height - bsn_activation_height) % interval == 0`.
     #[schemars(range(min = 1))]
     pub finality_signature_interval: u64,
     /// Optional list of BTC public keys (hex) to pre-populate the allowlist at instantiation
