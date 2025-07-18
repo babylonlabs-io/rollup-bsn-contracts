@@ -10,6 +10,9 @@ contract that a rollup deploys to become a BSN. The contract must be deployed
 on Babylon Genesis as it relies on direct interaction with it.
 
 ## Governance Notes
+<img width="3100" height="772" alt="governance" src="https://github.com/user-attachments/assets/f1170b6c-5666-4ae9-91cc-49067f97a3a1" />
+
+
 
 Depending on the Babylon Genesis network (e.g., testnet, mainnet) you
 choose for the deployment of the rollup BSN, the network might be permissioned:
@@ -44,6 +47,7 @@ Registration network for simplicity. Listings that would require governance
 will be highlighted appropriately.
 
 ## Instantiation
+<img width="3033" height="275" alt="instantiate" src="https://github.com/user-attachments/assets/f0c6f466-a3e9-475b-a256-d79ebcfc2033" />
 
 The Rollup BSN contract is instantiated as follows:
 ```shell
@@ -83,6 +87,7 @@ The parameters:
 those here -->
 
 ## Rollup BSN Registration
+<img width="3032" height="287" alt="register" src="https://github.com/user-attachments/assets/935fb9bd-f42d-47ba-a0f3-0fc628961e67" />
 
 After deploying and instantiating the Rollup BSN contract, the
 rollup must register on Babylon Genesis. Registration requires 
@@ -112,6 +117,7 @@ Required metadata for BSN registration:
 > registration networks.
 
 ## Contract Maintenance
+<img width="1848" height="677" alt="adminRole" src="https://github.com/user-attachments/assets/9b942068-3d72-4ae8-a47e-79894427204e" />
 
 The Rollup BSN contract exposes `admin-only` functions for ongoing management. These allow you to clean up
  old data, update roles, and adjust configuration without redeploying the contract.
@@ -211,6 +217,7 @@ QUERY_MSG={
 Returns a list of BTC public keys (in hex format) currently allowlisted to submit data
 
 ## External Integration
+<img width="2748" height="529" alt="external integrations" src="https://github.com/user-attachments/assets/2904a675-f980-47ff-9c62-2bfab5fcf1a8" />
 
 The Rollup BSN contract is used by two main types of off-chain actors:
 
