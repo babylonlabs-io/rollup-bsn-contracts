@@ -14,7 +14,8 @@ use {
 pub struct InstantiateMsg {
     /// Initial admin address for the contract who can update settings
     pub admin: String,
-    /// Unique identifier for the BSN (Bitcoin Supercharged Network) this contract secures
+    /// Unique identifier for the BSN (Bitcoin Supercharged Network) this
+    /// contract secures
     pub bsn_id: String,
     /// Minimum number of public randomness values required in commitments
     pub min_pub_rand: u64,
@@ -22,14 +23,16 @@ pub struct InstantiateMsg {
     pub rate_limiting_interval: u64,
     /// Maximum messages allowed per finality provider per interval
     pub max_msgs_per_interval: u32,
-    /// Block height at which the BSN system is activated (0 = immediate activation).
-    /// Only affects `SubmitFinalitySignature` messages.
+    /// Rollup block height at which the BSN system is activated (0 =
+    /// immediate activation). Only affects `SubmitFinalitySignature` messages.
     pub bsn_activation_height: u64,
-    /// Interval between allowed finality signature submissions.
-    /// Signatures can only be submitted at heights where `(height - bsn_activation_height) % interval == 0`.
+    /// Interval between allowed finality signature submissions. Signatures can
+    /// only be submitted at rollup block heights where `(height -
+    /// bsn_activation_height) % interval == 0`.
     #[schemars(range(min = 1))]
     pub finality_signature_interval: u64,
-    /// Optional list of BTC public keys (hex) to pre-populate the allowlist at instantiation
+    /// Optional list of BTC public keys (hex) to pre-populate the allowlist at
+    /// instantiation
     pub allowed_finality_providers: Option<Vec<String>>,
 }
 

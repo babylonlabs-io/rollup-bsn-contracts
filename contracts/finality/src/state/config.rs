@@ -20,17 +20,19 @@ pub struct RateLimitingConfig {
 /// Contract configuration parameters set at instantiation.
 #[cw_serde]
 pub struct Config {
-    /// Unique identifier for the BSN (Bitcoin Supercharged Network) that this contract secures
+    /// Unique identifier for the BSN (Bitcoin Supercharged Network) that this
+    /// contract secures
     pub bsn_id: String,
     /// Minimum number of public randomness values required in commitments
     pub min_pub_rand: u64,
     /// Rate limiting configuration to prevent spam
     pub rate_limiting: RateLimitingConfig,
-    /// Block height at which the BSN system is activated (0 = immediate activation).
-    /// Only affects `SubmitFinalitySignature` messages.
+    /// Rollup block height at which the BSN system is activated (0 = immediate
+    /// activation). Only affects `SubmitFinalitySignature` messages.
     pub bsn_activation_height: u64,
-    /// Interval between allowed finality signature submissions.
-    /// Signatures can only be submitted at heights where `(height - bsn_activation_height) % interval == 0`.
+    /// Interval between allowed finality signature submissions. Signatures can
+    /// only be submitted at rollup block heights where `(height -
+    /// bsn_activation_height) % interval == 0`.
     #[schemars(range(min = 1))]
     pub finality_signature_interval: u64,
 }
