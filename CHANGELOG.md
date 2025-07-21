@@ -66,7 +66,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 
 ### Improvements
-
+* [#83](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/83) docs: rollup bsn contract guide
 * [#84](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/84) chore: consolidate tests for InstantiateMsg
 * [#81](https://github.com/babylonlabs-io/rollup-bsn-contracts/issues/81) Add
   allowlist functionality for finality providers.
