@@ -122,6 +122,7 @@ Each operation is executed with:
 ```shell
 babylond tx wasm execute <CONTRACT_ADDRESS> '<MSG>' 
 ```
+**Note**: <CONTRACT_ADDRESS> refers to the address of the deployed Rollup BSN contract on Babylon. <MSG> is the execute message in JSON format, described in the sections below
 
 ### Modifying the Contract Administrator
 ```shell
