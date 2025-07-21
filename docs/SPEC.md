@@ -20,6 +20,8 @@
     - [4.7.1. CommitPublicRandomness (MUST)](#471-commitpublicrandomness-must)
     - [4.7.2. SubmitFinalitySignature (MUST)](#472-submitfinalitysignature-must)
     - [4.7.3. UpdateAdmin (SHOULD)](#473-updateadmin-should)
+    - [4.5.4. AddToAllowlist (SHOULD)](#454-addtoallowlist-should)
+    - [4.5.5. RemoveFromAllowlist (SHOULD)](#455-removefromallowlist-should)
     - [4.7.4. PruneData (SHOULD)](#474-prunedata-should)
   - [4.8. Contract State Storage](#48-contract-state-storage)
     - [4.8.1. Core Configuration](#481-core-configuration)
@@ -356,7 +358,11 @@ pub struct InstantiateMsg {
 ```
 
 **New Optional Parameter:**
-- `allowed_finality_providers`: `Option<Vec<String>>` — An optional list of BTC public keys (hex-encoded) to pre-populate the allowlist at contract instantiation. If provided, each key must be non-empty. Any empty key will cause instantiation to fail. If omitted or empty, the allowlist will start empty.
+- `allowed_finality_providers`: `Option<Vec<String>>` — An optional list of BTC
+  public keys (hex-encoded) to pre-populate the allowlist at contract
+  instantiation. If provided, each key must be non-empty. Any empty key will
+  cause instantiation to fail. If omitted or empty, the allowlist will start
+  empty.
 
 **Example:**
 ```json
@@ -494,8 +500,7 @@ pub struct RateLimitingConfig {
    initialize with `(current_interval, 0)`
 3. **Interval Reset Check**: If stored interval differs from current interval,
    reset count to 0 and update interval
-4. **Rate Limit Check**: Verify that `message_count + 1 ≤
-   max_msgs_per_interval`
+4. **Rate Limit Check**: Verify that `message_count + 1 ≤ max_msgs_per_interval`
 5. **Counter Update**: Increment the message count and save to storage
 6. **Error Handling**: Return `ContractError::RateLimitExceeded` if the limit
    would be exceeded
@@ -629,12 +634,14 @@ CommitPublicRandomness {
 **Expected Behaviour:** Finality contracts MUST implement this handler with the
 following verification logic:
 
-1. **Rate Limiting Check**: Enforce rate limiting for the finality provider:
-   - Call the rate limiting function with the finality provider's BTC public key
-     and current block environment
-   - Return `ContractError::RateLimitExceeded` if the rate limit is exceeded
-   - This check MUST occur before any other validation to prevent resource
-     consumption
+0. **Public Key Decoding**: Decode the finality provider's BTC public key:
+   - Decode the `fp_pubkey_hex` parameter from hex string to bytes
+   - This decoded byte array is used for all subsequent validation steps
+
+1. **Allowlist Check**: Verify that the finality provider is in the allowlist:
+   - Query the allowlist storage using the decoded BTC public key bytes
+   - If the finality provider is not in the allowlist, return
+     `FinalityProviderNotAllowed` error
 
 2. **Finality Provider Existence Check**: Verify that the finality provider
    exists and is not slashed by querying the Babylon Genesis chain through gRPC:
@@ -645,14 +652,14 @@ following verification logic:
    - Ensure the finality provider has not been slashed (`slashed_babylon_height`
      and `slashed_btc_height` are both 0)
 
-2. **Allowlist Check**: Verify that the finality provider is in the allowlist:
-   - Query the allowlist storage to check if the finality provider's BTC public key is allowed
-   - If the finality provider is not in the allowlist, return `FinalityProviderNotAllowed` error
+3. **Rate Limiting Check**: Enforce rate limiting for the finality provider:
+   - Call the rate limiting function with the decoded BTC public key bytes and
+     current block environment
+   - Return `ContractError::RateLimitExceeded` if the rate limit is exceeded
 
-3. **Signature Verification**: Verify the commitment signature using Schnorr
+4. **Signature Verification**: Verify the commitment signature using Schnorr
    signature verification:
-   - Decode the finality provider's BTC public key from `fp_pubkey_hex`
-     parameter
+   - Use the previously decoded finality provider's BTC public key bytes
    - Generate signing context:
      `hex(sha256("btcstaking/0/fp_rand_commit/{chain_id}/{contract_address}"))`
    - Construct message: `signing_context || start_height || num_pub_rand ||
@@ -705,21 +712,17 @@ SHA256(signing_context || height || block_hash)`
 **Expected Behaviour:** Finality contracts MUST implement this handler with the
 following verification logic:
 
+0. **Public Key Decoding**: Decode the finality provider's BTC public key:
+   - Decode the `fp_pubkey_hex` parameter from hex string to bytes
+   - This decoded byte array is used for all subsequent validation steps
+
 1. **Allowlist Check**: Verify that the finality provider is in the allowlist:
-   - Query the allowlist storage to check if the finality provider's BTC public
-     key is allowed
+   - Query the allowlist storage using the decoded BTC public key bytes
    - If the finality provider is not in the allowlist, return
      `FinalityProviderNotAllowed` error
 
-2. **Rate Limiting Check**: Enforce rate limiting for the finality provider:
-   - Call the rate limiting function with the finality provider's BTC public key
-     and current block environment
-   - Return `ContractError::RateLimitExceeded` if the rate limit is exceeded
-   - This check MUST occur before any other validation to prevent resource
-     consumption
-
-3. **BSN Activation and Interval Check**: Ensure finality signatures are
-   allowed by validating both BSN activation status and scheduled intervals:
+2. **BSN Activation and Interval Check**: Ensure finality signatures are allowed
+   by validating both BSN activation status and scheduled intervals:
    - Load the contract configuration to get `bsn_activation_height` and
      `finality_signature_interval`
    - Verify that `height >= bsn_activation_height`
@@ -732,7 +735,7 @@ following verification logic:
    - **Note**: This validation is typically implemented as a single function
      that performs both checks together
 
-4. **Finality Provider Existence Check**: Verify that the finality provider
+3. **Finality Provider Existence Check**: Verify that the finality provider
    exists and is not slashed by querying the Babylon Genesis chain through gRPC:
    - Use `query_grpc` to call `/babylon.btcstaking.v1.Query/FinalityProvider`
      with the `fp_pubkey_hex` parameters
@@ -741,8 +744,13 @@ following verification logic:
    - Ensure the finality provider has not been slashed (`slashed_babylon_height`
      and `slashed_btc_height` are both 0)
 
+4. **Rate Limiting Check**: Enforce rate limiting for the finality provider:
+   - Call the rate limiting function with the decoded BTC public key bytes and
+     current block environment
+   - Return `ContractError::RateLimitExceeded` if the rate limit is exceeded
+
 5. **Duplicate Vote Check**: Check if an identical vote already exists:
-   - Query finality signature state using key `(height, fp_pubkey_hex)`
+   - Query finality signature state using key `(height, fp_pubkey_bytes)`
    - If the same signature exists for the same block hash, return success
      (duplicate vote)
    - If a different signature exists for the same height, proceed to
@@ -838,7 +846,8 @@ handler with the following verification logic:
    - If empty, return `EmptyFpBtcPubKey` error
 
 3. **Storage Operations**: Add the finality provider to the allowlist:
-   - Add the finality provider's BTC public key to the allowlist storage
+   - Decode the `fp_pubkey_hex` parameter from hex string to bytes
+   - Add the finality provider's BTC public key bytes to the allowlist storage
    - Return success response with action attributes
 
 #### 4.5.5. RemoveFromAllowlist (SHOULD)
@@ -863,7 +872,9 @@ handler with the following verification logic:
    - If empty, return `EmptyFpBtcPubKey` error
 
 3. **Storage Operations**: Remove the finality provider from the allowlist:
-   - Remove the finality provider's BTC public key from the allowlist storage
+   - Decode the `fp_pubkey_hex` parameter from hex string to bytes
+   - Remove the finality provider's BTC public key bytes from the allowlist
+     storage
    - Return success response with action attributes
 
 #### 4.7.4. PruneData (SHOULD)
@@ -879,11 +890,15 @@ PruneData {
 
 **Parameter Semantics:**
 - `rollup_height`: Remove all data for rollup blocks with height ≤ this value.
-- `max_signatures_to_prune`: Maximum number of finality signatures and signatories to prune in a single operation.
-  - Since every signature has a corresponding signatory record, this limit applies to both.
+- `max_signatures_to_prune`: Maximum number of finality signatures and
+  signatories to prune in a single operation.
+  - Since every signature has a corresponding signatory record, this limit
+    applies to both.
   - If `None`, the default value is 50.
-  - If `Some(0)`, disables pruning of finality signatures and signatories for this call.
-- `max_pub_rand_values_to_prune`: Maximum number of public randomness values to prune in a single operation.
+  - If `Some(0)`, disables pruning of finality signatures and signatories for
+    this call.
+- `max_pub_rand_values_to_prune`: Maximum number of public randomness values to
+  prune in a single operation.
   - If `None`, the default value is 50.
   - If `Some(0)`, disables pruning of public randomness values for this call.
 
@@ -904,10 +919,10 @@ handler with the following logic:
    `rollup_height`:
    - **Finality Signatures**: Remove entries from `FINALITY_SIGNATURES` storage
      up to `max_signatures_to_prune` limit
-   - **Signatories**: Remove entries from `SIGNATORIES_BY_BLOCK_HASH` storage
-     up to the same limit (one-to-one correspondence with signatures)
-   - **Public Randomness Values**: Remove entries from `PUB_RAND_VALUES`
-     storage up to `max_pub_rand_values_to_prune` limit
+   - **Signatories**: Remove entries from `SIGNATORIES_BY_BLOCK_HASH` storage up
+     to the same limit (one-to-one correspondence with signatures)
+   - **Public Randomness Values**: Remove entries from `PUB_RAND_VALUES` storage
+     up to `max_pub_rand_values_to_prune` limit
 
 4. **Response Attributes**: Return response with pruning statistics:
    - `pruned_signatures`: Number of finality signatures removed
@@ -961,12 +976,14 @@ contract implementation.
   ```
 
 **ALLOWED_FINALITY_PROVIDERS**: Allowlist of finality providers
-- Type: `Map<String, ()>`
+- Type: `Map<&[u8], ()>`
 - Storage key: `"allowed_finality_providers"`
-- Key format: `fp_pubkey_hex` (BTC public key in hex format)
+- Key format: `fp_pubkey_bytes` (BTC public key as bytes)
 - Purpose: Stores the set of finality providers that are allowed to submit
   finality signatures and public randomness commitments
 - Value: `()` for all entries (Unit type for no value)
+- Note: While the API accepts hex strings, the storage layer uses the decoded
+  byte representation for efficiency
 
 #### 4.8.2. Rate Limiting Storage
 
@@ -1122,11 +1139,13 @@ signature information:
      `SIGNATORIES_BY_BLOCK_HASH`
 
 3. For each finality provider in the set:
-   - Query the `FINALITY_SIGNATURES` storage using key `(height, fp_pubkey_bytes)`
+   - Query the `FINALITY_SIGNATURES` storage using key `(height,
+     fp_pubkey_bytes)`
    - IF signature not found: RETURN error with `QueryBlockVoterError`
    - Query the `PUB_RAND_VALUES` storage using key `(fp_pubkey_bytes, height)`
    - IF public randomness not found: RETURN error with `QueryBlockVoterError`
-   - Create `BlockVoterInfo` with `fp_btc_pk_hex`, `pub_rand`, and `FinalitySigInfo`
+   - Create `BlockVoterInfo` with `fp_btc_pk_hex`, `pub_rand`, and
+     `FinalitySigInfo`
 
 4. Return the list of BlockVoterInfo
    - IF no votes found: RETURN `None`
@@ -1293,7 +1312,8 @@ WHERE Config contains:
 AllowedFinalityProviders {}    // No parameters required
 ```
 
-**Return Type:** `Vec<String>` - List of BTC public keys (in hex format) of allowed finality providers
+**Return Type:** `Vec<String>` - List of BTC public keys (in hex format) of
+allowed finality providers
 
 **Expected Behaviour:** Finality contracts SHOULD implement this administrative
 query to return the list of all allowed finality providers:
@@ -1302,11 +1322,13 @@ query to return the list of all allowed finality providers:
    - Access all entries in the `ALLOWED_FINALITY_PROVIDERS` storage
 
 2. Return allowlist information
-   - Return a vector of BTC public keys (in hex format) for all allowed finality providers
+   - Return a vector of BTC public keys (in hex format) for all allowed finality
+     providers
    - If no finality providers are in the allowlist, return an empty vector
 
 WHERE the return value contains:
-- `Vec<String>` - List of BTC public keys in hex format for all allowed finality providers
+- `Vec<String>` - List of BTC public keys in hex format for all allowed finality
+  providers
 
 ## 5. Implementation status
 
