@@ -46,13 +46,13 @@ pub fn handle_public_randomness_commit(
     // Validate the commitment parameters
     validate_pub_rand_commit(start_height, num_pub_rand, commitment, config.min_pub_rand)?;
 
+    let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
+
     // Check if the finality provider is in the allowlist
-    ensure_fp_in_allowlist(deps.storage, fp_btc_pk_hex)?;
+    ensure_fp_in_allowlist(deps.storage, &fp_btc_pk)?;
 
     // Ensure the finality provider is registered and not slashed
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
-
-    let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
 
     // Ensure rate limiting and accumulate; this step will fail if the rate limit is exceeded
     check_rate_limit_and_accumulate(deps.storage, env, &fp_btc_pk)?;
@@ -162,7 +162,7 @@ fn ensure_fp_exists_and_not_slashed(
     fp_btc_pk_hex: &str,
 ) -> Result<(), ContractError> {
     // Ensure the finality provider is registered and not slashed
-    let fp_info = query_finality_provider(deps, fp_btc_pk_hex.to_string())?;
+    let fp_info = query_finality_provider(deps, fp_btc_pk_hex)?;
     if fp_info.slashed_babylon_height > 0 {
         return Err(ContractError::SlashedFinalityProvider(
             fp_btc_pk_hex.to_string(),

@@ -11,35 +11,32 @@ pub(crate) const ALLOWED_FINALITY_PROVIDERS: Map<&[u8], ()> =
 /// Check if a finality provider is in the allowlist
 pub fn ensure_fp_in_allowlist(
     storage: &dyn Storage,
-    fp_btc_pk_hex: &str,
+    fp_btc_pk_bytes: &[u8],
 ) -> Result<(), ContractError> {
-    let key = hex::decode(fp_btc_pk_hex)?;
     ALLOWED_FINALITY_PROVIDERS
-        .has(storage, &key)
+        .has(storage, fp_btc_pk_bytes)
         .then_some(())
-        .ok_or(ContractError::FinalityProviderNotAllowed(
-            fp_btc_pk_hex.to_string(),
-        ))
+        .ok_or(ContractError::FinalityProviderNotAllowed(hex::encode(
+            fp_btc_pk_bytes,
+        )))
 }
 
 /// Add a finality provider to the allowlist
 pub fn add_finality_provider_to_allowlist(
     storage: &mut dyn Storage,
-    fp_btc_pk_hex: &str,
+    fp_btc_pk_bytes: &[u8],
 ) -> Result<(), ContractError> {
-    let key = hex::decode(fp_btc_pk_hex)?;
     ALLOWED_FINALITY_PROVIDERS
-        .save(storage, &key, &())
+        .save(storage, fp_btc_pk_bytes, &())
         .map_err(Into::into)
 }
 
 /// Remove a finality provider from the allowlist
 pub fn remove_finality_provider_from_allowlist(
     storage: &mut dyn Storage,
-    fp_btc_pk_hex: &str,
+    fp_btc_pk_bytes: &[u8],
 ) -> Result<(), ContractError> {
-    let key = hex::decode(fp_btc_pk_hex)?;
-    ALLOWED_FINALITY_PROVIDERS.remove(storage, &key);
+    ALLOWED_FINALITY_PROVIDERS.remove(storage, fp_btc_pk_bytes);
     Ok(())
 }
 

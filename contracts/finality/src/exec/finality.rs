@@ -28,16 +28,16 @@ pub fn handle_finality_signature(
     block_hash: &[u8],
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
+    let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
+
     // Check if the finality provider is in the allowlist
-    ensure_fp_in_allowlist(deps.storage, fp_btc_pk_hex)?;
+    ensure_fp_in_allowlist(deps.storage, &fp_btc_pk)?;
 
     // Ensure finality signatures are allowed (BSN activation + interval check)
     ensure_finality_signature_allowed(deps.storage, height)?;
 
     // Ensure the finality provider exists and is not slashed
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
-
-    let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
 
     // Ensure rate limiting and accumulate; this step will fail if the rate limit is exceeded
     check_rate_limit_and_accumulate(deps.storage, env, &fp_btc_pk)?;
@@ -203,7 +203,7 @@ fn ensure_fp_exists_and_not_slashed(
     fp_pubkey_hex: &str,
 ) -> Result<(), ContractError> {
     let config = get_config(deps.storage)?;
-    let fp = query_finality_provider(deps, fp_pubkey_hex.to_string());
+    let fp = query_finality_provider(deps, fp_pubkey_hex);
     match fp {
         // the finality provider is found but is associated with other BSNs
         Ok(value) if value.bsn_id != config.bsn_id => Err(ContractError::NotFoundFinalityProvider(
