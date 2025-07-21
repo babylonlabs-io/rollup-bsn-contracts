@@ -265,11 +265,15 @@ fn get_msg_equivocation_evidence(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::contract::instantiate;
+    use crate::contract::tests::{mock_deps_babylon, CREATOR, INIT_ADMIN};
+    use crate::msg::InstantiateMsg;
+    use crate::testutil::datagen::*;
     use babylon_test_utils::{
         get_add_finality_sig, get_add_finality_sig_2, get_pub_rand_value,
         get_public_randomness_commitment,
     };
-    use cosmwasm_std::testing::mock_env;
+    use cosmwasm_std::testing::{message_info, mock_env};
 
     #[test]
     fn verify_finality_signature_works() {
@@ -381,12 +385,6 @@ pub(crate) mod tests {
 
     #[test]
     fn test_ensure_finality_signature_allowed() {
-        use crate::contract::instantiate;
-        use crate::contract::tests::{mock_deps_babylon, CREATOR, INIT_ADMIN};
-        use crate::msg::InstantiateMsg;
-        use crate::testutil::datagen::*;
-        use cosmwasm_std::testing::message_info;
-
         let mut deps = mock_deps_babylon();
 
         // Configure the contract with activation height of 1000 and interval of 5
