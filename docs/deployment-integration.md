@@ -50,14 +50,17 @@ will be highlighted appropriately.
 
 The Rollup BSN contract is instantiated as follows:
 ```shell
-INSTANT_MSG={
-  "admin": <ADMIN_ADDRESS>,
-  "bsn_id": <BSN_ID>,
-  "max_msgs_per_interval": <MAX_MSGS_PER_INTERVAL>,
-  "min_pub_rand": <MIN_PUB_RAND>,
-  "rate_limiting_interval": <RATE_LIMITING_INTERVAL>,
-  "allowed_finality_providers": [<FP_PUBKEY_1>, <FP_PUBKEY_2>] #Optional
+INSTANT_MSG=$(cat <<EOF
+{
+  "admin": "$ADMIN_ADDRESS",
+  "bsn_id": "$BSN_ID",
+  "max_msgs_per_interval": $MAX_MSGS_PER_INTERVAL,
+  "min_pub_rand": $MIN_PUB_RAND,
+  "rate_limiting_interval": $RATE_LIMITING_INTERVAL,
+  "allowed_finality_providers": ["$FP_PUBKEY_1", "$FP_PUBKEY_2"]
 }
+EOF
+)
 
 babylond tx wasm instantiate $CODE_ID '$INSTANT_MSG'
 ```
@@ -124,7 +127,7 @@ babylond tx wasm execute <CONTRACT_ADDRESS> '<MSG>'
 ```shell
 MSG={
   "update_admin": {
-    "admin": <NEW_ADMIN_ADDRESS>
+    "admin": $NEW_ADMIN_ADDRESS
   }
 }
 ```
@@ -135,9 +138,9 @@ ownership to another entity.
 ```shell
 MSG={
   "prune_data": {
-    "rollup_height": <BLOCK_HEIGHT>,
-    "max_signatures_to_prune": <MAX_SIGS>, # optional
-    "max_pub_rand_values_to_prune": <MAX_PUB_RAND> # optional
+    "rollup_height": $BLOCK_HEIGHT,
+    "max_signatures_to_prune": $MAX_SIGS,
+    "max_pub_rand_values_to_prune": $MAX_PUB_RAND
   }
 }
 ```
@@ -154,7 +157,7 @@ practices.
 MSG={
   "add_to_allowlist": {
     "fp_pubkey_hex_list": [
-      <FP_PUBKEY>
+      $FP_PUBKEY
     ]
   }
 }
@@ -163,7 +166,7 @@ MSG={
 MSG={
   "remove_from_allowlist": {
     "fp_pubkey_hex_list": [
-      <FP_PUBKEY>
+      $FP_PUBKEY
     ]
   }
 }
