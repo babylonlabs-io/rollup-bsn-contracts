@@ -39,13 +39,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### State and API breaking
 
+* [82](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/82) feat: add
+  bsn_activation_height and finality_signature_interval for spam protection
+
+### Improvements
+
+* [#91](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/91) feat:
+  optimize public key handling by using bytes instead of hex
+
+## v0.1.0
+
+### State and API breaking
+
 * [#65](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/65) Remove
   `is_enabled` flag and associated functionality from finality contract
 * [#40](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/40)
   Timestamped public randomness commitments. Breaks `PubRandCommit` struct that
   is being used for both storage and queries.
-* [82](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/82) feat: add
-  bsn_activation_height and finality_signature_interval for spam protection
 
 ### API breaking
 
@@ -68,8 +78,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 * [#75](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/75) chore:
   store conflicting finality sigs in storage
 
-
 ### Improvements
+
 * [#83](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/83) docs: rollup bsn contract guide
 * [#84](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/84) chore: consolidate tests for InstantiateMsg
 * [#81](https://github.com/babylonlabs-io/rollup-bsn-contracts/issues/81) Add

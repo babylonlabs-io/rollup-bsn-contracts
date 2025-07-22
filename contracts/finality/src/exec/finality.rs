@@ -28,16 +28,16 @@ pub fn handle_finality_signature(
     block_hash: &[u8],
     signature: &[u8],
 ) -> Result<Response<BabylonMsg>, ContractError> {
+    let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
+
     // Check if the finality provider is in the allowlist
-    ensure_fp_in_allowlist(deps.storage, fp_btc_pk_hex)?;
+    ensure_fp_in_allowlist(deps.storage, &fp_btc_pk)?;
 
     // Ensure finality signatures are allowed (BSN activation + interval check)
     ensure_finality_signature_allowed(deps.storage, height)?;
 
     // Ensure the finality provider exists and is not slashed
     ensure_fp_exists_and_not_slashed(deps.as_ref(), fp_btc_pk_hex)?;
-
-    let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
 
     // Ensure rate limiting and accumulate; this step will fail if the rate limit is exceeded
     check_rate_limit_and_accumulate(deps.storage, env, &fp_btc_pk)?;
@@ -203,7 +203,7 @@ fn ensure_fp_exists_and_not_slashed(
     fp_pubkey_hex: &str,
 ) -> Result<(), ContractError> {
     let config = get_config(deps.storage)?;
-    let fp = query_finality_provider(deps, fp_pubkey_hex.to_string());
+    let fp = query_finality_provider(deps, fp_pubkey_hex);
     match fp {
         // the finality provider is found but is associated with other BSNs
         Ok(value) if value.bsn_id != config.bsn_id => Err(ContractError::NotFoundFinalityProvider(
@@ -265,11 +265,15 @@ fn get_msg_equivocation_evidence(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::contract::instantiate;
+    use crate::contract::tests::{mock_deps_babylon, CREATOR, INIT_ADMIN};
+    use crate::msg::InstantiateMsg;
+    use crate::testutil::datagen::*;
     use babylon_test_utils::{
         get_add_finality_sig, get_add_finality_sig_2, get_pub_rand_value,
         get_public_randomness_commitment,
     };
-    use cosmwasm_std::testing::mock_env;
+    use cosmwasm_std::testing::{message_info, mock_env};
 
     #[test]
     fn verify_finality_signature_works() {
@@ -381,12 +385,6 @@ pub(crate) mod tests {
 
     #[test]
     fn test_ensure_finality_signature_allowed() {
-        use crate::contract::instantiate;
-        use crate::contract::tests::{mock_deps_babylon, CREATOR, INIT_ADMIN};
-        use crate::msg::InstantiateMsg;
-        use crate::testutil::datagen::*;
-        use cosmwasm_std::testing::message_info;
-
         let mut deps = mock_deps_babylon();
 
         // Configure the contract with activation height of 1000 and interval of 5

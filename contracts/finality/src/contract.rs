@@ -47,7 +47,11 @@ pub fn instantiate(
             if fp_pubkey.is_empty() {
                 return Err(ContractError::EmptyFpBtcPubKey);
             }
-            crate::state::allowlist::add_finality_provider_to_allowlist(deps.storage, fp_pubkey)?;
+            let fp_btc_pk_bytes = hex::decode(fp_pubkey)?;
+            crate::state::allowlist::add_finality_provider_to_allowlist(
+                deps.storage,
+                &fp_btc_pk_bytes,
+            )?;
         }
     }
 

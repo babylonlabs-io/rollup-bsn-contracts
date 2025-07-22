@@ -20,11 +20,9 @@ pub struct FinalityProviderResponse {
 
 pub fn query_finality_provider(
     deps: Deps<BabylonQuery>,
-    fp_btc_pk_hex: String,
+    fp_btc_pk_hex: &str,
 ) -> StdResult<FinalityProviderResponse> {
-    let query_data = Anybuf::new()
-        .append_string(1, fp_btc_pk_hex.clone())
-        .into_vec();
+    let query_data = Anybuf::new().append_string(1, fp_btc_pk_hex).into_vec();
 
     let res_data: Binary = deps.querier.query_grpc(
         "/babylon.btcstaking.v1.Query/FinalityProvider".to_string(),

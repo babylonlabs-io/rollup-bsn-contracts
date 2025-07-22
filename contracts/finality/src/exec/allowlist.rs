@@ -1,10 +1,12 @@
 use cosmwasm_std::{DepsMut, MessageInfo, Response};
 
-use babylon_bindings::BabylonQuery;
-
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
+use crate::state::allowlist::{
+    add_finality_provider_to_allowlist, remove_finality_provider_from_allowlist,
+};
 use crate::state::config::ADMIN;
+use babylon_bindings::BabylonQuery;
 
 /// Handle adding finality providers to the allowlist
 pub fn handle_add_to_allowlist(
@@ -26,7 +28,8 @@ pub fn handle_add_to_allowlist(
     ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
 
     for key in &fp_pubkey_hex_list {
-        crate::state::allowlist::add_finality_provider_to_allowlist(deps.storage, key)?;
+        let fp_btc_pk_bytes = hex::decode(key)?;
+        add_finality_provider_to_allowlist(deps.storage, &fp_btc_pk_bytes)?;
     }
 
     Ok(Response::new()
@@ -54,7 +57,8 @@ pub fn handle_remove_from_allowlist(
     ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
 
     for key in &fp_pubkey_hex_list {
-        crate::state::allowlist::remove_finality_provider_from_allowlist(deps.storage, key)?;
+        let fp_btc_pk_bytes = hex::decode(key)?;
+        remove_finality_provider_from_allowlist(deps.storage, &fp_btc_pk_bytes)?;
     }
 
     Ok(Response::new()
