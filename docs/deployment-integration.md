@@ -9,17 +9,24 @@ reports misbehavior for slashing. This is the core and only
 contract that a rollup deploys to become a BSN. The contract must be deployed
 on Babylon Genesis as it relies on direct interaction with it.
 
+## Overview
+
+The BSN deployment process consists of four main steps:
+
+1. **Upload Contract Code**: Upload the compiled WASM bytecode to Babylon Genesis to obtain a code ID
+2. **Instantiate Contract**: Create a contract instance using the code ID with your specific BSN configuration 
+3. **Register BSN**: Register your BSN with Babylon using the contract address to enable finality provider participation
+4. **Maintain Contract**: Ongoing contract management and operational tasks as needed
+
 ## Governance Notes
 <img width="3100" height="772" alt="governance" src="./assets/governance.png" />
-
-
 
 Depending on the Babylon Genesis network (e.g., testnet, mainnet) you
 choose for the deployment of the rollup BSN, the network might be permissioned:
 * **Permissioned CosmWasm**: Requires governane approval for deploying a smart
   contract. This can be granted in two ways:
   * `MsgStoreCode` proposal: Upload a contract code. Preferred for one-time deployments
-  * `MsgUpdateParams` proposal: Add a Babylon Genesis address in an allow-list
+  * `MsgAddCodeUploadParamsAddresses` proposal: Add a Babylon Genesis address in an allow-list
     for which its members can permissionlessly upload code. This is typically
     used for contracts requiring periodic maintenance.
   > To learn more about permissioned CosmWasm,
@@ -54,6 +61,8 @@ INSTANT_MSG=$(cat <<EOF
 {
   "admin": "$ADMIN_ADDRESS",
   "bsn_id": "$BSN_ID",
+  "bsn_activation_height": $BSN_ACTIVATION_HEIGHT,
+  "finality_signature_interval": $FINALITY_SIGNATURE_INTERVAL,
   "max_msgs_per_interval": $MAX_MSGS_PER_INTERVAL,
   "min_pub_rand": $MIN_PUB_RAND,
   "rate_limiting_interval": $RATE_LIMITING_INTERVAL,
@@ -70,6 +79,11 @@ The parameters:
 * `bsn_id`: The unique identifier for the BSN rollup
   Ensure that this is unique and not already used by another BSN on Babylon
   Genesis as this will affect your registration
+* `bsn_activation_height`: The rollup block height at which the BSN system becomes active. 
+  Finality signatures submitted for blocks before this height will be rejected
+* `finality_signature_interval`: The number of blocks between allowed finality signature submissions, 
+  starting from the activation height. Only block heights where 
+  `(current_height - bsn_activation_height) % finality_signature_interval == 0` are valid for submission
 * `min_pub_rand`: Minimum public randomness values included per public
   randomness commit by finality providers
 * `rate_limiting_interval`: Length (in blocks) of the interval for
@@ -86,7 +100,7 @@ those here -->
 <img width="3032" height="287" alt="register" src="./assets/register.png" />
 
 After deploying and instantiating the Rollup BSN contract, the
-rollup must register on Babylon Genesis. Registration requires 
+rollup must register on Babylon Genesis. Registration as a BSN requires 
 submitting metadata to identify and describe the BSN
 
 To register the BSN, use:
@@ -95,7 +109,6 @@ babylond tx btcstkconsumer register-consumer \
                                 <consumer_id> \
                                 <consumer_name> \
                                 <consumer_ description> \
-                                <max_multi_staked_fps> \
                                 <rollup_finality_contract_address>
 ```
 
@@ -104,8 +117,6 @@ Required metadata for BSN registration:
   instantiation)
 * `consumer_name`: Human-readable name of your rollup BSN (e.g., `"DeFi Rollup Chain"`)
 * `consumer_description`: Brief description of the rollup BSN's purpose
-* `max_multi_staked_fps`: Maximum number of rollup FPs per BTC delegation. Prevents delegators from splitting
- their BTC across too many networks (recommended: `3-5`)
 * `rollup_finality_contract_address`: Babylon Genesis address of the deployed Rollup BSN contract (`bbn1...` format)
 
 > **Governance Note**: The above operation can only be executed by governance
