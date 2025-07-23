@@ -23,7 +23,7 @@ The BSN deployment process consists of four main steps:
 
 Depending on the Babylon Genesis network (e.g., testnet, mainnet) you
 choose for the deployment of the rollup BSN, the network might be permissioned:
-* **Permissioned CosmWasm**: Requires governane approval for deploying a smart
+* **Permissioned CosmWasm**: Requires governance approval for deploying a smart
   contract. This can be granted in two ways:
   * `MsgStoreCode` proposal: Upload a contract code. Preferred for one-time deployments
   * `MsgAddCodeUploadParamsAddresses` proposal: Add a Babylon Genesis address in an allow-list
