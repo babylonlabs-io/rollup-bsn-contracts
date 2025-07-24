@@ -1,4 +1,4 @@
-# Deployment of the Rollup BSN Contract
+# Rollup BSN Finality Contract Management
 
 ## Introduction
 
@@ -19,6 +19,7 @@ The BSN deployment process consists of four main steps:
 4. **Maintain Contract**: Ongoing contract management and operational tasks as needed
 
 ## Governance Notes
+
 <img width="3100" height="772" alt="governance" src="./assets/governance.png" />
 
 Depending on the Babylon Genesis network (e.g., testnet, mainnet) you
@@ -52,7 +53,9 @@ For the rest of the document, we will assume a Permissionless CosmWasm and BSN
 Registration network for simplicity. Listings that would require governance
 will be highlighted appropriately.
 
+
 ## Instantiation
+
 <img width="3033" height="275" alt="instantiate" src="./assets/instantiate.png" />
 
 The Rollup BSN contract is instantiated as follows:
@@ -97,6 +100,7 @@ The parameters:
 those here -->
 
 ## Rollup BSN Registration
+
 <img width="3032" height="287" alt="register" src="./assets/register.png" />
 
 After deploying and instantiating the Rollup BSN contract, the
@@ -123,6 +127,7 @@ Required metadata for BSN registration:
 > in permissioned registration networks.
 
 ## Contract Maintenance
+
 <img width="1848" height="677" alt="adminRole" src="./assets/adminFunctions.png" />
 
 The Rollup BSN contract exposes `admin-only` functions for ongoing management. These allow you to clean up
@@ -133,9 +138,11 @@ Each operation is executed with:
 ```shell
 babylond tx wasm execute <CONTRACT_ADDRESS> '<MSG>' 
 ```
-**Note**: CONTRACT_ADDRESS refers to the address of the deployed Rollup BSN contract on Babylon. MSG is the execute message in JSON format, described in the sections below
+**Note**: CONTRACT_ADDRESS refers to the address of the deployed Rollup BSN contract on Babylon. MSG is the execute 
+message in JSON format, described in the sections below
 
 ### Modifying the Contract Administrator
+
 ```shell
 MSG={
   "update_admin": {
@@ -147,6 +154,7 @@ Transfers contract admin rights to a new Babylon address. Typically used when ro
 ownership to another entity.
 
 ### Data Pruning
+
 ```shell
 MSG={
   "prune_data": {
@@ -164,6 +172,7 @@ See [PRUNING.m](./PRUNING.md) for detailed guidelines on selecting safe pruning 
 practices.
 
 ### Modifying the Finality Providers Allow-List
+
 ```shell
 # Add FP to allowlist
 MSG={
@@ -183,5 +192,92 @@ MSG={
   }
 }
 ```
-Adds or removes Finality Providers from the allowlist. Use this to onboard new providers or revoke
-access from inactive or misbehaving ones.
+Each message accepts a `fp_pubkey_hex_list` field containing one or more BTC public keys. 
+The contract will iterate over the list and add or remove each key accordingly.
+
+Use these messages to onboard new Finality Providers, rotate keys, or revoke access from inactive 
+or misbehaving ones. All changes are on-chain and transparent.
+
+> It's up to the BSN to coordinate with 
+> Finality Providers before making any updates
+
+
+
+
+## Querying Contract Data
+
+The Rollup BSN contract exposes queries to obtain information about finality signatures 
+submitted by Finality Providers and their public randomness commitments. Queries are 
+executed using the following command format:
+```shell
+babylond query wasm contract-state smart <CONTRACT_ADDRESS> '<QUERY_MSG>' \
+  --node $NODE_RPC \
+  --output json
+```
+Note: `CONTRACT_ADDRESS` refers to the address of the deployed Rollup BSN contract on Babylon. `QUERY_MSG` 
+is the execute message in JSON format, described in the sections below
+
+### Querying Finality Votes
+
+To identify Finality Providers who submitted signatures for a specific rollup block, 
+query by block height and hash:
+```shell
+QUERY_MSG={
+  "block_voters": {
+    "height": $BLOCK_HEIGHT,
+    "hash_hex": $BLOCK_HASH_HEX
+  }
+}
+```
+
+### Querying Public Randomness
+
+The contract provides multiple ways to fetch public randomness commitments from Finality Providers. 
+To return the **first commitment** posted by a provider:
+```shell
+QUERY_MSG={
+  "first_pub_rand_commit": {
+    "btc_pk_hex": $FP_BTC_PUBKEY
+  }
+}
+```
+To return the **most recent commitment**:
+```shell
+QUERY_MSG={
+  "last_pub_rand_commit": {
+    "btc_pk_hex": $FP_BTC_PUBKEY
+  }
+}
+```
+To page through a provider’s **full history of commitments**:
+```shell
+QUERY_MSG={
+  "list_pub_rand_commit": {
+    "btc_pk_hex": $FP_BTC_PUBKEY,
+    "start_after": $START_HEIGHT,  # optional
+    "limit": $LIMIT,               # optional, default: 10, max: 30
+    "reverse": $REVERSE_ORDER      # optional, default: false
+  }
+}
+```
+
+### Querying Admin and Configuration
+The contract also exposes queries for inspecting the current configuration and state
+To return the **current admin address**:
+```shell
+QUERY_MSG={
+  "admin": {}
+}
+```
+To return the **contract configuration**, including the BSN ID, rate limits, and other parameters:
+```shell
+QUERY_MSG={
+  "config": {}
+}
+```
+To return the list of **allowlisted Finality Providers** (BTC public keys in hex format):
+```shell
+QUERY_MSG={
+  "allowed_finality_providers": {}
+}
+```
