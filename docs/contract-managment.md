@@ -1,6 +1,24 @@
 # Rollup BSN Finality Contract Management
 
-## Introduction
+## Table of Contents
+
+1. [Introduction](#1-introduction)  
+2. [BSN Lifecycle](#2-bsn-lifecycle)  
+3. [Governance Notes](#3-governance-notes)  
+4. [Instantiation](#4-instantiation)  
+   4.1. [Configuration Structure](#41-configuration-structure)  
+   4.2. [Parameter Selection Guidelines](#42-parameter-selection-guidelines)  
+5. [Rollup BSN Registration](#5-rollup-bsn-registration)  
+6. [Contract Maintenance](#6-contract-maintenance)  
+   6.1. [Modifying the Contract Administrator](#61-modifying-the-contract-administrator)  
+   6.2. [Data Pruning](#62-data-pruning)  
+   6.3. [Modifying the Finality Providers Allow-List](#63-modifying-the-finality-providers-allow-list)  
+7. [Querying Contract Data](#7-querying-contract-data)  
+   7.1. [Querying Finality Votes](#71-querying-finality-votes)  
+   7.2. [Querying Public Randomness](#72-querying-public-randomness)  
+   7.3. [Querying Admin and Configuration](#73-querying-admin-and-configuration)  
+
+## 1. Introduction
 
 The Rollup BSN contract is a CosmWasm smart contract deployed on
 the Babylon Genesis chain that tracks finality signatures for rollup blocks.
@@ -8,7 +26,7 @@ It verifies signatures, timestamps public randomness, detects equivocation, and
 reports misbehavior for slashing. This is the core and only
 contract that a rollup deploys to become a BSN.
 
-## BSN Lifecycle
+## 2. BSN Lifecycle
 
 <img width="3100" height="772" alt="governance" src="./assets/lifecycle.png" />
 
@@ -25,7 +43,7 @@ start joining and providing security for your BSN
 4. **Contract Maintainance**: Manage the contract, query its state, and allow 
 finality providers to submit signatures and randomness
 
-## Governance Notes
+## 3. Governance Notes
 
 <img width="3100" height="772" alt="governance" src="./assets/governance.png" />
 
@@ -63,7 +81,7 @@ Registration network for simplicity. Listings that would require governance
 will be highlighted appropriately.
 
 
-## Instantiation
+## 4. Instantiation
 
 <img width="3033" height="275" alt="instantiate" src="./assets/instantiate.png" 
 />
@@ -91,7 +109,7 @@ babylond tx wasm instantiate $CODE_ID '$INSTANT_MSG'
 > **Note**: $CODE_ID refers to the uploaded contract code identifier on Babylon 
 Genesis
 
-### Configuration Structure
+### 4.1. Configuration Structure
 
 The contract accepts the following parameters during instantiation:
 
@@ -119,7 +137,7 @@ pub struct InstantiateMsg {
 }
 ```
 
-### Parameter Selection Guidelines
+### 4.2. Parameter Selection Guidelines
 
 **Admin**  
 
@@ -223,7 +241,7 @@ Messages from unauthorized keys will be rejected by the contract. This
 parameter defines the initial allowlist at deployment time. It can be modified 
 after instantiation by the contract admin.
 
-## Rollup BSN Registration
+## 5. Rollup BSN Registration
 
 <img width="3032" height="287" alt="register" src="./assets/register.png" />
 
@@ -252,7 +270,7 @@ Rollup BSN contract (`bbn1...` format)
 > **Governance Note**: The above operation can only be executed by governance
 > in permissioned registration networks.
 
-## Contract Maintenance
+## 6. Contract Maintenance
 
 <img width="1848" height="677" alt="adminRole" 
 src="./assets/adminFunctions.png" />
@@ -271,7 +289,7 @@ babylond tx wasm execute <CONTRACT_ADDRESS> '<JSON_MSG>'
 contract on Babylon. `<JSON_MSG>` is the execute 
 message in JSON format, described in the sections below
 
-### Modifying the Contract Administrator
+### 6.1. Modifying the Contract Administrator
 
 ```shell
 JSON_MSG={
@@ -286,7 +304,7 @@ JSON_MSG={
 Transfers contract admin rights to a new Babylon Genesis address. Typically used when 
 rotating keys or migrating ownership to another entity.
 
-### Data Pruning
+### 6.2. Data Pruning
 
 ```shell
 MSG={
@@ -309,7 +327,7 @@ grows. Optional fields control pruning batch size to avoid gas exhaustion.
 See [PRUNING.m](./PRUNING.md) for detailed guidelines on selecting safe pruning 
 heights and best practices.
 
-### Modifying the Finality Providers Allow-List
+### 6.3. Modifying the Finality Providers Allow-List
 
 ```shell
 # Add FP to allowlist
@@ -341,7 +359,7 @@ Use these messages to onboard new Finality Providers, rotate keys, or revoke
 access from inactive 
 or misbehaving ones. All changes are on-chain and transparent.
 
-## Querying Contract Data
+## 7. Querying Contract Data
 
 The Rollup BSN contract exposes queries to obtain information about finality 
 signatures 
@@ -357,7 +375,7 @@ Note: `CONTRACT_ADDRESS` refers to the address of the deployed Rollup BSN
 contract on Babylon. `QUERY_MSG` 
 is the execute message in JSON format, described in the sections below
 
-### Querying Finality Votes
+### 7.1. Querying Finality Votes
 
 To identify Finality Providers who submitted signatures for a specific rollup 
 block, 
@@ -374,7 +392,7 @@ QUERY_MSG={
 > `$BLOCK_HEIGHT`: Rollup block height to query (integer)  
 > `$BLOCK_HASH_HEX`: Hex-encoded block hash (string)  
 
-### Querying Public Randomness
+### 7.2. Querying Public Randomness
 
 The contract provides multiple ways to fetch public randomness commitments from 
 Finality Providers. 
@@ -417,7 +435,7 @@ QUERY_MSG={
 > `$LIMIT`: (Optional) Maximum number of commitments to return (integer, default: 10, max: 30)  
 > `$REVERSE_ORDER`: (Optional) Return results in reverse order (boolean, default: false)  
 
-### Querying Admin and Configuration
+### 7.3. Querying Admin and Configuration
 
 The contract also exposes queries for inspecting the current configuration and 
 state
