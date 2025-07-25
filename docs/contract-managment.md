@@ -41,7 +41,7 @@ Genesis to obtain a code ID
 with your specific BSN configuration 
 3. **BSN Registration**: Register your BSN with Babylon using the contract 
 address. Once registered you become a valid BSN and finality providers can 
-start joining and providing security for your BSN
+start joining to secure your BSN
 4. **Contract Maintainance**: Manage the contract, query its state, and allow 
 finality providers to submit signatures and randomness
 
@@ -74,7 +74,7 @@ in an allow-list
 
 > **Note**: If a network uses both Permissioned CosmWasm and 
 > Permissioned BSN Registration, two separate governance proposals 
-are currently required. A unified
+> are currently required. A unified
 > governance flow requiring only a single governance proposal is being
 > examined.
 
@@ -82,123 +82,190 @@ For the rest of the document, we will assume a Permissionless CosmWasm and BSN
 Registration network for simplicity. Listings that would require governance
 will be highlighted appropriately.
 
+## 4. Contract Parameters
 
-## 4. Configuration
+The Rollup BSN contract is governed by several types of parameters that control
+its behavior, security, and operational limits. These parameters are organized
+into three main categories:
 
-The Rollup BSN contract is governed by a set of configuration parameters that define its behavior 
-and operational limits. These parameters are set at contract instantiation and some can be updated 
-later, as described below.
+### 4.1 Parameter Structures
 
-**Configuration Parameters:**
+**Core Configuration**
+
+The main configuration is stored in the contract state and contains operational parameters:
 
 ```rust
-pub struct InstantiateMsg {
-    /// The Babylon Genesis address of the contract administrator
-    pub admin: String,
-    /// Unique identifier for the BSN this contract secures  
+pub struct Config {
+    /// Unique identifier for the BSN (Bitcoin Supercharged Network) that this
+    /// contract secures
     pub bsn_id: String,
-    /// Minimum public randomness values included per public randomness commit
+    /// Minimum number of public randomness values required in commitments
     pub min_pub_rand: u64,
-    /// Rate limiting window length in Babylon blocks
-    pub rate_limiting_interval: u64,
-    /// Maximum messages per finality provider per interval
-    pub max_msgs_per_interval: u32,
-    /// Rollup block height at which finality tracking begins; 
-    /// signatures for blocks before this height are rejected
+    /// Rate limiting configuration to prevent spam
+    pub rate_limiting: RateLimitingConfig,
+    /// Rollup block height at which the BSN system is activated (0 = immediate
+    /// activation). Only affects `SubmitFinalitySignature` messages.
     pub bsn_activation_height: u64,
-    /// Interval (in rollup blocks) at which finality signatures 
-    /// can be submitted after activation
+    /// Interval between allowed finality signature submissions. Signatures can
+    /// only be submitted at rollup block heights where `(height -
+    /// bsn_activation_height) % interval == 0`.
     pub finality_signature_interval: u64,
-    /// Optional initial finality provider allowlist;
-    /// only finality providers in allowlist can submit to contract
-    pub allowed_finality_providers: Option<Vec<String>>,
+}
+
+pub struct RateLimitingConfig {
+    /// Maximum number of messages allowed from each FP per interval
+    pub max_msgs_per_interval: u32,
+    /// Number of Babylon blocks in each interval
+    pub block_interval: u64,
 }
 ```
 
-### 4.1. Parameter Selection Guidelines
+**Administrative Parameters**
+
+```rust
+/// Contract administrator stored separately using cw-controllers
+pub admin: Admin  // Stored as a Babylon Genesis address (String)
+```
+
+**Finality Provider Allow-list**
+
+```rust
+/// Map of allowed finality provider BTC public keys (as bytes) to a unit value
+/// Only populated if allowlist feature is enabled at instantiation
+pub allowed_finality_providers: Map<&[u8], ()>
+```
+
+> **Note**: These parameters are set during contract instantiation using the `InstantiateMsg` 
+> structure. The instantiation message combines all these parameters into a single structure,
+> as shown in the [Instantiation](#421-instantiation) section below.
+> Some of the parameters can be further modified as part of
+> [Contract Maintenance](#6-contract-maintenance).
+
+### 4.2 Parameter Selection Guidelines
 
 **admin**  
 > **Type**: String  
 > **Required**: Yes  
 > **Mutable**: Yes (via `update_admin` message)
 
-The `admin` is a Bech32 Babylon Genesis address that has control over the contract. This address is 
-authorized to perform privileged actions such as modifying the allowlist, pruning data, or executing 
-other administrative operations. It is critical to secure this key and assign it to a trusted entity. 
+The `admin` is a Bech32 Babylon Genesis address that has administrative control over the contract.
+This address is authorized to perform privileged actions such as modifying the allow-list,
+pruning data, or executing other administrative operations.
+It is critical for this key to be secured.
 
-> **Note**: The admin can also be a governance address, but this might lead to slow modifications and reaction times.
+> **Note**: The admin can also be a governance address.
+> While this helps with decentralization, reaction in
+> emergency situations might be slower.
 
 **bsn_id**  
 > **Type**: String (unique)  
 > **Required**: Yes  
 > **Mutable**: No  
 
-The `bsn_id` must be unique across all BSNs on Babylon Genesis. The identifier can only contain alphanumeric 
-characters, hyphens, and underscores with a maximum length of 100 characters. This must match the BSN ID used 
-during BSN registration.
+
+The unique identifier of the BSN on Babylon Genesis. It must match the one
+used during the Babylon Genesis BSN registration.
+The identifier can only contain alphanumeric characters, hyphens, and
+underscores with a maximum length of 100 characters.
 
 **min_pub_rand**  
 > **Type**: Integer (positive)  
 > **Required**: Yes  
 > **Mutable**: No  
 
-The `min_pub_rand` parameter sets the minimum number of public randomness values that finality providers must 
-include in each public randomness commitment. This parameter helps ensure sufficient entropy is provided during 
-each commit.
+The `min_pub_rand` parameter sets the minimum number of public randomness values that
+finality providers must include in each public randomness commitment.
 
 **rate_limiting_interval**  
 > **Type**: Integer (positive)  
 > **Required**: Yes  
 > **Mutable**: No  
 
-The `rate_limiting_interval` specifies the length (in Babylon Genesis blocks) of the rate limiting window. Within 
-each interval, a finality provider can submit a limited number of messages, including both public randomness commitments 
-and finality signature submissions. Once the interval resets, the provider's submission count is cleared. This mechanism 
-helps prevent spam or accidental flooding by controlling how often a provider can interact with the contract.
+The `rate_limiting_interval` specifies the length (in Babylon Genesis blocks) of the rate limiting window.
+Within each interval, a finality provider can submit a limited number of messages,
+including both public randomness commitments and finality signature submissions.
+Once the interval resets, the provider's submission count is cleared.
+This value is utilized to prevent spam or accidental flooding by controlling
+how often a provider can interact with the contract.
 
 **max_msgs_per_interval**  
 > **Type**: Integer (positive)  
 > **Required**: Yes  
 > **Mutable**: No  
 
-The `max_msgs_per_interval` sets the maximum number of messages a finality provider can submit during each rate limiting 
-interval. If a provider reaches this limit, any further messages in the current interval will be rejected. This parameter, 
-together with `rate_limiting_interval`, enforces the submission rate for all message types.
+The `max_msgs_per_interval` sets the maximum number of messages a finality provider
+can submit during each rate limiting interval.
+If a finality provider reaches this limit,
+any further messages in the current interval will be rejected.
+This parameter, together with `rate_limiting_interval`,
+enforces the submission rate for all message types.
 
 **bsn_activation_height**  
 > **Type**: Integer (positive)  
 > **Required**: Yes  
 > **Mutable**: No  
 
-The `bsn_activation_height` determines when finality tracking begins. Use 0 for immediate activation upon contract deployment.
-For delayed activation, specify the rollup block height after which finality signatures will be accepted.
+The `bsn_activation_height` refers to the first block of
+the rollup BSN that's expected to receive finality signatures.
+This parameter is used together with the `finality_signature_interval`
+to determine the block heights that should be voted for by finality providers.
 
 **finality_signature_interval**  
 > **Type**: Integer (positive)  
 > **Required**: Yes  
 > **Mutable**: No  
 
-The `finality_signature_interval` controls how frequently (in rollup blocks) finality providers submit signatures. Signatures are 
-only accepted every N blocks after activation, where `(height - bsn_activation_height) % finality_signature_interval == 0`. Higher 
-intervals reduce computational overhead but provide less frequent finality confirmations. The interval should not be more frequent 
-than the Babylon Genesis block time.
+The `finality_signature_interval` defines the epoch size (in rollup blocks)
+in which finality providers submit signatures for blocks.
+Signatures are only accepted every N blocks after activation,
+where `(height - bsn_activation_height) % finality_signature_interval == 0`.
+Higher intervals reduce computational overhead but provide less frequent
+finality confirmations.
+The interval should not be more frequent than the Babylon Genesis block time.
 
 **allowed_finality_providers**  
 > **Type**: Array[String] (Hex-encoded compressed BTC public keys)  
 > **Required**: No (default [])  
 > **Mutable**: Yes (via `add_to_allowlist` and `remove_from_allowlist` messages) 
 
-The `allowed_finality_providers` is a list of BTC public keys that are authorized to submit finality signatures and public randomness 
-to the contract. Each entry in the list must be a hex-encoded compressed BTC public key. Messages from unauthorized keys will be rejected 
-by the contract. This parameter defines the initial allowlist at deployment time. It can be modified after instantiation by the contract admin.
+The `allowed_finality_providers` is a list of BTC public keys that are authorized
+to submit finality signatures and public randomness to the contract.
+Each entry in the list must be a hex-encoded compressed BTC public key.
+Messages from unauthorized keys will be rejected by the contract.
+This parameter defines the initial allow-list at deployment time.
+It can be modified after instantiation by the contract admin.
 
-### 4.2. How Configuration is Set
+### 4.2. Setting Parameters
 
 #### 4.2.1. Instantiation
 
 <img width="3033" height="275" alt="instantiate" src="./assets/instantiate.png" />
 
-The configuration is initialized when the contract is instantiated. Use the following command to deploy and configure the contract:
+The contract parameters described in section 4.1 are initialized when the contract is instantiated. 
+The instantiation message combines all parameters into a single `InstantiateMsg` structure:
+
+```rust
+pub struct InstantiateMsg {
+    /// Initial admin address for the contract who can update settings
+    pub admin: String,
+    /// Unique identifier for the BSN this contract secures
+    pub bsn_id: String,
+    /// Minimum number of public randomness values required in commitments
+    pub min_pub_rand: u64,
+    /// Number of Babylon blocks in each interval
+    pub rate_limiting_interval: u64,
+    /// Maximum messages allowed per finality provider per interval
+    pub max_msgs_per_interval: u32,
+    /// Rollup block height at which the BSN system is activated
+    pub bsn_activation_height: u64,
+    /// Interval between allowed finality signature submissions
+    pub finality_signature_interval: u64,
+    /// Optional list of BTC public keys (hex) to pre-populate the allowlist
+    pub allowed_finality_providers: Option<Vec<String>>,
+}
+```
+
+Use the following command to deploy and configure the contract:
 
 ```shell
 # Note: Use "$VAR" for strings, $VAR for numbers
@@ -221,7 +288,7 @@ babylond tx wasm instantiate $CODE_ID '$INSTANT_MSG'
 ```
 > **Note**: $CODE_ID refers to the uploaded contract code identifier on Babylon Genesis
 
-#### 4.2.2. Updating Configuration
+#### 4.2.2. Updating Parameters
 
 After instantiation, only certain configuration parameters can be updated. These updates are performed by 
 sending execute messages to the contract.
@@ -230,8 +297,9 @@ Each operation is executed with:
 ```shell
 babylond tx wasm execute <CONTRACT_ADDRESS> '<JSON_MSG>'
 ```
-**Note**: `<CONTRACT_ADDRESS>` refers to the address of the deployed Rollup BSN contract on Babylon. `<JSON_MSG>` is the execute 
-message in JSON format, described below.
+> **Note**: `<CONTRACT_ADDRESS>` refers to the address of the deployed
+> Rollup BSN contract on Babylon.
+> `<JSON_MSG>` is the execute message in JSON format, described below.
 
 **Update Admin**
 
@@ -245,7 +313,7 @@ JSON_MSG={
 > **Variable:**  
 > `$NEW_ADMIN_ADDRESS`: The new admin's Bech32 Babylon Genesis address (e.g., `bbn1...`)
 
-**Add to Allowlist**
+**Add to Allow-List**
 
 ```shell
 JSON_MSG={
@@ -259,7 +327,7 @@ JSON_MSG={
 > **Variable:**  
 > `$FP_BTC_PUBKEY`: Hex-encoded compressed BTC public key of the Finality Provider
 
-**Remove from Allowlist**
+**Remove from Allow-List**
 
 ```shell
 JSON_MSG={
@@ -316,25 +384,27 @@ contract.
 
 ### 6.1. Modifying the Contract Administrator
 
-Transferring contract admin rights to a new Babylon Genesis address is typically used when rotating keys, 
-migrating ownership to another entity, or responding to a security incident. Only the current admin can 
-perform this operation. 
+Transferring contract admin rights to a new Babylon Genesis address
+is typically used when rotating keys, migrating ownership to another entity,
+or responding to a security incident. Only the current admin can perform this operation. 
 
 See [Updating Configuration](#422-updating-configuration) for the message format.
 
 ### 6.2. Modifying the Finality Providers Allow-List
 
-The allowlist controls which Finality Providers (FPs) are authorized to submit signatures and public randomness. 
-Use the add/remove allowlist messages to onboard new FPs, rotate keys, or revoke access from inactive or misbehaving 
-providers. All changes are on-chain and transparent.
+The allow-list controls which Finality Providers (FPs) are authorized
+to submit signatures and public randomness.
+Use the add/remove allow-list messages to onboard new FPs, rotate keys, or revoke access
+from inactive or misbehaving providers. All changes are on-chain and transparent.
 
 See [Updating Configuration](#422-updating-configuration) for the message formats.
 
 ### 6.3. Data Pruning
 
-Data pruning removes all finality signatures and public randomness for rollup blocks with height less than or equal 
-to a specified value. This is useful for reducing on-chain storage as the chain grows. Optional fields control 
-pruning batch size to avoid gas exhaustion.
+Data pruning removes all finality signatures and public randomness for rollup blocks
+with height less than or equal to a specified value.
+This is useful for reducing on-chain storage as the chain grows.
+Optional fields control pruning batch size to avoid gas exhaustion.
 
 ```shell
 MSG={
@@ -448,7 +518,7 @@ QUERY_MSG={
   "config": {}
 }
 ```
-To return the list of **allowlisted Finality Providers** (BTC public keys in 
+To return the list of **allow-listed Finality Providers** (BTC public keys in 
 hex format):
 ```shell
 QUERY_MSG={
