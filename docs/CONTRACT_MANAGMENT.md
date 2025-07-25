@@ -6,17 +6,18 @@ The Rollup BSN contract is a CosmWasm smart contract deployed on
 the Babylon Genesis chain that tracks finality signatures for rollup blocks.
 It verifies signatures, timestamps public randomness, detects equivocation, and
 reports misbehavior for slashing. This is the core and only
-contract that a rollup deploys to become a BSN. The contract must be deployed
-on Babylon Genesis as it relies on direct interaction with it.
+contract that a rollup deploys to become a BSN.
 
-## Overview
+## BSN Lifecycle
 
-The BSN deployment process consists of four main steps:
+<img width="3100" height="772" alt="governance" src="./assets/lifecycle.png" />
 
-1. **Upload Contract Code**: Upload the compiled WASM bytecode to Babylon Genesis to obtain a code ID
-2. **Instantiate Contract**: Create a contract instance using the code ID with your specific BSN configuration 
-3. **Register BSN**: Register your BSN with Babylon using the contract address to enable finality provider participation
-4. **Maintain Contract**: Ongoing contract management and operational tasks as needed
+The following steps outline the full lifecycle of a Rollup BSN contract, from deployment to ongoing operation and management:
+
+1. **Contract Code Upload**: Upload the compiled WASM bytecode to Babylon Genesis to obtain a code ID
+2. **Contract Instantiation**: Create a contract instance using the code ID with your specific BSN configuration 
+3. **BSN Registration**: Register your BSN with Babylon using the contract address. Once registered you become a valid BSN and finality providers can start joining and providing security for your BSN
+4. **Contract Maintainance**: Manage the contract, query its state, and allow finality providers to submit signatures and randomness
 
 ## Governance Notes
 
