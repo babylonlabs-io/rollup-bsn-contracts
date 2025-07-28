@@ -25,7 +25,7 @@ babylond tx wasm execute <CONTRACT_ADDRESS> '$JSON_MSG'
 contract on Babylon. `$JSON_MSG` is the execute message in JSON format,
 described below.
 
-## 1. Committing Public Randomness
+## 1. Handling Public Randomness Commitments
 
 To commit a batch of public randomness values, submit a Merkle root to the
 contract. This prevents adaptive randomness generation based on block contents.
