@@ -270,7 +270,7 @@ Use the following command to deploy and configure the contract:
 ```shell
 # Note: Use "$VAR" for strings, $VAR for numbers
 
-INSTANT_MSG=$(cat <<EOF
+INSTANTIATION_MSG=$(cat <<EOF
 {
   "admin": "$ADMIN_ADDRESS",
   "bsn_id": "$BSN_ID",
