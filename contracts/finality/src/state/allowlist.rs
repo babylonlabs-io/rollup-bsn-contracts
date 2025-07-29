@@ -5,11 +5,16 @@ use std::collections::HashSet;
 use crate::error::ContractError;
 use hex;
 
+// Storage key constants
+const ALLOWED_FINALITY_PROVIDERS_KEY: &str = "allowed_finality_providers";
+const ALLOWED_FINALITY_PROVIDERS_CHECKPOINTS_KEY: &str = "allowed_finality_providers__checkpoints";
+const ALLOWED_FINALITY_PROVIDERS_CHANGELOG_KEY: &str = "allowed_finality_providers__changelog";
+
 /// SnapshotItem of allowed finality provider BTC public keys stored as a HashSet
 pub(crate) const ALLOWED_FINALITY_PROVIDERS: SnapshotItem<HashSet<Vec<u8>>> = SnapshotItem::new(
-    "allowed_finality_providers",
-    "allowed_finality_providers__checkpoints",
-    "allowed_finality_providers__changelog",
+    ALLOWED_FINALITY_PROVIDERS_KEY,
+    ALLOWED_FINALITY_PROVIDERS_CHECKPOINTS_KEY,
+    ALLOWED_FINALITY_PROVIDERS_CHANGELOG_KEY,
     Strategy::EveryBlock,
 );
 
