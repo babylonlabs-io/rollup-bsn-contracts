@@ -2,8 +2,10 @@ use crate::error::ContractError;
 use babylon_merkle::Proof;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Binary, CosmosMsg};
-
-const MAX_BSN_ID_LENGTH: usize = 100;
+use crate::validation::{
+    validate_bsn_id, validate_finality_signature_interval, validate_max_msgs_per_interval,
+    validate_min_pub_rand, validate_rate_limiting_interval,
+};
 
 #[cfg(not(target_arch = "wasm32"))]
 use {
@@ -54,62 +56,7 @@ impl InstantiateMsg {
     }
 }
 
-/// Helper functions for validating individual config fields during updates
-pub fn validate_bsn_id(bsn_id: &str) -> Result<(), ContractError> {
-    if bsn_id.is_empty() {
-        return Err(ContractError::InvalidBsnId(
-            "BSN ID cannot be empty".to_string(),
-        ));
-    }
 
-    // Check for valid characters (alphanumeric, hyphens, underscores)
-    if !bsn_id
-        .chars()
-        .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
-    {
-        return Err(ContractError::InvalidBsnId(
-            "BSN ID can only contain alphanumeric characters, hyphens, and underscores".to_string(),
-        ));
-    }
-
-    // Check length (reasonable bounds)
-    if bsn_id.len() > MAX_BSN_ID_LENGTH {
-        return Err(ContractError::InvalidBsnId(format!(
-            "BSN ID cannot exceed {} characters",
-            MAX_BSN_ID_LENGTH
-        )));
-    }
-
-    Ok(())
-}
-
-pub fn validate_min_pub_rand(min_pub_rand: u64) -> Result<(), ContractError> {
-    if min_pub_rand == 0 {
-        return Err(ContractError::InvalidMinPubRand(min_pub_rand));
-    }
-    Ok(())
-}
-
-pub fn validate_rate_limiting_interval(interval: u64) -> Result<(), ContractError> {
-    if interval == 0 {
-        return Err(ContractError::InvalidRateLimitingInterval(interval));
-    }
-    Ok(())
-}
-
-pub fn validate_max_msgs_per_interval(max_msgs: u32) -> Result<(), ContractError> {
-    if max_msgs == 0 {
-        return Err(ContractError::InvalidMaxMsgsPerInterval(max_msgs));
-    }
-    Ok(())
-}
-
-pub fn validate_finality_signature_interval(interval: u64) -> Result<(), ContractError> {
-    if interval == 0 {
-        return Err(ContractError::InvalidFinalitySignatureInterval(interval));
-    }
-    Ok(())
-}
 
 #[cw_serde]
 #[derive(QueryResponses)]
@@ -450,7 +397,7 @@ mod tests {
     #[test]
     fn test_instantiate_msg_validation_bsn_id_length() {
         // Test maximum length
-        let long_bsn_id = "a".repeat(MAX_BSN_ID_LENGTH);
+        let long_bsn_id = "a".repeat(crate::validation::MAX_BSN_ID_LENGTH);
         let msg = InstantiateMsg {
             admin: "cosmos1admin".to_string(),
             bsn_id: long_bsn_id,
@@ -464,7 +411,7 @@ mod tests {
         assert!(msg.validate().is_ok());
 
         // Test exceeding maximum length
-        let too_long_bsn_id = "a".repeat(MAX_BSN_ID_LENGTH + 1);
+        let too_long_bsn_id = "a".repeat(crate::validation::MAX_BSN_ID_LENGTH + 1);
         let msg = InstantiateMsg {
             admin: "cosmos1admin".to_string(),
             bsn_id: too_long_bsn_id,

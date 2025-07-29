@@ -1,11 +1,12 @@
 use cosmwasm_std::{DepsMut, MessageInfo, Response};
 
 use crate::error::ContractError;
-use crate::msg::{
-    validate_finality_signature_interval, validate_max_msgs_per_interval, validate_min_pub_rand,
-    validate_rate_limiting_interval, BabylonMsg,
-};
+use crate::msg::BabylonMsg;
 use crate::state::config::{get_config, set_config, ADMIN};
+use crate::validation::{
+    validate_finality_signature_interval, validate_max_msgs_per_interval, validate_min_pub_rand,
+    validate_rate_limiting_interval,
+};
 use babylon_bindings::BabylonQuery;
 
 /// Handle updating the contract configuration
