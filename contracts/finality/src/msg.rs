@@ -214,7 +214,7 @@ pub enum ExecuteMsg {
         max_msgs_per_interval: Option<u32>,
         /// New rate limiting interval in blocks (if provided)
         rate_limiting_interval: Option<u64>,
-        /// New BSN activation height (if provided)  
+        /// New BSN activation height (if provided)
         bsn_activation_height: Option<u64>,
         /// New finality signature interval (if provided)
         finality_signature_interval: Option<u64>,
