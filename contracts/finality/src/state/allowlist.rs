@@ -5,9 +5,7 @@ use std::collections::HashSet;
 use crate::error::ContractError;
 use hex;
 
-/// SnapshotMap storing the complete allowlist as a HashSet of finality provider BTC public keys (as bytes)
-/// This allows both efficient individual lookups (O(1)) and complete historical reconstruction
-/// Key: &str = single global allowlist state, Value: HashSet<Vec<u8>> = set of FP public keys as bytes
+/// SnapshotMap of allowed finality provider BTC public keys stored as a HashSet
 pub(crate) const ALLOWED_FINALITY_PROVIDERS: SnapshotMap<&str, HashSet<Vec<u8>>> =
     SnapshotMap::new(
         "allowed_finality_providers",
@@ -17,7 +15,6 @@ pub(crate) const ALLOWED_FINALITY_PROVIDERS: SnapshotMap<&str, HashSet<Vec<u8>>>
     );
 
 /// Check if a finality provider is in the allowlist (at current height)
-/// O(1) lookup time using HashSet
 pub fn ensure_fp_in_allowlist(
     storage: &dyn Storage,
     fp_btc_pk_bytes: &[u8],
@@ -36,7 +33,6 @@ pub fn ensure_fp_in_allowlist(
 }
 
 /// Check if a finality provider was in the allowlist at a specific height
-/// O(1) lookup time using HashSet at the specified height
 pub fn ensure_fp_in_allowlist_at_height(
     storage: &dyn Storage,
     fp_btc_pk_bytes: &[u8],
@@ -57,7 +53,6 @@ pub fn ensure_fp_in_allowlist_at_height(
 }
 
 /// Add a finality provider to the allowlist at the current height
-/// Loads current HashSet, adds the new FP, and saves the updated set
 pub fn add_finality_provider_to_allowlist(
     storage: &mut dyn Storage,
     fp_btc_pk_bytes: &[u8],
@@ -78,7 +73,6 @@ pub fn add_finality_provider_to_allowlist(
 }
 
 /// Remove a finality provider from the allowlist at the current height
-/// Loads current HashSet, removes the FP, and saves the updated set
 pub fn remove_finality_provider_from_allowlist(
     storage: &mut dyn Storage,
     fp_btc_pk_bytes: &[u8],
@@ -99,7 +93,6 @@ pub fn remove_finality_provider_from_allowlist(
 }
 
 /// Get all allowed finality providers (as hex strings) at current height
-/// Converts the HashSet<Vec<u8>> to Vec<String> for external consumption
 pub fn get_allowed_finality_providers(storage: &dyn Storage) -> Result<Vec<String>, ContractError> {
     let fp_set = ALLOWED_FINALITY_PROVIDERS
         .may_load(storage, "allowlist")?
@@ -112,27 +105,7 @@ pub fn get_allowed_finality_providers(storage: &dyn Storage) -> Result<Vec<Strin
     Ok(hex_strings)
 }
 
-/// Get all allowed finality providers that existed at a specific height (COMPLETE & EFFICIENT)
-/// 
-/// ✅ **COMPLETE SOLUTION**: This function can perfectly reconstruct the historical allowlist
-/// because we store the complete HashSet at each height checkpoint.
-/// 
-/// ✅ **EFFICIENT**: 
-/// - Storage: O(1) lookup to get the HashSet at the specified height
-/// - Processing: O(n) to convert bytes to hex strings where n = number of FPs at that height
-/// - Total: Much faster than checking individual keys
-/// 
-/// **How it works**:
-/// - SnapshotMap stores complete allowlist state: HashSet<Vec<u8>> at each height
-/// - may_load_at_height returns the exact allowlist that existed at/before the requested height
-/// - No missing data - complete historical reconstruction
-/// 
-/// **Example**:
-/// ```
-/// // Height 100: HashSet{fp1, fp2, fp3}
-/// // Height 105: HashSet{fp1, fp2, fp4} 
-/// // Query at height 107: Returns HashSet{fp1, fp2, fp4} (from height 105)
-/// ```
+/// Get all allowed finality providers (as hex strings) at a specific height
 pub fn get_allowed_finality_providers_at_height(
     storage: &dyn Storage, 
     height: u64
@@ -216,9 +189,6 @@ mod tests {
         assert!(current_list.contains(&hex::encode(fp2)));
         assert!(current_list.contains(&hex::encode(fp4)));
         
-        println!("✅ HashSet-based allowlist works perfectly!");
-        println!("✅ Individual checks: O(1) performance");
-        println!("✅ Historical reconstruction: Complete and accurate");
-        println!("✅ Both goals achieved efficiently!");
+
     }
 }
