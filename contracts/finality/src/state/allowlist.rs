@@ -1,14 +1,14 @@
 use cosmwasm_std::Storage;
-use cw_storage_plus::{SnapshotMap, Strategy};
+use cw_storage_plus::{SnapshotItem, Strategy};
 use std::collections::HashSet;
 
 use crate::error::ContractError;
 use hex;
 
-/// SnapshotMap of allowed finality provider BTC public keys stored as a HashSet
-pub(crate) const ALLOWED_FINALITY_PROVIDERS: SnapshotMap<&str, HashSet<Vec<u8>>> = SnapshotMap::new(
+/// SnapshotItem of allowed finality provider BTC public keys stored as a HashSet
+pub(crate) const ALLOWED_FINALITY_PROVIDERS: SnapshotItem<HashSet<Vec<u8>>> = SnapshotItem::new(
     "allowed_finality_providers",
-    "allowed_finality_providers__checkpoints",
+    "allowed_finality_providers__checkpoints", 
     "allowed_finality_providers__changelog",
     Strategy::EveryBlock,
 );
@@ -19,7 +19,7 @@ pub fn ensure_fp_in_allowlist(
     fp_btc_pk_bytes: &[u8],
 ) -> Result<(), ContractError> {
     let fp_set = ALLOWED_FINALITY_PROVIDERS
-        .may_load(storage, "allowlist")?
+        .may_load(storage)?
         .unwrap_or_default();
 
     if fp_set.contains(fp_btc_pk_bytes) {
@@ -38,7 +38,7 @@ pub fn ensure_fp_in_allowlist_at_height(
     babylon_height: u64,
 ) -> Result<(), ContractError> {
     let fp_set = ALLOWED_FINALITY_PROVIDERS
-        .may_load_at_height(storage, "allowlist", babylon_height)
+        .may_load_at_height(storage, babylon_height)
         .map_err(ContractError::StdError)?
         .unwrap_or_default();
 
@@ -57,17 +57,12 @@ pub fn add_finality_provider_to_allowlist(
     fp_btc_pk_bytes: &[u8],
     babylon_height: u64,
 ) -> Result<(), ContractError> {
-    // Load current allowlist
     let mut fp_set = ALLOWED_FINALITY_PROVIDERS
-        .may_load(storage, "allowlist")?
+        .may_load(storage)?
         .unwrap_or_default();
-
-    // Add the new FP (HashSet automatically handles duplicates)
     fp_set.insert(fp_btc_pk_bytes.to_vec());
-
-    // Save updated allowlist with height
     ALLOWED_FINALITY_PROVIDERS
-        .save(storage, "allowlist", &fp_set, babylon_height)
+        .save(storage, &fp_set, babylon_height)
         .map_err(Into::into)
 }
 
@@ -77,43 +72,40 @@ pub fn remove_finality_provider_from_allowlist(
     fp_btc_pk_bytes: &[u8],
     babylon_height: u64,
 ) -> Result<(), ContractError> {
-    // Load current allowlist
     let mut fp_set = ALLOWED_FINALITY_PROVIDERS
-        .may_load(storage, "allowlist")?
+        .may_load(storage)?
         .unwrap_or_default();
-
-    // Remove the FP
     fp_set.remove(fp_btc_pk_bytes);
-
-    // Save updated allowlist with height
     ALLOWED_FINALITY_PROVIDERS
-        .save(storage, "allowlist", &fp_set, babylon_height)
+        .save(storage, &fp_set, babylon_height)
         .map_err(Into::into)
 }
 
-/// Get all allowed finality providers (as hex strings) at current height
-pub fn get_allowed_finality_providers(storage: &dyn Storage) -> Result<Vec<String>, ContractError> {
+/// Get all allowed finality providers (as hex strings)
+pub fn get_allowed_finality_providers(
+    storage: &dyn Storage,
+) -> Result<Vec<String>, ContractError> {
     let fp_set = ALLOWED_FINALITY_PROVIDERS
-        .may_load(storage, "allowlist")?
+        .may_load(storage)?
         .unwrap_or_default();
-
+    
     let hex_strings: Vec<String> = fp_set.iter().map(|bytes| hex::encode(bytes)).collect();
-
+    
     Ok(hex_strings)
 }
 
 /// Get all allowed finality providers (as hex strings) at a specific Babylon height
 pub fn get_allowed_finality_providers_at_height(
-    storage: &dyn Storage,
+    storage: &dyn Storage, 
     babylon_height: u64,
 ) -> Result<Vec<String>, ContractError> {
     let fp_set = ALLOWED_FINALITY_PROVIDERS
-        .may_load_at_height(storage, "allowlist", babylon_height)
+        .may_load_at_height(storage, babylon_height)
         .map_err(ContractError::StdError)?
         .unwrap_or_default();
-
+    
     let hex_strings: Vec<String> = fp_set.iter().map(|bytes| hex::encode(bytes)).collect();
-
+    
     Ok(hex_strings)
 }
 
