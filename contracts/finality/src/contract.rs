@@ -1211,9 +1211,9 @@ pub(crate) mod tests {
 
         // Setup: Instantiate with initial FPs
         let initial_fps = vec![
-            "02".repeat(33), // fp1
-            "03".repeat(33), // fp2
-            "04".repeat(33), // fp3
+            get_random_fp_pk_hex(), // fp1
+            get_random_fp_pk_hex(), // fp2  
+            get_random_fp_pk_hex(), // fp3
         ];
         let instantiate_msg = InstantiateMsg {
             admin: admin.to_string(),
@@ -1229,8 +1229,9 @@ pub(crate) mod tests {
         instantiate(deps.as_mut(), mock_env_at_height(100), info, instantiate_msg).unwrap();
 
         // Height 105: Add fp4, Remove fp3
+        let fp4 = get_random_fp_pk_hex(); // Generate proper random fp4
         let add_msg = ExecuteMsg::AddToAllowlist {
-            fp_pubkey_hex_list: vec!["05".repeat(33)], // fp4
+            fp_pubkey_hex_list: vec![fp4.clone()],
         };
         execute(deps.as_mut(), mock_env_at_height(105), admin_info.clone(), add_msg).unwrap();
         
@@ -1252,7 +1253,7 @@ pub(crate) mod tests {
         assert!(fps_at_102.contains(&initial_fps[0])); // fp1
         assert!(fps_at_102.contains(&initial_fps[1])); // fp2  
         assert!(fps_at_102.contains(&initial_fps[2])); // fp3
-        assert!(!fps_at_102.contains(&"05".repeat(33))); // fp4 not added yet
+        assert!(!fps_at_102.contains(&fp4)); // fp4 not added yet
 
         // Query at height 107 (should get state from height 105): [fp1, fp2, fp4]
         let query_res = query(
@@ -1265,7 +1266,7 @@ pub(crate) mod tests {
         assert!(fps_at_107.contains(&initial_fps[0])); // fp1
         assert!(fps_at_107.contains(&initial_fps[1])); // fp2
         assert!(!fps_at_107.contains(&initial_fps[2])); // fp3 removed
-        assert!(fps_at_107.contains(&"05".repeat(33))); // fp4 added
+        assert!(fps_at_107.contains(&fp4)); // fp4 added
 
         // Query current state (should match height 107)
         let query_res = query(
