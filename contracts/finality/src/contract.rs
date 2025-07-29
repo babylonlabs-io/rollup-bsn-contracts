@@ -18,7 +18,7 @@ use crate::state::public_randomness::{
 
 pub fn instantiate(
     mut deps: DepsMut<BabylonQuery>,
-    _env: Env,
+    env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response<BabylonMsg>, ContractError> {
@@ -51,7 +51,7 @@ pub fn instantiate(
             crate::state::allowlist::add_finality_provider_to_allowlist(
                 deps.storage,
                 &fp_btc_pk_bytes,
-                _env.block.height,
+                env.block.height,
             )?;
         }
     }
