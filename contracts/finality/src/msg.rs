@@ -1,11 +1,11 @@
 use crate::error::ContractError;
-use babylon_merkle::Proof;
-use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Binary, CosmosMsg};
 use crate::validation::{
     validate_bsn_id, validate_finality_signature_interval, validate_max_msgs_per_interval,
     validate_min_pub_rand, validate_rate_limiting_interval,
 };
+use babylon_merkle::Proof;
+use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_std::{Binary, CosmosMsg};
 
 #[cfg(not(target_arch = "wasm32"))]
 use {
@@ -55,8 +55,6 @@ impl InstantiateMsg {
         Ok(())
     }
 }
-
-
 
 #[cw_serde]
 #[derive(QueryResponses)]

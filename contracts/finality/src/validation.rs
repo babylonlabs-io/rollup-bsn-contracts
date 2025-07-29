@@ -16,16 +16,16 @@ pub fn validate_bsn_id(bsn_id: &str) -> Result<(), ContractError> {
         .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
     {
         return Err(ContractError::InvalidBsnId(
-            "BSN ID can only contain alphanumeric characters, hyphens, and underscores"
-                .to_string(),
+            "BSN ID can only contain alphanumeric characters, hyphens, and underscores".to_string(),
         ));
     }
 
     // Check length (reasonable bounds)
     if bsn_id.len() > MAX_BSN_ID_LENGTH {
-        return Err(ContractError::InvalidBsnId(
-            format!("BSN ID cannot exceed {} characters", MAX_BSN_ID_LENGTH),
-        ));
+        return Err(ContractError::InvalidBsnId(format!(
+            "BSN ID cannot exceed {} characters",
+            MAX_BSN_ID_LENGTH
+        )));
     }
 
     Ok(())
@@ -68,73 +68,106 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_validate_bsn_id_empty() {
-        let result = validate_bsn_id("");
-        assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), ContractError::InvalidBsnId(_)));
-    }
+    fn test_basic_validation_functions() {
+        // Test BSN ID validation
+        assert!(validate_bsn_id("").is_err());
+        assert!(matches!(
+            validate_bsn_id("").unwrap_err(),
+            ContractError::InvalidBsnId(_)
+        ));
 
-    #[test]
-    fn test_validate_bsn_id_invalid_characters() {
-        let invalid_ids = vec!["invalid@id", "test#id", "chain$1"];
+        let invalid_ids = vec!["invalid@id", "test#id", "chain$1", "test!id", "chain%1"];
         for id in invalid_ids {
             let result = validate_bsn_id(id);
             assert!(result.is_err(), "Should fail for invalid ID: {}", id);
-            assert!(matches!(result.unwrap_err(), ContractError::InvalidBsnId(_)));
+            assert!(matches!(
+                result.unwrap_err(),
+                ContractError::InvalidBsnId(_)
+            ));
         }
-    }
 
-    #[test]
-    fn test_validate_bsn_id_valid() {
         let valid_ids = vec![
             "op-stack-l2-11155420",
             "valid-bsn_123",
             "test_chain",
             "chain-1",
             "abc123",
+            "test123",
+            "my-chain_123",
         ];
         for id in valid_ids {
             let result = validate_bsn_id(id);
             assert!(result.is_ok(), "Should succeed for valid ID: {}", id);
         }
-    }
 
-    #[test]
-    fn test_validate_bsn_id_length() {
-        // Test maximum length
-        let long_id = "a".repeat(MAX_BSN_ID_LENGTH);
-        assert!(validate_bsn_id(&long_id).is_ok());
-
-        // Test exceeding maximum length
-        let too_long_id = "a".repeat(MAX_BSN_ID_LENGTH + 1);
-        assert!(validate_bsn_id(&too_long_id).is_err());
-    }
-
-    #[test]
-    fn test_validate_min_pub_rand() {
+        // Test min_pub_rand validation
         assert!(validate_min_pub_rand(0).is_err());
+        assert_eq!(
+            validate_min_pub_rand(0).unwrap_err(),
+            ContractError::InvalidMinPubRand(0)
+        );
         assert!(validate_min_pub_rand(1).is_ok());
         assert!(validate_min_pub_rand(100).is_ok());
-    }
 
-    #[test]
-    fn test_validate_rate_limiting_interval() {
+        // Test rate_limiting_interval validation
         assert!(validate_rate_limiting_interval(0).is_err());
+        assert_eq!(
+            validate_rate_limiting_interval(0).unwrap_err(),
+            ContractError::InvalidRateLimitingInterval(0)
+        );
         assert!(validate_rate_limiting_interval(1).is_ok());
         assert!(validate_rate_limiting_interval(1000).is_ok());
-    }
 
-    #[test]
-    fn test_validate_max_msgs_per_interval() {
+        // Test max_msgs_per_interval validation
         assert!(validate_max_msgs_per_interval(0).is_err());
+        assert_eq!(
+            validate_max_msgs_per_interval(0).unwrap_err(),
+            ContractError::InvalidMaxMsgsPerInterval(0)
+        );
         assert!(validate_max_msgs_per_interval(1).is_ok());
         assert!(validate_max_msgs_per_interval(100).is_ok());
-    }
 
-    #[test]
-    fn test_validate_finality_signature_interval() {
+        // Test finality_signature_interval validation
         assert!(validate_finality_signature_interval(0).is_err());
+        assert_eq!(
+            validate_finality_signature_interval(0).unwrap_err(),
+            ContractError::InvalidFinalitySignatureInterval(0)
+        );
         assert!(validate_finality_signature_interval(1).is_ok());
         assert!(validate_finality_signature_interval(100).is_ok());
     }
-} 
+
+    #[test]
+    fn test_edge_cases() {
+        // Test BSN ID length boundaries
+        let long_id = "a".repeat(MAX_BSN_ID_LENGTH);
+        assert!(
+            validate_bsn_id(&long_id).is_ok(),
+            "Should accept maximum length"
+        );
+
+        let too_long_id = "a".repeat(MAX_BSN_ID_LENGTH + 1);
+        assert!(
+            validate_bsn_id(&too_long_id).is_err(),
+            "Should reject exceeding maximum length"
+        );
+
+        // Test very large values (should all be valid)
+        assert!(validate_min_pub_rand(u64::MAX).is_ok());
+        assert!(validate_rate_limiting_interval(u64::MAX).is_ok());
+        assert!(validate_max_msgs_per_interval(u32::MAX).is_ok());
+        assert!(validate_finality_signature_interval(u64::MAX).is_ok());
+
+        // Test boundary values
+        assert!(validate_min_pub_rand(1).is_ok());
+        assert!(validate_rate_limiting_interval(1).is_ok());
+        assert!(validate_max_msgs_per_interval(1).is_ok());
+        assert!(validate_finality_signature_interval(1).is_ok());
+
+        // Test typical values
+        assert!(validate_min_pub_rand(100).is_ok());
+        assert!(validate_rate_limiting_interval(10000).is_ok());
+        assert!(validate_max_msgs_per_interval(100).is_ok());
+        assert!(validate_finality_signature_interval(100).is_ok());
+    }
+}
