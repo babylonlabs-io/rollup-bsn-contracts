@@ -8,7 +8,7 @@ use hex;
 /// SnapshotItem of allowed finality provider BTC public keys stored as a HashSet
 pub(crate) const ALLOWED_FINALITY_PROVIDERS: SnapshotItem<HashSet<Vec<u8>>> = SnapshotItem::new(
     "allowed_finality_providers",
-    "allowed_finality_providers__checkpoints", 
+    "allowed_finality_providers__checkpoints",
     "allowed_finality_providers__changelog",
     Strategy::EveryBlock,
 );
@@ -82,30 +82,28 @@ pub fn remove_finality_provider_from_allowlist(
 }
 
 /// Get all allowed finality providers (as hex strings)
-pub fn get_allowed_finality_providers(
-    storage: &dyn Storage,
-) -> Result<Vec<String>, ContractError> {
+pub fn get_allowed_finality_providers(storage: &dyn Storage) -> Result<Vec<String>, ContractError> {
     let fp_set = ALLOWED_FINALITY_PROVIDERS
         .may_load(storage)?
         .unwrap_or_default();
-    
+
     let hex_strings: Vec<String> = fp_set.iter().map(|bytes| hex::encode(bytes)).collect();
-    
+
     Ok(hex_strings)
 }
 
 /// Get all allowed finality providers (as hex strings) at a specific Babylon height
 pub fn get_allowed_finality_providers_at_height(
-    storage: &dyn Storage, 
+    storage: &dyn Storage,
     babylon_height: u64,
 ) -> Result<Vec<String>, ContractError> {
     let fp_set = ALLOWED_FINALITY_PROVIDERS
         .may_load_at_height(storage, babylon_height)
         .map_err(ContractError::StdError)?
         .unwrap_or_default();
-    
+
     let hex_strings: Vec<String> = fp_set.iter().map(|bytes| hex::encode(bytes)).collect();
-    
+
     Ok(hex_strings)
 }
 
