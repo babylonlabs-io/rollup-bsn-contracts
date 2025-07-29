@@ -9,7 +9,9 @@ use crate::exec::public_randomness::handle_public_randomness_commit;
 use crate::msg::BabylonMsg;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::queries::query_block_voters;
-use crate::state::allowlist::{get_allowed_finality_providers, get_allowed_finality_providers_at_height};
+use crate::state::allowlist::{
+    get_allowed_finality_providers, get_allowed_finality_providers_at_height,
+};
 use crate::state::config::{get_config, set_config, Config, RateLimitingConfig, ADMIN};
 use crate::state::pruning::handle_prune_data;
 use crate::state::public_randomness::{
@@ -1212,7 +1214,7 @@ pub(crate) mod tests {
         // Setup: Instantiate with initial FPs
         let initial_fps = vec![
             get_random_fp_pk_hex(), // fp1
-            get_random_fp_pk_hex(), // fp2  
+            get_random_fp_pk_hex(), // fp2
             get_random_fp_pk_hex(), // fp3
         ];
         let instantiate_msg = InstantiateMsg {
@@ -1226,32 +1228,53 @@ pub(crate) mod tests {
             allowed_finality_providers: Some(initial_fps.clone()),
         };
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
-        instantiate(deps.as_mut(), mock_env_at_height(100), info, instantiate_msg).unwrap();
+        instantiate(
+            deps.as_mut(),
+            mock_env_at_height(100),
+            info,
+            instantiate_msg,
+        )
+        .unwrap();
 
         // Height 105: Add fp4, Remove fp3
         let fp4 = get_random_fp_pk_hex(); // Generate proper random fp4
         let add_msg = ExecuteMsg::AddToAllowlist {
             fp_pubkey_hex_list: vec![fp4.clone()],
         };
-        execute(deps.as_mut(), mock_env_at_height(105), admin_info.clone(), add_msg).unwrap();
-        
+        execute(
+            deps.as_mut(),
+            mock_env_at_height(105),
+            admin_info.clone(),
+            add_msg,
+        )
+        .unwrap();
+
         let remove_msg = ExecuteMsg::RemoveFromAllowlist {
             fp_pubkey_hex_list: vec![initial_fps[2].clone()], // remove fp3
         };
-        execute(deps.as_mut(), mock_env_at_height(105), admin_info, remove_msg).unwrap();
+        execute(
+            deps.as_mut(),
+            mock_env_at_height(105),
+            admin_info,
+            remove_msg,
+        )
+        .unwrap();
 
         // Test historical queries
-        
+
         // Query at Babylon height 102 (should get state from height 100): [fp1, fp2, fp3]
         let query_res = query(
             deps.as_ref(),
             mock_env(),
-            QueryMsg::AllowedFinalityProvidersAtHeight { babylon_height: 102 },
-        ).unwrap();
+            QueryMsg::AllowedFinalityProvidersAtHeight {
+                babylon_height: 102,
+            },
+        )
+        .unwrap();
         let fps_at_102: Vec<String> = from_json(query_res).unwrap();
         assert_eq!(fps_at_102.len(), 3);
         assert!(fps_at_102.contains(&initial_fps[0])); // fp1
-        assert!(fps_at_102.contains(&initial_fps[1])); // fp2  
+        assert!(fps_at_102.contains(&initial_fps[1])); // fp2
         assert!(fps_at_102.contains(&initial_fps[2])); // fp3
         assert!(!fps_at_102.contains(&fp4)); // fp4 not added yet
 
@@ -1259,8 +1282,11 @@ pub(crate) mod tests {
         let query_res = query(
             deps.as_ref(),
             mock_env(),
-            QueryMsg::AllowedFinalityProvidersAtHeight { babylon_height: 107 },
-        ).unwrap();
+            QueryMsg::AllowedFinalityProvidersAtHeight {
+                babylon_height: 107,
+            },
+        )
+        .unwrap();
         let fps_at_107: Vec<String> = from_json(query_res).unwrap();
         assert_eq!(fps_at_107.len(), 3);
         assert!(fps_at_107.contains(&initial_fps[0])); // fp1
@@ -1273,7 +1299,8 @@ pub(crate) mod tests {
             deps.as_ref(),
             mock_env(),
             QueryMsg::AllowedFinalityProviders {},
-        ).unwrap();
+        )
+        .unwrap();
         let current_fps: Vec<String> = from_json(query_res).unwrap();
         assert_eq!(current_fps.len(), fps_at_107.len());
         for fp in &fps_at_107 {
