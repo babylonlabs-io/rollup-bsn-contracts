@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Config",
+  "description": "Contract configuration parameters set at instantiation.",
   "type": "object",
   "required": [
     "bsn_activation_height",
@@ -11,25 +12,34 @@
   ],
   "properties": {
     "bsn_activation_height": {
+      "description": "Rollup block height at which the BSN system is activated (0 = immediate activation). Only affects `SubmitFinalitySignature` messages.",
       "type": "integer",
       "format": "uint64",
       "minimum": 0.0
     },
     "bsn_id": {
+      "description": "Unique identifier for the BSN (Bitcoin Supercharged Network) that this contract secures",
       "type": "string"
     },
     "finality_signature_interval": {
+      "description": "Interval between allowed finality signature submissions. Signatures can only be submitted at rollup block heights where `(height - bsn_activation_height) % interval == 0`.",
       "type": "integer",
       "format": "uint64",
       "minimum": 1.0
     },
     "min_pub_rand": {
+      "description": "Minimum number of public randomness values required in commitments",
       "type": "integer",
       "format": "uint64",
       "minimum": 0.0
     },
     "rate_limiting": {
-      "$ref": "#/definitions/RateLimitingConfig"
+      "description": "Rate limiting configuration to prevent spam",
+      "allOf": [
+        {
+          "$ref": "#/definitions/RateLimitingConfig"
+        }
+      ]
     }
   },
   "additionalProperties": false,
