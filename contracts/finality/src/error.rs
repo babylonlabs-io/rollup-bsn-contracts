@@ -105,4 +105,6 @@ pub enum ContractError {
     RateLimitExceeded { fp_btc_pk: String, limit: u32 },
     #[error("Finality provider {0} is not in the allowlist")]
     FinalityProviderNotAllowed(String),
+    #[error("No configuration fields were provided to update")]
+    NoConfigFieldsToUpdate,
 }
