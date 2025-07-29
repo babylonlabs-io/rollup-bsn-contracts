@@ -91,8 +91,8 @@ pub fn query(
         QueryMsg::AllowedFinalityProviders {} => Ok(to_json_binary(
             &get_allowed_finality_providers(deps.storage)?,
         )?),
-        QueryMsg::AllowedFinalityProvidersAtHeight { height } => Ok(to_json_binary(
-            &get_allowed_finality_providers_at_height(deps.storage, height)?,
+        QueryMsg::AllowedFinalityProvidersAtHeight { babylon_height } => Ok(to_json_binary(
+            &get_allowed_finality_providers_at_height(deps.storage, babylon_height)?,
         )?),
     }
 }
@@ -1246,7 +1246,7 @@ pub(crate) mod tests {
         let query_res = query(
             deps.as_ref(),
             mock_env(),
-            QueryMsg::AllowedFinalityProvidersAtHeight { height: 102 },
+            QueryMsg::AllowedFinalityProvidersAtHeight { babylon_height: 102 },
         ).unwrap();
         let fps_at_102: Vec<String> = from_json(query_res).unwrap();
         assert_eq!(fps_at_102.len(), 3);
@@ -1259,7 +1259,7 @@ pub(crate) mod tests {
         let query_res = query(
             deps.as_ref(),
             mock_env(),
-            QueryMsg::AllowedFinalityProvidersAtHeight { height: 107 },
+            QueryMsg::AllowedFinalityProvidersAtHeight { babylon_height: 107 },
         ).unwrap();
         let fps_at_107: Vec<String> = from_json(query_res).unwrap();
         assert_eq!(fps_at_107.len(), 3);
