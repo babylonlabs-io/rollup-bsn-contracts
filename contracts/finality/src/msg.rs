@@ -154,6 +154,12 @@ pub enum QueryMsg {
     /// that are allowed to submit finality signatures and public randomness commitments.
     #[returns(Vec<String>)]
     AllowedFinalityProviders {},
+    /// Get the list of allowed finality providers at a specific height.
+    ///
+    /// Returns a list of BTC public keys (in hex format) that were allowed
+    /// at the specified height or the most recent height before it.
+    #[returns(Vec<String>)]
+    AllowedFinalityProvidersAtHeight { height: u64 },
 }
 
 // Note: Adapted from packages/apis/src/btc_staking_api.rs / packages/apis/src/finality_api.rs

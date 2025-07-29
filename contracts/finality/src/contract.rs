@@ -9,7 +9,7 @@ use crate::exec::public_randomness::handle_public_randomness_commit;
 use crate::msg::BabylonMsg;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::queries::query_block_voters;
-use crate::state::allowlist::get_allowed_finality_providers;
+use crate::state::allowlist::{get_allowed_finality_providers, get_allowed_finality_providers_at_height};
 use crate::state::config::{get_config, set_config, Config, RateLimitingConfig, ADMIN};
 use crate::state::pruning::handle_prune_data;
 use crate::state::public_randomness::{
@@ -90,6 +90,9 @@ pub fn query(
         )?)?),
         QueryMsg::AllowedFinalityProviders {} => Ok(to_json_binary(
             &get_allowed_finality_providers(deps.storage)?,
+        )?),
+        QueryMsg::AllowedFinalityProvidersAtHeight { height } => Ok(to_json_binary(
+            &get_allowed_finality_providers_at_height(deps.storage, height)?,
         )?),
     }
 }
