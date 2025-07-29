@@ -1079,13 +1079,9 @@ pub(crate) mod tests {
         let admin_info = message_info(&admin, &[]);
         let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), update_msg).unwrap();
         
-        assert_eq!(res.attributes.len(), 3);
+        assert_eq!(res.attributes.len(), 1);
         assert_eq!(res.attributes[0].key, "action");
         assert_eq!(res.attributes[0].value, "update_config");
-        assert_eq!(res.attributes[1].key, "updated_fields");
-        assert_eq!(res.attributes[1].value, "min_pub_rand");
-        assert_eq!(res.attributes[2].key, "num_updated");
-        assert_eq!(res.attributes[2].value, "1");
 
         // Verify config was updated
         let config_query = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
@@ -1105,13 +1101,9 @@ pub(crate) mod tests {
         };
         let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), update_msg).unwrap();
         
-        assert_eq!(res.attributes[2].value, "5"); // 5 fields updated
-        let updated_fields: Vec<&str> = res.attributes[1].value.split(',').collect();
-        assert!(updated_fields.contains(&"min_pub_rand"));
-        assert!(updated_fields.contains(&"max_msgs_per_interval"));
-        assert!(updated_fields.contains(&"rate_limiting_interval"));
-        assert!(updated_fields.contains(&"bsn_activation_height"));
-        assert!(updated_fields.contains(&"finality_signature_interval"));
+        assert_eq!(res.attributes.len(), 1);
+        assert_eq!(res.attributes[0].key, "action");
+        assert_eq!(res.attributes[0].value, "update_config");
 
         // Verify all fields were updated
         let config_query = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();

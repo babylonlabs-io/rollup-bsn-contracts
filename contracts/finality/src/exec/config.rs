@@ -23,43 +23,43 @@ pub fn handle_update_config(
 
     // Get current config
     let mut config = get_config(deps.storage)?;
-    let mut updated_fields = Vec::new();
+    let mut has_updates = false;
 
     // Update min_pub_rand if provided
     if let Some(new_min_pub_rand) = min_pub_rand {
         validate_min_pub_rand(new_min_pub_rand)?;
         config.min_pub_rand = new_min_pub_rand;
-        updated_fields.push("min_pub_rand");
+        has_updates = true;
     }
 
     // Update rate limiting config if any rate limiting fields are provided
     if let Some(new_max_msgs) = max_msgs_per_interval {
         validate_max_msgs_per_interval(new_max_msgs)?;
         config.rate_limiting.max_msgs_per_interval = new_max_msgs;
-        updated_fields.push("max_msgs_per_interval");
+        has_updates = true;
     }
 
     if let Some(new_interval) = rate_limiting_interval {
         validate_rate_limiting_interval(new_interval)?;
         config.rate_limiting.block_interval = new_interval;
-        updated_fields.push("rate_limiting_interval");
+        has_updates = true;
     }
 
     // Update bsn_activation_height if provided (no validation needed - any u64 is valid)
     if let Some(new_activation_height) = bsn_activation_height {
         config.bsn_activation_height = new_activation_height;
-        updated_fields.push("bsn_activation_height");
+        has_updates = true;
     }
 
     // Update finality_signature_interval if provided
     if let Some(new_finality_interval) = finality_signature_interval {
         validate_finality_signature_interval(new_finality_interval)?;
         config.finality_signature_interval = new_finality_interval;
-        updated_fields.push("finality_signature_interval");
+        has_updates = true;
     }
 
     // Check if any fields were actually updated
-    if updated_fields.is_empty() {
+    if !has_updates {
         return Err(ContractError::NoConfigFieldsToUpdate);
     }
 
@@ -67,7 +67,5 @@ pub fn handle_update_config(
     set_config(deps.storage, &config)?;
 
     Ok(Response::new()
-        .add_attribute("action", "update_config")
-        .add_attribute("updated_fields", updated_fields.join(","))
-        .add_attribute("num_updated", updated_fields.len().to_string()))
+        .add_attribute("action", "update_config"))
 } 
