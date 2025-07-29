@@ -161,7 +161,6 @@ pub fn execute(
             handle_remove_from_allowlist(deps, info, fp_pubkey_hex_list)
         }
         ExecuteMsg::UpdateConfig {
-            bsn_id,
             min_pub_rand,
             max_msgs_per_interval,
             rate_limiting_interval,
@@ -170,7 +169,6 @@ pub fn execute(
         } => handle_update_config(
             deps,
             info,
-            bsn_id,
             min_pub_rand,
             max_msgs_per_interval,
             rate_limiting_interval,
@@ -1072,8 +1070,7 @@ pub(crate) mod tests {
 
         // Test 1: Admin can update individual fields
         let update_msg = ExecuteMsg::UpdateConfig {
-            bsn_id: Some("new-bsn-id".to_string()),
-            min_pub_rand: None,
+            min_pub_rand: Some(200),
             max_msgs_per_interval: None,
             rate_limiting_interval: None,
             bsn_activation_height: None,
@@ -1086,22 +1083,21 @@ pub(crate) mod tests {
         assert_eq!(res.attributes[0].key, "action");
         assert_eq!(res.attributes[0].value, "update_config");
         assert_eq!(res.attributes[1].key, "updated_fields");
-        assert_eq!(res.attributes[1].value, "bsn_id");
+        assert_eq!(res.attributes[1].value, "min_pub_rand");
         assert_eq!(res.attributes[2].key, "num_updated");
         assert_eq!(res.attributes[2].value, "1");
 
         // Verify config was updated
         let config_query = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
         let config: Config = from_json(config_query).unwrap();
-        assert_eq!(config.bsn_id, "new-bsn-id");
-        assert_eq!(config.min_pub_rand, min_pub_rand); // unchanged
+        assert_eq!(config.bsn_id, bsn_id); // unchanged
+        assert_eq!(config.min_pub_rand, 200); // updated
         assert_eq!(config.bsn_activation_height, bsn_activation_height); // unchanged
         assert_eq!(config.finality_signature_interval, finality_signature_interval); // unchanged
 
         // Test 2: Update multiple fields at once
         let update_msg = ExecuteMsg::UpdateConfig {
-            bsn_id: None,
-            min_pub_rand: Some(200),
+            min_pub_rand: Some(300),
             max_msgs_per_interval: Some(150),
             rate_limiting_interval: Some(15000),
             bsn_activation_height: Some(2000),
@@ -1120,8 +1116,8 @@ pub(crate) mod tests {
         // Verify all fields were updated
         let config_query = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
         let config: Config = from_json(config_query).unwrap();
-        assert_eq!(config.bsn_id, "new-bsn-id"); // unchanged
-        assert_eq!(config.min_pub_rand, 200);
+        assert_eq!(config.bsn_id, bsn_id); // unchanged
+        assert_eq!(config.min_pub_rand, 300);
         assert_eq!(config.rate_limiting.max_msgs_per_interval, 150);
         assert_eq!(config.rate_limiting.block_interval, 15000);
         assert_eq!(config.bsn_activation_height, 2000);
@@ -1130,8 +1126,7 @@ pub(crate) mod tests {
         // Test 3: Non-admin cannot update config
         let non_admin_info = message_info(&non_admin, &[]);
         let update_msg = ExecuteMsg::UpdateConfig {
-            bsn_id: Some("unauthorized-update".to_string()),
-            min_pub_rand: None,
+            min_pub_rand: Some(999),
             max_msgs_per_interval: None,
             rate_limiting_interval: None,
             bsn_activation_height: None,
@@ -1142,7 +1137,6 @@ pub(crate) mod tests {
 
         // Test 4: Empty update should fail
         let empty_update_msg = ExecuteMsg::UpdateConfig {
-            bsn_id: None,
             min_pub_rand: None,
             max_msgs_per_interval: None,
             rate_limiting_interval: None,
@@ -1175,21 +1169,8 @@ pub(crate) mod tests {
 
         let admin_info = message_info(&admin, &[]);
 
-        // Test invalid bsn_id
-        let invalid_bsn_update = ExecuteMsg::UpdateConfig {
-            bsn_id: Some("".to_string()), // empty bsn_id
-            min_pub_rand: None,
-            max_msgs_per_interval: None,
-            rate_limiting_interval: None,
-            bsn_activation_height: None,
-            finality_signature_interval: None,
-        };
-        let err = execute(deps.as_mut(), mock_env(), admin_info.clone(), invalid_bsn_update).unwrap_err();
-        assert!(matches!(err, ContractError::InvalidBsnId(_)));
-
         // Test invalid min_pub_rand
         let invalid_min_pub_rand_update = ExecuteMsg::UpdateConfig {
-            bsn_id: None,
             min_pub_rand: Some(0), // invalid: must be > 0
             max_msgs_per_interval: None,
             rate_limiting_interval: None,
@@ -1201,7 +1182,6 @@ pub(crate) mod tests {
 
         // Test invalid max_msgs_per_interval
         let invalid_max_msgs_update = ExecuteMsg::UpdateConfig {
-            bsn_id: None,
             min_pub_rand: None,
             max_msgs_per_interval: Some(0), // invalid: must be > 0
             rate_limiting_interval: None,
@@ -1213,7 +1193,6 @@ pub(crate) mod tests {
 
         // Test invalid rate_limiting_interval
         let invalid_rate_interval_update = ExecuteMsg::UpdateConfig {
-            bsn_id: None,
             min_pub_rand: None,
             max_msgs_per_interval: None,
             rate_limiting_interval: Some(0), // invalid: must be > 0
@@ -1225,7 +1204,6 @@ pub(crate) mod tests {
 
         // Test invalid finality_signature_interval
         let invalid_finality_interval_update = ExecuteMsg::UpdateConfig {
-            bsn_id: None,
             min_pub_rand: None,
             max_msgs_per_interval: None,
             rate_limiting_interval: None,

@@ -3,6 +3,8 @@ use babylon_merkle::Proof;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Binary, CosmosMsg};
 
+const MAX_BSN_ID_LENGTH: usize = 100;
+
 #[cfg(not(target_arch = "wasm32"))]
 use {
     crate::queries::BlockVoterInfo, crate::state::config::Config,
@@ -37,8 +39,6 @@ pub struct InstantiateMsg {
 }
 
 impl InstantiateMsg {
-    const MAX_BSN_ID_LENGTH: usize = 100;
-
     pub fn validate(&self) -> Result<(), ContractError> {
         // Validate min_pub_rand
         validate_min_pub_rand(self.min_pub_rand)?;
@@ -55,9 +55,7 @@ impl InstantiateMsg {
 }
 
 /// Helper functions for validating individual config fields during updates
-pub fn validate_bsn_id(bsn_id: &str) -> Result<(), ContractError> {
-    const MAX_BSN_ID_LENGTH: usize = 100;
-    
+pub fn validate_bsn_id(bsn_id: &str) -> Result<(), ContractError> {    
     if bsn_id.is_empty() {
         return Err(ContractError::InvalidBsnId(
             "BSN ID cannot be empty".to_string(),
@@ -265,8 +263,6 @@ pub enum ExecuteMsg {
     /// All fields are optional - only provided fields will be updated.
     /// Updated values must pass the same validation as during instantiation.
     UpdateConfig {
-        /// New BSN identifier (if provided)
-        bsn_id: Option<String>,
         /// New minimum number of public randomness values required (if provided)
         min_pub_rand: Option<u64>,
         /// New maximum messages per finality provider per interval (if provided)
@@ -454,7 +450,7 @@ mod tests {
     #[test]
     fn test_instantiate_msg_validation_bsn_id_length() {
         // Test maximum length
-        let long_bsn_id = "a".repeat(InstantiateMsg::MAX_BSN_ID_LENGTH);
+        let long_bsn_id = "a".repeat(MAX_BSN_ID_LENGTH);
         let msg = InstantiateMsg {
             admin: "cosmos1admin".to_string(),
             bsn_id: long_bsn_id,
@@ -468,7 +464,7 @@ mod tests {
         assert!(msg.validate().is_ok());
 
         // Test exceeding maximum length
-        let too_long_bsn_id = "a".repeat(InstantiateMsg::MAX_BSN_ID_LENGTH + 1);
+        let too_long_bsn_id = "a".repeat(MAX_BSN_ID_LENGTH + 1);
         let msg = InstantiateMsg {
             admin: "cosmos1admin".to_string(),
             bsn_id: too_long_bsn_id,

@@ -2,17 +2,16 @@ use cosmwasm_std::{DepsMut, MessageInfo, Response};
 
 use crate::error::ContractError;
 use crate::msg::{
-    validate_bsn_id, validate_finality_signature_interval, validate_max_msgs_per_interval,
-    validate_min_pub_rand, validate_rate_limiting_interval, BabylonMsg,
+    validate_finality_signature_interval, validate_max_msgs_per_interval, validate_min_pub_rand,
+    validate_rate_limiting_interval, BabylonMsg,
 };
-use crate::state::config::{get_config, set_config, Config, RateLimitingConfig, ADMIN};
+use crate::state::config::{get_config, set_config, ADMIN};
 use babylon_bindings::BabylonQuery;
 
 /// Handle updating the contract configuration
 pub fn handle_update_config(
     deps: DepsMut<BabylonQuery>,
     info: MessageInfo,
-    bsn_id: Option<String>,
     min_pub_rand: Option<u64>,
     max_msgs_per_interval: Option<u32>,
     rate_limiting_interval: Option<u64>,
@@ -26,13 +25,6 @@ pub fn handle_update_config(
     let mut config = get_config(deps.storage)?;
     let mut updated_fields = Vec::new();
 
-    // Update bsn_id if provided
-    if let Some(new_bsn_id) = bsn_id {
-        validate_bsn_id(&new_bsn_id)?;
-        config.bsn_id = new_bsn_id;
-        updated_fields.push("bsn_id");
-    }
-
     // Update min_pub_rand if provided
     if let Some(new_min_pub_rand) = min_pub_rand {
         validate_min_pub_rand(new_min_pub_rand)?;
@@ -41,19 +33,16 @@ pub fn handle_update_config(
     }
 
     // Update rate limiting config if any rate limiting fields are provided
-    let mut rate_limiting_updated = false;
     if let Some(new_max_msgs) = max_msgs_per_interval {
         validate_max_msgs_per_interval(new_max_msgs)?;
         config.rate_limiting.max_msgs_per_interval = new_max_msgs;
         updated_fields.push("max_msgs_per_interval");
-        rate_limiting_updated = true;
     }
 
     if let Some(new_interval) = rate_limiting_interval {
         validate_rate_limiting_interval(new_interval)?;
         config.rate_limiting.block_interval = new_interval;
         updated_fields.push("rate_limiting_interval");
-        rate_limiting_updated = true;
     }
 
     // Update bsn_activation_height if provided (no validation needed - any u64 is valid)
