@@ -13,7 +13,7 @@ pub(crate) const ALLOWED_FINALITY_PROVIDERS: SnapshotMap<&str, HashSet<Vec<u8>>>
     Strategy::EveryBlock,
 );
 
-/// Check if a finality provider is in the allowlist (at current height)
+/// Check if a finality provider is in the allowlist (at current Babylon height)
 pub fn ensure_fp_in_allowlist(
     storage: &dyn Storage,
     fp_btc_pk_bytes: &[u8],
