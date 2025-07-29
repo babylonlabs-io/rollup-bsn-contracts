@@ -1242,7 +1242,7 @@ pub(crate) mod tests {
 
         // Test historical queries
         
-        // Query at height 102 (should get state from height 100): [fp1, fp2, fp3]
+        // Query at Babylon height 102 (should get state from height 100): [fp1, fp2, fp3]
         let query_res = query(
             deps.as_ref(),
             mock_env(),
@@ -1255,7 +1255,7 @@ pub(crate) mod tests {
         assert!(fps_at_102.contains(&initial_fps[2])); // fp3
         assert!(!fps_at_102.contains(&fp4)); // fp4 not added yet
 
-        // Query at height 107 (should get state from height 105): [fp1, fp2, fp4]
+        // Query at Babylon height 107 (should get state from height 105): [fp1, fp2, fp4]
         let query_res = query(
             deps.as_ref(),
             mock_env(),
