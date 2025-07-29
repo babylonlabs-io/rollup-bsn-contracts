@@ -66,6 +66,5 @@ pub fn handle_update_config(
     // Save the updated config
     set_config(deps.storage, &config)?;
 
-    Ok(Response::new()
-        .add_attribute("action", "update_config"))
-} 
+    Ok(Response::new().add_attribute("action", "update_config"))
+}

@@ -55,7 +55,7 @@ impl InstantiateMsg {
 }
 
 /// Helper functions for validating individual config fields during updates
-pub fn validate_bsn_id(bsn_id: &str) -> Result<(), ContractError> {    
+pub fn validate_bsn_id(bsn_id: &str) -> Result<(), ContractError> {
     if bsn_id.is_empty() {
         return Err(ContractError::InvalidBsnId(
             "BSN ID cannot be empty".to_string(),
@@ -68,16 +68,16 @@ pub fn validate_bsn_id(bsn_id: &str) -> Result<(), ContractError> {
         .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
     {
         return Err(ContractError::InvalidBsnId(
-            "BSN ID can only contain alphanumeric characters, hyphens, and underscores"
-                .to_string(),
+            "BSN ID can only contain alphanumeric characters, hyphens, and underscores".to_string(),
         ));
     }
 
     // Check length (reasonable bounds)
     if bsn_id.len() > MAX_BSN_ID_LENGTH {
-        return Err(ContractError::InvalidBsnId(
-            format!("BSN ID cannot exceed {} characters", MAX_BSN_ID_LENGTH),
-        ));
+        return Err(ContractError::InvalidBsnId(format!(
+            "BSN ID cannot exceed {} characters",
+            MAX_BSN_ID_LENGTH
+        )));
     }
 
     Ok(())
