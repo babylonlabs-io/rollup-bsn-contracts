@@ -1,4 +1,4 @@
-use cosmwasm_std::{DepsMut, MessageInfo, Response};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
@@ -11,6 +11,7 @@ use babylon_bindings::BabylonQuery;
 /// Handle adding finality providers to the allowlist
 pub fn handle_add_to_allowlist(
     deps: DepsMut<BabylonQuery>,
+    env: Env,
     info: MessageInfo,
     fp_pubkey_hex_list: Vec<String>,
 ) -> Result<Response<BabylonMsg>, ContractError> {
@@ -29,7 +30,7 @@ pub fn handle_add_to_allowlist(
 
     for key in &fp_pubkey_hex_list {
         let fp_btc_pk_bytes = hex::decode(key)?;
-        add_finality_provider_to_allowlist(deps.storage, &fp_btc_pk_bytes)?;
+        add_finality_provider_to_allowlist(deps.storage, &fp_btc_pk_bytes, env.block.height)?;
     }
 
     Ok(Response::new()
@@ -40,6 +41,7 @@ pub fn handle_add_to_allowlist(
 /// Handle removing finality providers from the allowlist
 pub fn handle_remove_from_allowlist(
     deps: DepsMut<BabylonQuery>,
+    env: Env,
     info: MessageInfo,
     fp_pubkey_hex_list: Vec<String>,
 ) -> Result<Response<BabylonMsg>, ContractError> {
@@ -58,7 +60,7 @@ pub fn handle_remove_from_allowlist(
 
     for key in &fp_pubkey_hex_list {
         let fp_btc_pk_bytes = hex::decode(key)?;
-        remove_finality_provider_from_allowlist(deps.storage, &fp_btc_pk_bytes)?;
+        remove_finality_provider_from_allowlist(deps.storage, &fp_btc_pk_bytes, env.block.height)?;
     }
 
     Ok(Response::new()

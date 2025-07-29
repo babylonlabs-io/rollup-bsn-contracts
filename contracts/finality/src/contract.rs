@@ -51,6 +51,7 @@ pub fn instantiate(
             crate::state::allowlist::add_finality_provider_to_allowlist(
                 deps.storage,
                 &fp_btc_pk_bytes,
+                _env.block.height,
             )?;
         }
     }
@@ -154,10 +155,10 @@ pub fn execute(
             max_pub_rand_values_to_prune,
         ),
         ExecuteMsg::AddToAllowlist { fp_pubkey_hex_list } => {
-            handle_add_to_allowlist(deps, info, fp_pubkey_hex_list)
+            handle_add_to_allowlist(deps, env, info, fp_pubkey_hex_list)
         }
         ExecuteMsg::RemoveFromAllowlist { fp_pubkey_hex_list } => {
-            handle_remove_from_allowlist(deps, info, fp_pubkey_hex_list)
+            handle_remove_from_allowlist(deps, env, info, fp_pubkey_hex_list)
         }
     }
 }
