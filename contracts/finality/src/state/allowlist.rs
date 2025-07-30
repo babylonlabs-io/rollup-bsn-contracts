@@ -56,31 +56,41 @@ pub fn ensure_fp_in_allowlist_at_height(
     }
 }
 
-/// Add a finality provider to the allowlist at a specific Babylon height
-pub fn add_finality_provider_to_allowlist(
+/// Add finality providers to the allowlist at a specific Babylon height
+pub fn add_finality_providers_to_allowlist(
     storage: &mut dyn Storage,
-    fp_btc_pk_bytes: &[u8],
+    fp_btc_pk_bytes_list: &[&[u8]],
     babylon_height: u64,
 ) -> Result<(), ContractError> {
     let mut fp_set = ALLOWED_FINALITY_PROVIDERS
         .may_load(storage)?
         .unwrap_or_default();
-    fp_set.insert(fp_btc_pk_bytes.to_vec());
+
+    // Add all FPs in one batch
+    for fp_key in fp_btc_pk_bytes_list {
+        fp_set.insert(fp_key.to_vec());
+    }
+
     ALLOWED_FINALITY_PROVIDERS
         .save(storage, &fp_set, babylon_height)
         .map_err(Into::into)
 }
 
-/// Remove a finality provider from the allowlist at a specific Babylon height
-pub fn remove_finality_provider_from_allowlist(
+/// Remove finality providers from the allowlist at a specific Babylon height
+pub fn remove_finality_providers_from_allowlist(
     storage: &mut dyn Storage,
-    fp_btc_pk_bytes: &[u8],
+    fp_btc_pk_bytes_list: &[&[u8]],
     babylon_height: u64,
 ) -> Result<(), ContractError> {
     let mut fp_set = ALLOWED_FINALITY_PROVIDERS
         .may_load(storage)?
         .unwrap_or_default();
-    fp_set.remove(fp_btc_pk_bytes);
+
+    // Remove all FPs in one batch
+    for fp_key in fp_btc_pk_bytes_list {
+        fp_set.remove(&fp_key.to_vec());
+    }
+
     ALLOWED_FINALITY_PROVIDERS
         .save(storage, &fp_set, babylon_height)
         .map_err(Into::into)
@@ -128,13 +138,11 @@ mod tests {
         let fp4 = b"provider4";
 
         // Height 100: Add fp1, fp2, fp3
-        add_finality_provider_to_allowlist(storage, fp1, 100).unwrap();
-        add_finality_provider_to_allowlist(storage, fp2, 100).unwrap();
-        add_finality_provider_to_allowlist(storage, fp3, 100).unwrap();
+        add_finality_providers_to_allowlist(storage, &[fp1, fp2, fp3], 100).unwrap();
 
         // Height 105: Remove fp3, Add fp4
-        remove_finality_provider_from_allowlist(storage, fp3, 105).unwrap();
-        add_finality_provider_to_allowlist(storage, fp4, 105).unwrap();
+        remove_finality_providers_from_allowlist(storage, &[fp3], 105).unwrap();
+        add_finality_providers_to_allowlist(storage, &[fp4], 105).unwrap();
 
         // Test individual checks at current height
         assert!(ensure_fp_in_allowlist(storage, fp1).is_ok());

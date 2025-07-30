@@ -3,7 +3,7 @@ use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::state::allowlist::{
-    add_finality_provider_to_allowlist, remove_finality_provider_from_allowlist,
+    add_finality_providers_to_allowlist, remove_finality_providers_from_allowlist,
 };
 use crate::state::config::ADMIN;
 use babylon_bindings::BabylonQuery;
@@ -28,10 +28,20 @@ pub fn handle_add_to_allowlist(
 
     ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
 
+    // Convert hex strings to bytes and collect into slice references
+    let mut fp_btc_pk_bytes_list = Vec::new();
     for key in &fp_pubkey_hex_list {
         let fp_btc_pk_bytes = hex::decode(key)?;
-        add_finality_provider_to_allowlist(deps.storage, &fp_btc_pk_bytes, env.block.height)?;
+        fp_btc_pk_bytes_list.push(fp_btc_pk_bytes);
     }
+
+    // Convert to slice references for the batch function
+    let fp_btc_pk_bytes_refs: Vec<&[u8]> = fp_btc_pk_bytes_list
+        .iter()
+        .map(|bytes| bytes.as_slice())
+        .collect();
+
+    add_finality_providers_to_allowlist(deps.storage, &fp_btc_pk_bytes_refs, env.block.height)?;
 
     Ok(Response::new()
         .add_attribute("action", "add_to_allowlist")
@@ -58,10 +68,24 @@ pub fn handle_remove_from_allowlist(
 
     ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
 
+    // Convert hex strings to bytes and collect into slice references
+    let mut fp_btc_pk_bytes_list = Vec::new();
     for key in &fp_pubkey_hex_list {
         let fp_btc_pk_bytes = hex::decode(key)?;
-        remove_finality_provider_from_allowlist(deps.storage, &fp_btc_pk_bytes, env.block.height)?;
+        fp_btc_pk_bytes_list.push(fp_btc_pk_bytes);
     }
+
+    // Convert to slice references for the batch function
+    let fp_btc_pk_bytes_refs: Vec<&[u8]> = fp_btc_pk_bytes_list
+        .iter()
+        .map(|bytes| bytes.as_slice())
+        .collect();
+
+    remove_finality_providers_from_allowlist(
+        deps.storage,
+        &fp_btc_pk_bytes_refs,
+        env.block.height,
+    )?;
 
     Ok(Response::new()
         .add_attribute("action", "remove_from_allowlist")

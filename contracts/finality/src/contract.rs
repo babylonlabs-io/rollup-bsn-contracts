@@ -45,17 +45,31 @@ pub fn instantiate(
 
     // Add initial allowed finality providers if provided
     if let Some(fp_list) = msg.allowed_finality_providers {
+        // Validate all public keys are not empty
         for fp_pubkey in &fp_list {
             if fp_pubkey.is_empty() {
                 return Err(ContractError::EmptyFpBtcPubKey);
             }
-            let fp_btc_pk_bytes = hex::decode(fp_pubkey)?;
-            crate::state::allowlist::add_finality_provider_to_allowlist(
-                deps.storage,
-                &fp_btc_pk_bytes,
-                env.block.height,
-            )?;
         }
+
+        // Convert hex strings to bytes and collect into slice references
+        let mut fp_btc_pk_bytes_list = Vec::new();
+        for fp_pubkey in &fp_list {
+            let fp_btc_pk_bytes = hex::decode(fp_pubkey)?;
+            fp_btc_pk_bytes_list.push(fp_btc_pk_bytes);
+        }
+
+        // Convert to slice references for the batch function
+        let fp_btc_pk_bytes_refs: Vec<&[u8]> = fp_btc_pk_bytes_list
+            .iter()
+            .map(|bytes| bytes.as_slice())
+            .collect();
+
+        crate::state::allowlist::add_finality_providers_to_allowlist(
+            deps.storage,
+            &fp_btc_pk_bytes_refs,
+            env.block.height,
+        )?;
     }
 
     Ok(Response::new().add_attribute("action", "instantiate"))
