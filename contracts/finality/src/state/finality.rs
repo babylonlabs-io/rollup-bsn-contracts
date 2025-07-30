@@ -140,7 +140,7 @@ pub fn get_highest_voted_height(
 ) -> Result<Option<u64>, ContractError> {
     HIGHEST_VOTED_HEIGHT
         .may_load(storage, fp_btc_pk)
-        .map_err(|_| ContractError::FailedToLoadFinalitySignature(hex::encode(fp_btc_pk), 0))
+        .map_err(|_| ContractError::FailedToLoadHighestVotedHeight(hex::encode(fp_btc_pk)))
 }
 
 /// Updates the highest voted height for a finality provider if the new height is higher.
@@ -152,15 +152,13 @@ fn update_highest_voted_height(
 ) -> Result<(), ContractError> {
     let current_highest = HIGHEST_VOTED_HEIGHT
         .may_load(storage, fp_btc_pk)
-        .map_err(|_| ContractError::FailedToLoadFinalitySignature(hex::encode(fp_btc_pk), height))?
+        .map_err(|_| ContractError::FailedToLoadHighestVotedHeight(hex::encode(fp_btc_pk)))?
         .unwrap_or(0);
 
     if height > current_highest {
         HIGHEST_VOTED_HEIGHT
             .save(storage, fp_btc_pk, &height)
-            .map_err(|_| {
-                ContractError::FailedToLoadFinalitySignature(hex::encode(fp_btc_pk), height)
-            })?;
+            .map_err(|_| ContractError::FailedToLoadHighestVotedHeight(hex::encode(fp_btc_pk)))?;
     }
 
     Ok(())
