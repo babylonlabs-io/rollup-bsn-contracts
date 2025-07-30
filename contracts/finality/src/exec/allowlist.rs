@@ -28,20 +28,14 @@ pub fn handle_add_to_allowlist(
 
     ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
 
-    // Convert hex strings to bytes and collect into slice references
+    // Convert hex strings to bytes
     let mut fp_btc_pk_bytes_list = Vec::new();
     for key in &fp_pubkey_hex_list {
         let fp_btc_pk_bytes = hex::decode(key)?;
         fp_btc_pk_bytes_list.push(fp_btc_pk_bytes);
     }
 
-    // Convert to slice references for the batch function
-    let fp_btc_pk_bytes_refs: Vec<&[u8]> = fp_btc_pk_bytes_list
-        .iter()
-        .map(|bytes| bytes.as_slice())
-        .collect();
-
-    add_finality_providers_to_allowlist(deps.storage, &fp_btc_pk_bytes_refs, env.block.height)?;
+    add_finality_providers_to_allowlist(deps.storage, &fp_btc_pk_bytes_list, env.block.height)?;
 
     Ok(Response::new()
         .add_attribute("action", "add_to_allowlist")
@@ -75,15 +69,9 @@ pub fn handle_remove_from_allowlist(
         fp_btc_pk_bytes_list.push(fp_btc_pk_bytes);
     }
 
-    // Convert to slice references for the batch function
-    let fp_btc_pk_bytes_refs: Vec<&[u8]> = fp_btc_pk_bytes_list
-        .iter()
-        .map(|bytes| bytes.as_slice())
-        .collect();
-
     remove_finality_providers_from_allowlist(
         deps.storage,
-        &fp_btc_pk_bytes_refs,
+        &fp_btc_pk_bytes_list,
         env.block.height,
     )?;
 

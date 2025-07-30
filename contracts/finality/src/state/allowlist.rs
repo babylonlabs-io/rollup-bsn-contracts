@@ -39,7 +39,7 @@ pub fn ensure_fp_in_allowlist(
 /// Add finality providers to the allowlist at a specific Babylon height
 pub fn add_finality_providers_to_allowlist(
     storage: &mut dyn Storage,
-    fp_btc_pk_bytes_list: &[&[u8]],
+    fp_btc_pk_bytes_list: &[Vec<u8>],
     babylon_height: u64,
 ) -> Result<(), ContractError> {
     let mut fp_set = ALLOWED_FINALITY_PROVIDERS
@@ -48,7 +48,7 @@ pub fn add_finality_providers_to_allowlist(
 
     // Add all FPs in one batch
     for fp_key in fp_btc_pk_bytes_list {
-        fp_set.insert(fp_key.to_vec());
+        fp_set.insert(fp_key.clone());
     }
 
     ALLOWED_FINALITY_PROVIDERS
@@ -59,7 +59,7 @@ pub fn add_finality_providers_to_allowlist(
 /// Remove finality providers from the allowlist at a specific Babylon height
 pub fn remove_finality_providers_from_allowlist(
     storage: &mut dyn Storage,
-    fp_btc_pk_bytes_list: &[&[u8]],
+    fp_btc_pk_bytes_list: &[Vec<u8>],
     babylon_height: u64,
 ) -> Result<(), ContractError> {
     let mut fp_set = ALLOWED_FINALITY_PROVIDERS
@@ -68,7 +68,7 @@ pub fn remove_finality_providers_from_allowlist(
 
     // Remove all FPs in one batch
     for fp_key in fp_btc_pk_bytes_list {
-        fp_set.remove(&fp_key.to_vec());
+        fp_set.remove(fp_key);
     }
 
     ALLOWED_FINALITY_PROVIDERS
@@ -105,6 +105,7 @@ pub fn get_allowed_finality_providers_at_height(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testutil::datagen::get_random_fp_pk;
     use cosmwasm_std::testing::mock_dependencies;
 
     #[test]
@@ -112,50 +113,51 @@ mod tests {
         let mut deps = mock_dependencies();
         let storage = deps.as_mut().storage;
 
-        let fp1 = b"provider1";
-        let fp2 = b"provider2";
-        let fp3 = b"provider3";
-        let fp4 = b"provider4";
+        let fp1 = get_random_fp_pk();
+        let fp2 = get_random_fp_pk();
+        let fp3 = get_random_fp_pk();
+        let fp4 = get_random_fp_pk();
 
         // Height 100: Add fp1, fp2, fp3
-        add_finality_providers_to_allowlist(storage, &[fp1, fp2, fp3], 100).unwrap();
+        add_finality_providers_to_allowlist(storage, &[fp1.clone(), fp2.clone(), fp3.clone()], 100)
+            .unwrap();
 
         // Height 105: Remove fp3, Add fp4
-        remove_finality_providers_from_allowlist(storage, &[fp3], 105).unwrap();
-        add_finality_providers_to_allowlist(storage, &[fp4], 105).unwrap();
+        remove_finality_providers_from_allowlist(storage, &[fp3.clone()], 105).unwrap();
+        add_finality_providers_to_allowlist(storage, &[fp4.clone()], 105).unwrap();
 
         // Test individual checks at current height
-        assert!(ensure_fp_in_allowlist(storage, fp1).is_ok());
-        assert!(ensure_fp_in_allowlist(storage, fp2).is_ok());
+        assert!(ensure_fp_in_allowlist(storage, &fp1).is_ok());
+        assert!(ensure_fp_in_allowlist(storage, &fp2).is_ok());
         assert!(
-            ensure_fp_in_allowlist(storage, fp3).is_err(),
+            ensure_fp_in_allowlist(storage, &fp3).is_err(),
             "fp3 should be removed"
         );
-        assert!(ensure_fp_in_allowlist(storage, fp4).is_ok());
+        assert!(ensure_fp_in_allowlist(storage, &fp4).is_ok());
 
         // Test historical state at specific heights
 
         // At height 102 (should get state from height 100): [fp1, fp2, fp3]
         let list_at_102 = get_allowed_finality_providers_at_height(storage, 102).unwrap();
         assert_eq!(list_at_102.len(), 3);
-        assert!(list_at_102.contains(&hex::encode(fp1)));
-        assert!(list_at_102.contains(&hex::encode(fp2)));
-        assert!(list_at_102.contains(&hex::encode(fp3)));
-        assert!(!list_at_102.contains(&hex::encode(fp4)));
+        assert!(list_at_102.contains(&hex::encode(&fp1)));
+        assert!(list_at_102.contains(&hex::encode(&fp2)));
+        assert!(list_at_102.contains(&hex::encode(&fp3)));
+        assert!(!list_at_102.contains(&hex::encode(&fp4)));
 
         // At height 107 (should get state from height 105): [fp1, fp2, fp4]
         let list_at_107 = get_allowed_finality_providers_at_height(storage, 107).unwrap();
         assert_eq!(list_at_107.len(), 3);
-        assert!(list_at_107.contains(&hex::encode(fp1)));
-        assert!(list_at_107.contains(&hex::encode(fp2)));
-        assert!(list_at_107.contains(&hex::encode(fp4)));
-        assert!(!list_at_107.contains(&hex::encode(fp3)));
+        assert!(list_at_107.contains(&hex::encode(&fp1)));
+        assert!(list_at_107.contains(&hex::encode(&fp2)));
+        assert!(list_at_107.contains(&hex::encode(&fp4)));
+        assert!(!list_at_107.contains(&hex::encode(&fp3)));
 
         // Test current list
         let current_list = get_allowed_finality_providers(storage).unwrap();
         assert_eq!(current_list.len(), 3);
-        assert!(current_list.contains(&hex::encode(fp1)));
-        assert!(current_list.contains(&hex::encode(fp2)));
-        assert!(current_list.contains(&hex::encode(fp4)));
+        assert!(current_list.contains(&hex::encode(&fp1)));
+        assert!(current_list.contains(&hex::encode(&fp2)));
+        assert!(current_list.contains(&hex::encode(&fp4)));
     }
 }

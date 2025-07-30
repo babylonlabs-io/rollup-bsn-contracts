@@ -59,15 +59,9 @@ pub fn instantiate(
             fp_btc_pk_bytes_list.push(fp_btc_pk_bytes);
         }
 
-        // Convert to slice references for the batch function
-        let fp_btc_pk_bytes_refs: Vec<&[u8]> = fp_btc_pk_bytes_list
-            .iter()
-            .map(|bytes| bytes.as_slice())
-            .collect();
-
         crate::state::allowlist::add_finality_providers_to_allowlist(
             deps.storage,
-            &fp_btc_pk_bytes_refs,
+            &fp_btc_pk_bytes_list,
             env.block.height,
         )?;
     }
