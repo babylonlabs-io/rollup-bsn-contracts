@@ -36,26 +36,6 @@ pub fn ensure_fp_in_allowlist(
     }
 }
 
-/// Check if a finality provider was in the allowlist at a specific Babylon height
-pub fn ensure_fp_in_allowlist_at_height(
-    storage: &dyn Storage,
-    fp_btc_pk_bytes: &[u8],
-    babylon_height: u64,
-) -> Result<(), ContractError> {
-    let fp_set = ALLOWED_FINALITY_PROVIDERS
-        .may_load_at_height(storage, babylon_height)
-        .map_err(ContractError::StdError)?
-        .unwrap_or_default();
-
-    if fp_set.contains(fp_btc_pk_bytes) {
-        Ok(())
-    } else {
-        Err(ContractError::FinalityProviderNotAllowed(hex::encode(
-            fp_btc_pk_bytes,
-        )))
-    }
-}
-
 /// Add finality providers to the allowlist at a specific Babylon height
 pub fn add_finality_providers_to_allowlist(
     storage: &mut dyn Storage,
@@ -153,28 +133,7 @@ mod tests {
         );
         assert!(ensure_fp_in_allowlist(storage, fp4).is_ok());
 
-        // Test individual checks at historical heights
-
-        // At height 102 (should use state from height 100)
-        assert!(ensure_fp_in_allowlist_at_height(storage, fp1, 102).is_ok());
-        assert!(
-            ensure_fp_in_allowlist_at_height(storage, fp3, 102).is_ok(),
-            "fp3 existed at height 102"
-        );
-        assert!(
-            ensure_fp_in_allowlist_at_height(storage, fp4, 102).is_err(),
-            "fp4 didn't exist at height 102"
-        );
-
-        // At height 107 (should use state from height 105)
-        assert!(ensure_fp_in_allowlist_at_height(storage, fp1, 107).is_ok());
-        assert!(ensure_fp_in_allowlist_at_height(storage, fp4, 107).is_ok());
-        assert!(
-            ensure_fp_in_allowlist_at_height(storage, fp3, 107).is_err(),
-            "fp3 was removed by height 107"
-        );
-
-        // Test complete list reconstruction
+        // Test historical state at specific heights
 
         // At height 102 (should get state from height 100): [fp1, fp2, fp3]
         let list_at_102 = get_allowed_finality_providers_at_height(storage, 102).unwrap();
