@@ -46,6 +46,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 * [#91](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/91) feat:
   optimize public key handling by using bytes instead of hex
+* [#98](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/98) feat:
+  admin handler to update config
 
 ## v0.1.0
 

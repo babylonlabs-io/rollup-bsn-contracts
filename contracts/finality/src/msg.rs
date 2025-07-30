@@ -1,4 +1,8 @@
 use crate::error::ContractError;
+use crate::validation::{
+    validate_bsn_id, validate_finality_signature_interval, validate_max_msgs_per_interval,
+    validate_min_pub_rand, validate_rate_limiting_interval,
+};
 use babylon_merkle::Proof;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Binary, CosmosMsg};
@@ -37,77 +41,16 @@ pub struct InstantiateMsg {
 }
 
 impl InstantiateMsg {
-    const MAX_BSN_ID_LENGTH: usize = 100;
-
-    /// Validates that a BSN ID has a valid format (non-empty, valid characters, etc.)
-    fn validate_bsn_id_format(&self) -> Result<(), ContractError> {
-        if self.bsn_id.is_empty() {
-            return Err(ContractError::InvalidBsnId(
-                "BSN ID cannot be empty".to_string(),
-            ));
-        }
-
-        // Check for valid characters (alphanumeric, hyphens, underscores)
-        if !self
-            .bsn_id
-            .chars()
-            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
-        {
-            return Err(ContractError::InvalidBsnId(
-                "BSN ID can only contain alphanumeric characters, hyphens, and underscores"
-                    .to_string(),
-            ));
-        }
-
-        // Check length (reasonable bounds)
-        if self.bsn_id.len() > Self::MAX_BSN_ID_LENGTH {
-            return Err(ContractError::InvalidBsnId(
-                "BSN ID cannot exceed {MAX_BSN_ID_LENGTH} characters".to_string(),
-            ));
-        }
-
-        Ok(())
-    }
-
-    fn validate_min_pub_rand(&self) -> Result<(), ContractError> {
-        if self.min_pub_rand == 0 {
-            return Err(ContractError::InvalidMinPubRand(self.min_pub_rand));
-        }
-        Ok(())
-    }
-
-    fn validate_rate_limiting(&self) -> Result<(), ContractError> {
-        if self.rate_limiting_interval == 0 {
-            return Err(ContractError::InvalidRateLimitingInterval(
-                self.rate_limiting_interval,
-            ));
-        }
-        if self.max_msgs_per_interval == 0 {
-            return Err(ContractError::InvalidMaxMsgsPerInterval(
-                self.max_msgs_per_interval,
-            ));
-        }
-        Ok(())
-    }
-
-    fn validate_finality_signature_interval(&self) -> Result<(), ContractError> {
-        if self.finality_signature_interval == 0 {
-            return Err(ContractError::InvalidFinalitySignatureInterval(
-                self.finality_signature_interval,
-            ));
-        }
-        Ok(())
-    }
-
     pub fn validate(&self) -> Result<(), ContractError> {
         // Validate min_pub_rand
-        self.validate_min_pub_rand()?;
+        validate_min_pub_rand(self.min_pub_rand)?;
         // Validate BSN ID format
-        self.validate_bsn_id_format()?;
+        validate_bsn_id(&self.bsn_id)?;
         // Validate rate limiting settings
-        self.validate_rate_limiting()?;
+        validate_rate_limiting_interval(self.rate_limiting_interval)?;
+        validate_max_msgs_per_interval(self.max_msgs_per_interval)?;
         // Validate finality signature interval
-        self.validate_finality_signature_interval()?;
+        validate_finality_signature_interval(self.finality_signature_interval)?;
 
         Ok(())
     }
@@ -258,6 +201,23 @@ pub enum ExecuteMsg {
     RemoveFromAllowlist {
         /// The BTC public keys of the finality providers to remove from the allowlist (in hex format)
         fp_pubkey_hex_list: Vec<String>,
+    },
+    /// Update contract configuration.
+    ///
+    /// This message can be called by the admin only.
+    /// All fields are optional - only provided fields will be updated.
+    /// Updated values must pass the same validation as during instantiation.
+    UpdateConfig {
+        /// New minimum number of public randomness values required (if provided)
+        min_pub_rand: Option<u64>,
+        /// New maximum messages per finality provider per interval (if provided)
+        max_msgs_per_interval: Option<u32>,
+        /// New rate limiting interval in blocks (if provided)
+        rate_limiting_interval: Option<u64>,
+        /// New BSN activation height (if provided)
+        bsn_activation_height: Option<u64>,
+        /// New finality signature interval (if provided)
+        finality_signature_interval: Option<u64>,
     },
 }
 
@@ -435,7 +395,7 @@ mod tests {
     #[test]
     fn test_instantiate_msg_validation_bsn_id_length() {
         // Test maximum length
-        let long_bsn_id = "a".repeat(InstantiateMsg::MAX_BSN_ID_LENGTH);
+        let long_bsn_id = "a".repeat(crate::validation::MAX_BSN_ID_LENGTH);
         let msg = InstantiateMsg {
             admin: "cosmos1admin".to_string(),
             bsn_id: long_bsn_id,
@@ -449,7 +409,7 @@ mod tests {
         assert!(msg.validate().is_ok());
 
         // Test exceeding maximum length
-        let too_long_bsn_id = "a".repeat(InstantiateMsg::MAX_BSN_ID_LENGTH + 1);
+        let too_long_bsn_id = "a".repeat(crate::validation::MAX_BSN_ID_LENGTH + 1);
         let msg = InstantiateMsg {
             admin: "cosmos1admin".to_string(),
             bsn_id: too_long_bsn_id,
