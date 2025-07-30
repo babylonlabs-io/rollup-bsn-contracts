@@ -85,6 +85,12 @@ pub enum QueryMsg {
         limit: Option<u32>,
         reverse: Option<bool>,
     },
+    /// `HighestVotedHeight` returns the highest rollup block height that the given finality provider has voted on.
+    ///
+    /// `btc_pk_hex` is the BTC public key of the finality provider, in hex format.
+    /// Returns None if the finality provider has never submitted a finality signature.
+    #[returns(Option<u64>)]
+    HighestVotedHeight { btc_pk_hex: String },
 
     // SHOULD: Administrative queries
     #[returns(AdminResponse)]
