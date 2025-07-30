@@ -211,10 +211,6 @@ pub(crate) fn prune_finality_signatures(
         FINALITY_SIGNATURES.remove(storage, (*height, fp_btc_pk.as_slice()));
     }
 
-    // Note: We intentionally do NOT modify HIGHEST_VOTED_HEIGHT during pruning.
-    // The highest voted height represents the historical maximum height an FP has voted on,
-    // which should never decrease just because we delete old signature data for storage efficiency.
-
     Ok(all_signatures.len())
 }
 
