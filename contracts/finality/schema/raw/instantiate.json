@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "InstantiateMsg",
+  "description": "Contract instantiation message containing all configuration parameters.",
   "type": "object",
   "required": [
     "admin",
@@ -13,6 +14,7 @@
   ],
   "properties": {
     "admin": {
+      "description": "Initial admin address for the contract who can update settings",
       "type": "string"
     },
     "allowed_finality_providers": {
@@ -26,29 +28,35 @@
       }
     },
     "bsn_activation_height": {
+      "description": "Rollup block height at which the BSN system is activated (0 = immediate activation). Only affects `SubmitFinalitySignature` messages.",
       "type": "integer",
       "format": "uint64",
       "minimum": 0.0
     },
     "bsn_id": {
+      "description": "Unique identifier for the BSN (Bitcoin Supercharged Network) this contract secures",
       "type": "string"
     },
     "finality_signature_interval": {
+      "description": "Interval between allowed finality signature submissions. Signatures can only be submitted at rollup block heights where `(height - bsn_activation_height) % interval == 0`.",
       "type": "integer",
       "format": "uint64",
       "minimum": 1.0
     },
     "max_msgs_per_interval": {
+      "description": "Maximum messages allowed per finality provider per interval",
       "type": "integer",
       "format": "uint32",
       "minimum": 0.0
     },
     "min_pub_rand": {
+      "description": "Minimum number of public randomness values required in commitments",
       "type": "integer",
       "format": "uint64",
       "minimum": 0.0
     },
     "rate_limiting_interval": {
+      "description": "Number of Babylon blocks in each interval",
       "type": "integer",
       "format": "uint64",
       "minimum": 0.0

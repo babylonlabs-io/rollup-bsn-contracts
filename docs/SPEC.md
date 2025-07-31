@@ -36,6 +36,7 @@
     - [4.9.5. Admin (SHOULD)](#495-admin-should)
     - [4.9.6. Config (SHOULD)](#496-config-should)
     - [4.9.7. AllowedFinalityProviders (SHOULD)](#497-allowedfinalityproviders-should)
+    - [4.9.8. AllowedFinalityProvidersAtHeight (SHOULD)](#498-allowedfinalityprovidersatheight-should)
 - [5. Implementation status](#5-implementation-status)
   - [5.1. Babylon implementation status](#51-babylon-implementation-status)
   - [5.2. Finality contract implementation status](#52-finality-contract-implementation-status)
@@ -976,14 +977,16 @@ contract implementation.
   ```
 
 **ALLOWED_FINALITY_PROVIDERS**: Allowlist of finality providers
-- Type: `Map<&[u8], ()>`
+- Type: `SnapshotItem<HashSet<Vec<u8>>>`
 - Storage key: `"allowed_finality_providers"`
-- Key format: `fp_pubkey_bytes` (BTC public key as bytes)
+- Checkpoints key: `"allowed_finality_providers__checkpoints"`
+- Changelog key: `"allowed_finality_providers__changelog"`
+- Strategy: `EveryBlock`
 - Purpose: Stores the set of finality providers that are allowed to submit
   finality signatures and public randomness commitments
-- Value: `()` for all entries (Unit type for no value)
+- Value: `HashSet<Vec<u8>>` containing BTC public key bytes
 - Note: While the API accepts hex strings, the storage layer uses the decoded
-  byte representation for efficiency
+  byte representation for efficiency.
 
 #### 4.8.2. Rate Limiting Storage
 
@@ -1110,6 +1113,12 @@ pub enum QueryMsg {
     /// that are allowed to submit finality signatures and public randomness commitments.
     #[returns(Vec<String>)]
     AllowedFinalityProviders {},
+    /// Get the list of allowed finality providers at a specific Babylon height.
+    ///
+    /// Returns a list of BTC public keys (in hex format) that were allowed
+    /// at the specified Babylon height or the most recent height before it.
+    #[returns(Vec<String>)]
+    AllowedFinalityProvidersAtHeight { babylon_height: u64 },
 
 }
 ```
@@ -1329,6 +1338,35 @@ query to return the list of all allowed finality providers:
 WHERE the return value contains:
 - `Vec<String>` - List of BTC public keys in hex format for all allowed finality
   providers
+
+#### 4.9.8. AllowedFinalityProvidersAtHeight (SHOULD)
+
+**Query Structure:**
+```rust
+AllowedFinalityProvidersAtHeight {
+    babylon_height: u64    // Babylon height to query allowlist at
+}
+```
+
+**Return Type:** `Vec<String>` - List of BTC public keys (in hex format) of
+allowed finality providers at the specified Babylon height
+
+**Expected Behaviour:** Finality contracts SHOULD implement this administrative
+query to return the list of allowed finality providers at a specific Babylon
+height:
+
+1. Query allowlist storage at the specified Babylon height
+   - Retrieve the allowlist state at `babylon_height`
+
+2. Return allowlist information
+   - Return a vector of BTC public keys (in hex format) for all allowed finality
+     providers at the specified height
+   - If no finality providers were in the allowlist at that height, return an
+     empty vector
+
+WHERE the return value contains:
+- `Vec<String>` - List of BTC public keys in hex format for all allowed finality
+  providers at the specified Babylon height
 
 ## 5. Implementation status
 

@@ -41,6 +41,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 * [82](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/82) feat: add
   bsn_activation_height and finality_signature_interval for spam protection
+* [97](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/97) feat:
+  versioning of FP allowlist
 
 ### Improvements
 
