@@ -155,10 +155,10 @@ fn update_highest_voted_height(
         .map_err(|_| ContractError::FailedToLoadHighestVotedHeight(hex::encode(fp_btc_pk)))?
         .unwrap_or(0);
 
-    if height > current_highest {
+    if height >= current_highest {
         HIGHEST_VOTED_HEIGHT
             .save(storage, fp_btc_pk, &height)
-            .map_err(|_| ContractError::FailedToLoadHighestVotedHeight(hex::encode(fp_btc_pk)))?;
+            .map_err(|_| ContractError::FailedToSaveHighestVotedHeight(hex::encode(fp_btc_pk)))?;
     }
 
     Ok(())
@@ -736,6 +736,23 @@ mod tests {
         assert!(get_highest_voted_height(deps.as_ref().storage, &fp_btc_pk)
             .unwrap()
             .is_none());
+
+        // Test height 0 edge case
+        insert_finality_sig_and_signatory(
+            deps.as_mut().storage,
+            &fp_btc_pk,
+            0,
+            &get_random_block_hash(),
+            &get_random_block_hash(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            get_highest_voted_height(deps.as_ref().storage, &fp_btc_pk)
+                .unwrap()
+                .unwrap(),
+            0
+        );
 
         // Vote at height 100
         insert_finality_sig_and_signatory(
