@@ -156,6 +156,30 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "description": "Get the list of allowed finality providers at a specific Babylon height.\n\nReturns a list of BTC public keys (in hex format) that were allowed at the specified Babylon height or the most recent height before it.",
+      "type": "object",
+      "required": [
+        "allowed_finality_providers_at_height"
+      ],
+      "properties": {
+        "allowed_finality_providers_at_height": {
+          "type": "object",
+          "required": [
+            "babylon_height"
+          ],
+          "properties": {
+            "babylon_height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   ]
 }

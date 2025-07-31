@@ -1,49 +1,163 @@
 use cosmwasm_std::Storage;
-use cw_storage_plus::Map;
+use cw_storage_plus::{SnapshotItem, Strategy};
+use std::collections::HashSet;
 
 use crate::error::ContractError;
 use hex;
 
-/// Map of allowed finality provider BTC public keys (as bytes) to a unit value
-pub(crate) const ALLOWED_FINALITY_PROVIDERS: Map<&[u8], ()> =
-    Map::new("allowed_finality_providers");
+// Storage key constants
+const ALLOWED_FINALITY_PROVIDERS_KEY: &str = "allowed_finality_providers";
+const ALLOWED_FINALITY_PROVIDERS_CHECKPOINTS_KEY: &str = "allowed_finality_providers__checkpoints";
+const ALLOWED_FINALITY_PROVIDERS_CHANGELOG_KEY: &str = "allowed_finality_providers__changelog";
 
-/// Check if a finality provider is in the allowlist
+/// SnapshotItem of allowed finality provider BTC public keys stored as a HashSet
+pub(crate) const ALLOWED_FINALITY_PROVIDERS: SnapshotItem<HashSet<Vec<u8>>> = SnapshotItem::new(
+    ALLOWED_FINALITY_PROVIDERS_KEY,
+    ALLOWED_FINALITY_PROVIDERS_CHECKPOINTS_KEY,
+    ALLOWED_FINALITY_PROVIDERS_CHANGELOG_KEY,
+    Strategy::EveryBlock,
+);
+
+/// Check if a finality provider is in the allowlist (at current Babylon height)
 pub fn ensure_fp_in_allowlist(
     storage: &dyn Storage,
     fp_btc_pk_bytes: &[u8],
 ) -> Result<(), ContractError> {
-    ALLOWED_FINALITY_PROVIDERS
-        .has(storage, fp_btc_pk_bytes)
-        .then_some(())
-        .ok_or(ContractError::FinalityProviderNotAllowed(hex::encode(
+    let fp_set = ALLOWED_FINALITY_PROVIDERS
+        .may_load(storage)?
+        .unwrap_or_default();
+
+    if fp_set.contains(fp_btc_pk_bytes) {
+        Ok(())
+    } else {
+        Err(ContractError::FinalityProviderNotAllowed(hex::encode(
             fp_btc_pk_bytes,
         )))
+    }
 }
 
-/// Add a finality provider to the allowlist
-pub fn add_finality_provider_to_allowlist(
+/// Add finality providers to the allowlist at a specific Babylon height
+pub fn add_finality_providers_to_allowlist(
     storage: &mut dyn Storage,
-    fp_btc_pk_bytes: &[u8],
+    fp_btc_pk_bytes_list: &[Vec<u8>],
+    babylon_height: u64,
 ) -> Result<(), ContractError> {
+    let mut fp_set = ALLOWED_FINALITY_PROVIDERS
+        .may_load(storage)?
+        .unwrap_or_default();
+
+    // Add all FPs in one batch
+    for fp_key in fp_btc_pk_bytes_list {
+        fp_set.insert(fp_key.clone());
+    }
+
     ALLOWED_FINALITY_PROVIDERS
-        .save(storage, fp_btc_pk_bytes, &())
+        .save(storage, &fp_set, babylon_height)
         .map_err(Into::into)
 }
 
-/// Remove a finality provider from the allowlist
-pub fn remove_finality_provider_from_allowlist(
+/// Remove finality providers from the allowlist at a specific Babylon height
+pub fn remove_finality_providers_from_allowlist(
     storage: &mut dyn Storage,
-    fp_btc_pk_bytes: &[u8],
+    fp_btc_pk_bytes_list: &[Vec<u8>],
+    babylon_height: u64,
 ) -> Result<(), ContractError> {
-    ALLOWED_FINALITY_PROVIDERS.remove(storage, fp_btc_pk_bytes);
-    Ok(())
+    let mut fp_set = ALLOWED_FINALITY_PROVIDERS
+        .may_load(storage)?
+        .unwrap_or_default();
+
+    // Remove all FPs in one batch
+    for fp_key in fp_btc_pk_bytes_list {
+        fp_set.remove(fp_key);
+    }
+
+    ALLOWED_FINALITY_PROVIDERS
+        .save(storage, &fp_set, babylon_height)
+        .map_err(Into::into)
 }
 
 /// Get all allowed finality providers (as hex strings)
 pub fn get_allowed_finality_providers(storage: &dyn Storage) -> Result<Vec<String>, ContractError> {
-    ALLOWED_FINALITY_PROVIDERS
-        .keys(storage, None, None, cosmwasm_std::Order::Ascending)
-        .map(|item| item.map(hex::encode).map_err(Into::into))
-        .collect()
+    let fp_set = ALLOWED_FINALITY_PROVIDERS
+        .may_load(storage)?
+        .unwrap_or_default();
+
+    let hex_strings: Vec<String> = fp_set.iter().map(|bytes| hex::encode(bytes)).collect();
+
+    Ok(hex_strings)
+}
+
+/// Get all allowed finality providers (as hex strings) at a specific Babylon height
+pub fn get_allowed_finality_providers_at_height(
+    storage: &dyn Storage,
+    babylon_height: u64,
+) -> Result<Vec<String>, ContractError> {
+    let fp_set = ALLOWED_FINALITY_PROVIDERS
+        .may_load_at_height(storage, babylon_height)
+        .map_err(ContractError::StdError)?
+        .unwrap_or_default();
+
+    let hex_strings: Vec<String> = fp_set.iter().map(|bytes| hex::encode(bytes)).collect();
+
+    Ok(hex_strings)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::testutil::datagen::get_random_fp_pk;
+    use cosmwasm_std::testing::mock_dependencies;
+
+    #[test]
+    fn test_hashset_allowlist_functionality() {
+        let mut deps = mock_dependencies();
+        let storage = deps.as_mut().storage;
+
+        let fp1 = get_random_fp_pk();
+        let fp2 = get_random_fp_pk();
+        let fp3 = get_random_fp_pk();
+        let fp4 = get_random_fp_pk();
+
+        // Height 100: Add fp1, fp2, fp3
+        add_finality_providers_to_allowlist(storage, &[fp1.clone(), fp2.clone(), fp3.clone()], 100)
+            .unwrap();
+
+        // Height 105: Remove fp3, Add fp4
+        remove_finality_providers_from_allowlist(storage, &[fp3.clone()], 105).unwrap();
+        add_finality_providers_to_allowlist(storage, &[fp4.clone()], 105).unwrap();
+
+        // Test individual checks at current height
+        assert!(ensure_fp_in_allowlist(storage, &fp1).is_ok());
+        assert!(ensure_fp_in_allowlist(storage, &fp2).is_ok());
+        assert!(
+            ensure_fp_in_allowlist(storage, &fp3).is_err(),
+            "fp3 should be removed"
+        );
+        assert!(ensure_fp_in_allowlist(storage, &fp4).is_ok());
+
+        // Test historical state at specific heights
+
+        // At height 102 (should get state from height 100): [fp1, fp2, fp3]
+        let list_at_102 = get_allowed_finality_providers_at_height(storage, 102).unwrap();
+        assert_eq!(list_at_102.len(), 3);
+        assert!(list_at_102.contains(&hex::encode(&fp1)));
+        assert!(list_at_102.contains(&hex::encode(&fp2)));
+        assert!(list_at_102.contains(&hex::encode(&fp3)));
+        assert!(!list_at_102.contains(&hex::encode(&fp4)));
+
+        // At height 107 (should get state from height 105): [fp1, fp2, fp4]
+        let list_at_107 = get_allowed_finality_providers_at_height(storage, 107).unwrap();
+        assert_eq!(list_at_107.len(), 3);
+        assert!(list_at_107.contains(&hex::encode(&fp1)));
+        assert!(list_at_107.contains(&hex::encode(&fp2)));
+        assert!(list_at_107.contains(&hex::encode(&fp4)));
+        assert!(!list_at_107.contains(&hex::encode(&fp3)));
+
+        // Test current list
+        let current_list = get_allowed_finality_providers(storage).unwrap();
+        assert_eq!(current_list.len(), 3);
+        assert!(current_list.contains(&hex::encode(&fp1)));
+        assert!(current_list.contains(&hex::encode(&fp2)));
+        assert!(current_list.contains(&hex::encode(&fp4)));
+    }
 }

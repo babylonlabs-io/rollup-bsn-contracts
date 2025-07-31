@@ -10,7 +10,9 @@ use crate::exec::public_randomness::handle_public_randomness_commit;
 use crate::msg::BabylonMsg;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::queries::query_block_voters;
-use crate::state::allowlist::get_allowed_finality_providers;
+use crate::state::allowlist::{
+    get_allowed_finality_providers, get_allowed_finality_providers_at_height,
+};
 use crate::state::config::{get_config, set_config, Config, RateLimitingConfig, ADMIN};
 use crate::state::finality::get_highest_voted_height;
 use crate::state::pruning::handle_prune_data;
@@ -20,7 +22,7 @@ use crate::state::public_randomness::{
 
 pub fn instantiate(
     mut deps: DepsMut<BabylonQuery>,
-    _env: Env,
+    env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response<BabylonMsg>, ContractError> {
@@ -45,16 +47,25 @@ pub fn instantiate(
 
     // Add initial allowed finality providers if provided
     if let Some(fp_list) = msg.allowed_finality_providers {
+        // Validate all public keys are not empty
         for fp_pubkey in &fp_list {
             if fp_pubkey.is_empty() {
                 return Err(ContractError::EmptyFpBtcPubKey);
             }
-            let fp_btc_pk_bytes = hex::decode(fp_pubkey)?;
-            crate::state::allowlist::add_finality_provider_to_allowlist(
-                deps.storage,
-                &fp_btc_pk_bytes,
-            )?;
         }
+
+        // Convert hex strings to bytes and collect into slice references
+        let mut fp_btc_pk_bytes_list = Vec::new();
+        for fp_pubkey in &fp_list {
+            let fp_btc_pk_bytes = hex::decode(fp_pubkey)?;
+            fp_btc_pk_bytes_list.push(fp_btc_pk_bytes);
+        }
+
+        crate::state::allowlist::add_finality_providers_to_allowlist(
+            deps.storage,
+            &fp_btc_pk_bytes_list,
+            env.block.height,
+        )?;
     }
 
     Ok(Response::new().add_attribute("action", "instantiate"))
@@ -94,6 +105,9 @@ pub fn query(
         )?),
         QueryMsg::AllowedFinalityProviders {} => Ok(to_json_binary(
             &get_allowed_finality_providers(deps.storage)?,
+        )?),
+        QueryMsg::AllowedFinalityProvidersAtHeight { babylon_height } => Ok(to_json_binary(
+            &get_allowed_finality_providers_at_height(deps.storage, babylon_height)?,
         )?),
     }
 }
@@ -159,10 +173,10 @@ pub fn execute(
             max_pub_rand_values_to_prune,
         ),
         ExecuteMsg::AddToAllowlist { fp_pubkey_hex_list } => {
-            handle_add_to_allowlist(deps, info, fp_pubkey_hex_list)
+            handle_add_to_allowlist(deps, env, info, fp_pubkey_hex_list)
         }
         ExecuteMsg::RemoveFromAllowlist { fp_pubkey_hex_list } => {
-            handle_remove_from_allowlist(deps, info, fp_pubkey_hex_list)
+            handle_remove_from_allowlist(deps, env, info, fp_pubkey_hex_list)
         }
         ExecuteMsg::UpdateConfig {
             min_pub_rand,
@@ -1399,5 +1413,115 @@ pub(crate) mod tests {
         .unwrap();
         let allowed_fps: Vec<String> = from_json(query_res).unwrap();
         assert!(allowed_fps.contains(&initial_fp));
+    }
+
+    #[test]
+    fn test_historical_allowlist_query() {
+        let mut deps = mock_deps_babylon();
+        let admin = deps.api.addr_make(INIT_ADMIN);
+        let admin_info = message_info(&admin, &[]);
+
+        // Helper function to create mock env with specific height
+        fn mock_env_at_height(height: u64) -> Env {
+            let mut env = mock_env();
+            env.block.height = height;
+            env
+        }
+
+        // Setup: Instantiate with initial FPs
+        let initial_fps = vec![
+            get_random_fp_pk_hex(), // fp1
+            get_random_fp_pk_hex(), // fp2
+            get_random_fp_pk_hex(), // fp3
+        ];
+        let instantiate_msg = InstantiateMsg {
+            admin: admin.to_string(),
+            bsn_id: "op-stack-l2-test".to_string(),
+            min_pub_rand: 100,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
+            allowed_finality_providers: Some(initial_fps.clone()),
+        };
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        instantiate(
+            deps.as_mut(),
+            mock_env_at_height(100),
+            info,
+            instantiate_msg,
+        )
+        .unwrap();
+
+        // Height 105: Add fp4, Remove fp3
+        let fp4 = get_random_fp_pk_hex(); // Generate proper random fp4
+        let add_msg = ExecuteMsg::AddToAllowlist {
+            fp_pubkey_hex_list: vec![fp4.clone()],
+        };
+        execute(
+            deps.as_mut(),
+            mock_env_at_height(105),
+            admin_info.clone(),
+            add_msg,
+        )
+        .unwrap();
+
+        let remove_msg = ExecuteMsg::RemoveFromAllowlist {
+            fp_pubkey_hex_list: vec![initial_fps[2].clone()], // remove fp3
+        };
+        execute(
+            deps.as_mut(),
+            mock_env_at_height(105),
+            admin_info,
+            remove_msg,
+        )
+        .unwrap();
+
+        // Test historical queries
+
+        // Query at Babylon height 102 (should get state from height 100): [fp1, fp2, fp3]
+        let query_res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::AllowedFinalityProvidersAtHeight {
+                babylon_height: 102,
+            },
+        )
+        .unwrap();
+        let fps_at_102: Vec<String> = from_json(query_res).unwrap();
+        assert_eq!(fps_at_102.len(), 3);
+        assert!(fps_at_102.contains(&initial_fps[0])); // fp1
+        assert!(fps_at_102.contains(&initial_fps[1])); // fp2
+        assert!(fps_at_102.contains(&initial_fps[2])); // fp3
+        assert!(!fps_at_102.contains(&fp4)); // fp4 not added yet
+
+        // Query at Babylon height 107 (should get state from height 105): [fp1, fp2, fp4]
+        let query_res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::AllowedFinalityProvidersAtHeight {
+                babylon_height: 107,
+            },
+        )
+        .unwrap();
+        let fps_at_107: Vec<String> = from_json(query_res).unwrap();
+        assert_eq!(fps_at_107.len(), 3);
+        assert!(fps_at_107.contains(&initial_fps[0])); // fp1
+        assert!(fps_at_107.contains(&initial_fps[1])); // fp2
+        assert!(!fps_at_107.contains(&initial_fps[2])); // fp3 removed
+        assert!(fps_at_107.contains(&fp4)); // fp4 added
+
+        // Query current state (should match height 107)
+        let query_res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::AllowedFinalityProviders {},
+        )
+        .unwrap();
+        let current_fps: Vec<String> = from_json(query_res).unwrap();
+        assert_eq!(current_fps.len(), fps_at_107.len());
+        for fp in &fps_at_107 {
+            assert!(current_fps.contains(fp));
+        }
     }
 }
