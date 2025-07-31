@@ -20,9 +20,10 @@
     - [4.7.1. CommitPublicRandomness (MUST)](#471-commitpublicrandomness-must)
     - [4.7.2. SubmitFinalitySignature (MUST)](#472-submitfinalitysignature-must)
     - [4.7.3. UpdateAdmin (SHOULD)](#473-updateadmin-should)
-    - [4.5.4. AddToAllowlist (SHOULD)](#454-addtoallowlist-should)
-    - [4.5.5. RemoveFromAllowlist (SHOULD)](#455-removefromallowlist-should)
-    - [4.7.4. PruneData (SHOULD)](#474-prunedata-should)
+    - [4.7.4. UpdateConfig (SHOULD)](#474-updateconfig-should)  
+    - [4.7.5. AddToAllowlist (SHOULD)](#475-addtoallowlist-should)
+    - [4.7.6. RemoveFromAllowlist (SHOULD)](#476-removefromallowlist-should)
+    - [4.7.7. PruneData (SHOULD)](#477-prunedata-should)
   - [4.8. Contract State Storage](#48-contract-state-storage)
     - [4.8.1. Core Configuration](#481-core-configuration)
     - [4.8.2. Rate Limiting Storage](#482-rate-limiting-storage)
@@ -37,6 +38,7 @@
     - [4.9.6. Config (SHOULD)](#496-config-should)
     - [4.9.7. AllowedFinalityProviders (SHOULD)](#497-allowedfinalityproviders-should)
     - [4.9.8. AllowedFinalityProvidersAtHeight (SHOULD)](#498-allowedfinalityprovidersatheight-should)
+    - [4.9.9. HighestVotedHeight (SHOULD)](#499-highestvotedheight-should)
 - [5. Implementation status](#5-implementation-status)
   - [5.1. Babylon implementation status](#51-babylon-implementation-status)
   - [5.2. Finality contract implementation status](#52-finality-contract-implementation-status)
@@ -604,8 +606,8 @@ pub enum ExecuteMsg {
     /// This message can be called by the admin only.
     /// Only finality providers in the allowlist can submit finality signatures and public randomness commitments.
     AddToAllowlist {
-        /// The BTC public key of the finality provider to add to the allowlist (in hex format)
-        fp_pubkey_hex: String,
+        /// The BTC public keys of the finality providers to add to the allowlist (in hex format)
+        fp_pubkey_hex_list: Vec<String>,
     },
     /// Remove a finality provider from the allowlist.
     ///
@@ -613,8 +615,25 @@ pub enum ExecuteMsg {
     /// Removing a finality provider from the allowlist will prevent them from submitting
     /// new finality signatures and public randomness commitments.
     RemoveFromAllowlist {
-        /// The BTC public key of the finality provider to remove from the allowlist (in hex format)
-        fp_pubkey_hex: String,
+        /// The BTC public keys of the finality providers to remove from the allowlist (in hex format)
+        fp_pubkey_hex_list: Vec<String>,
+    },
+    /// Update contract configuration.
+    ///
+    /// This message can be called by the admin only.
+    /// All fields are optional - only provided fields will be updated.
+    /// Updated values must pass the same validation as during instantiation.
+    UpdateConfig {
+        /// New minimum number of public randomness values required (if provided)
+        min_pub_rand: Option<u64>,
+        /// New maximum messages per finality provider per interval (if provided)
+        max_msgs_per_interval: Option<u32>,
+        /// New rate limiting interval in blocks (if provided)
+        rate_limiting_interval: Option<u64>,
+        /// New BSN activation height (if provided)
+        bsn_activation_height: Option<u64>,
+        /// New finality signature interval (if provided)
+        finality_signature_interval: Option<u64>,
     },
 }
 ```
@@ -822,15 +841,54 @@ handler with the following verification logic:
 
 3. **Storage Operations**: Update the admin address:
    - Update the admin address using the cw-controllers Admin functionality
-   - The new admin address from `admin` parameter replaces the current admin
+     - The new admin address from `admin` parameter replaces the current admin
+  - Return success response
+
+#### 4.7.4. UpdateConfig (SHOULD)
+
+**Message Structure:**
+```rust
+UpdateConfig {
+    min_pub_rand: Option<u64>,
+    max_msgs_per_interval: Option<u32>,
+    rate_limiting_interval: Option<u64>,
+    bsn_activation_height: Option<u64>,
+    finality_signature_interval: Option<u64>,
+}
+```
+
+**Expected Behaviour:** Finality contracts SHOULD implement this administrative
+handler with the following verification logic:
+
+1. **Admin Authorization**: Verify that the caller is the current contract
+   admin:
+   - Query the current admin address
+   - Verify that the message sender matches the current admin address
+
+2. **Parameter Validation**: Validate any provided configuration parameters:
+   - If `min_pub_rand` is provided, ensure it is ≥ 1
+   - If `max_msgs_per_interval` is provided, ensure it is ≥ 1
+   - If `rate_limiting_interval` is provided, ensure it is ≥ 1
+   - If `finality_signature_interval` is provided, ensure it is ≥ 1
+   - Use the same validation functions as during contract instantiation
+
+3. **Storage Operations**: Update the contract configuration:
+   - Load the current configuration from storage
+   - Update only the fields that are provided (Some values)
+   - Leave unchanged any fields that are None
+   - Save the updated configuration to storage
    - Return success response
 
-#### 4.5.4. AddToAllowlist (SHOULD)
+**Usage Context:** This message allows the admin to modify operational
+parameters without requiring contract migration, enabling fine-tuning of rate
+limits, finality intervals, and other settings based on network conditions.
+
+#### 4.7.5. AddToAllowlist (SHOULD)
 
 **Message Structure:**
 ```rust
 AddToAllowlist {
-    fp_pubkey_hex: String,
+    fp_pubkey_hex_list: Vec<String>,
 }
 ```
 
@@ -842,21 +900,24 @@ handler with the following verification logic:
    - Query the current admin address
    - Verify that the message sender matches the current admin address
 
-2. **Parameter Validation**: Validate the finality provider public key:
-   - Ensure the `fp_pubkey_hex` parameter is not empty
-   - If empty, return `EmptyFpBtcPubKey` error
+2. **Parameter Validation**: Validate the finality provider public keys:
+   - Ensure the `fp_pubkey_hex_list` is not empty
+   - For each key in the list, ensure it is not empty
+   - If any key is empty, return `EmptyFpBtcPubKey` error
 
-3. **Storage Operations**: Add the finality provider to the allowlist:
-   - Decode the `fp_pubkey_hex` parameter from hex string to bytes
-   - Add the finality provider's BTC public key bytes to the allowlist storage
-   - Return success response with action attributes
+3. **Storage Operations**: Add the finality providers to the allowlist:
+   - For each `fp_pubkey_hex` in the list:
+     - Decode the parameter from hex string to bytes
+     - Add the finality provider's BTC public key bytes to the allowlist storage
+   - Return success response with action attributes indicating the number of
+     providers added
 
-#### 4.5.5. RemoveFromAllowlist (SHOULD)
+#### 4.7.6. RemoveFromAllowlist (SHOULD)
 
 **Message Structure:**
 ```rust
 RemoveFromAllowlist {
-    fp_pubkey_hex: String,
+    fp_pubkey_hex_list: Vec<String>,
 }
 ```
 
@@ -868,17 +929,20 @@ handler with the following verification logic:
    - Query the current admin address
    - Verify that the message sender matches the current admin address
 
-2. **Parameter Validation**: Validate the finality provider public key:
-   - Ensure the `fp_pubkey_hex` parameter is not empty
-   - If empty, return `EmptyFpBtcPubKey` error
+2. **Parameter Validation**: Validate the finality provider public keys:
+   - Ensure the `fp_pubkey_hex_list` is not empty
+   - For each key in the list, ensure it is not empty
+   - If any key is empty, return `EmptyFpBtcPubKey` error
 
-3. **Storage Operations**: Remove the finality provider from the allowlist:
-   - Decode the `fp_pubkey_hex` parameter from hex string to bytes
-   - Remove the finality provider's BTC public key bytes from the allowlist
-     storage
-   - Return success response with action attributes
+3. **Storage Operations**: Remove the finality providers from the allowlist:
+   - For each `fp_pubkey_hex` in the list:
+     - Decode the parameter from hex string to bytes
+     - Remove the finality provider's BTC public key bytes from the allowlist
+       storage
+   - Return success response with action attributes indicating the number of
+     providers removed
 
-#### 4.7.4. PruneData (SHOULD)
+#### 4.7.7. PruneData (SHOULD)
 
 **Message Structure:**
 ```rust
@@ -1021,6 +1085,15 @@ contract implementation.
 - Purpose: Maps each (height, block_hash) combination to the set of finality
   provider public keys (hex-encoded) that voted for it
 
+**HIGHEST_VOTED_HEIGHT**: Highest voted height tracking per finality provider
+- Type: `Map<&[u8], u64>`
+- Storage key: `"highest_voted_height"`
+- Key format: `fp_pubkey_bytes`
+- Purpose: Stores the highest rollup block height that each finality provider
+  has voted on, enabling O(1) lookup for the `HighestVotedHeight` query
+- **Automatic Maintenance**: This map is automatically updated whenever a
+  finality signature is submitted
+
 #### 4.8.4. Public Randomness Storage
 
 **PUB_RAND_VALUES**: Individual public randomness values
@@ -1119,6 +1192,12 @@ pub enum QueryMsg {
     /// at the specified Babylon height or the most recent height before it.
     #[returns(Vec<String>)]
     AllowedFinalityProvidersAtHeight { babylon_height: u64 },
+    /// `HighestVotedHeight` returns the highest rollup block height that the given finality provider has voted on.
+    ///
+    /// `btc_pk_hex` is the BTC public key of the finality provider, in hex format.
+    /// Returns None if the finality provider has never submitted a finality signature.
+    #[returns(Option<u64>)]
+    HighestVotedHeight { btc_pk_hex: String },
 
 }
 ```
@@ -1367,6 +1446,33 @@ height:
 WHERE the return value contains:
 - `Vec<String>` - List of BTC public keys in hex format for all allowed finality
   providers at the specified Babylon height
+
+#### 4.9.9. HighestVotedHeight (SHOULD)
+
+**Query Structure:**
+```rust
+HighestVotedHeight {
+    btc_pk_hex: String    // BTC public key of the finality provider in hex format
+}
+```
+
+**Return Type:** `Option<u64>` - The highest rollup block height that the given
+finality provider has voted on, or `None` if the finality provider has never
+submitted a finality signature.
+
+**Expected Behaviour:** Finality contracts SHOULD implement this query to return
+the highest rollup block height that a given finality provider has voted on:
+
+1. Decode the `btc_pk_hex` parameter from hex string to bytes
+   - This provides the finality provider's BTC public key bytes for storage lookup
+
+2. Query the `HIGHEST_VOTED_HEIGHT` storage using the decoded BTC public key bytes
+   - This dedicated map is automatically maintained when finality signatures are submitted
+   - Provides efficient lookup without iterating through all finality signatures
+
+3. Return the highest voted height
+   - IF no entry found: RETURN `None` (the finality provider has never voted)
+   - IF entry exists: RETURN `Some(height)` with the stored highest voted height
 
 ## 5. Implementation status
 
