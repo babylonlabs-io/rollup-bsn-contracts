@@ -118,6 +118,28 @@
       "additionalProperties": false
     },
     {
+      "description": "`HighestVotedHeight` returns the highest rollup block height that the given finality provider has voted on.\n\n`btc_pk_hex` is the BTC public key of the finality provider, in hex format. Returns None if the finality provider has never submitted a finality signature.",
+      "type": "object",
+      "required": [
+        "highest_voted_height"
+      ],
+      "properties": {
+        "highest_voted_height": {
+          "type": "object",
+          "required": [
+            "btc_pk_hex"
+          ],
+          "properties": {
+            "btc_pk_hex": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
       "type": "object",
       "required": [
         "admin"

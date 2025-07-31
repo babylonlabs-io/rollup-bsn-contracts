@@ -255,6 +255,67 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "description": "Update contract configuration.\n\nThis message can be called by the admin only. All fields are optional - only provided fields will be updated. Updated values must pass the same validation as during instantiation.",
+      "type": "object",
+      "required": [
+        "update_config"
+      ],
+      "properties": {
+        "update_config": {
+          "type": "object",
+          "properties": {
+            "bsn_activation_height": {
+              "description": "New BSN activation height (if provided)",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "finality_signature_interval": {
+              "description": "New finality signature interval (if provided)",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "max_msgs_per_interval": {
+              "description": "New maximum messages per finality provider per interval (if provided)",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "min_pub_rand": {
+              "description": "New minimum number of public randomness values required (if provided)",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "rate_limiting_interval": {
+              "description": "New rate limiting interval in blocks (if provided)",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   ],
   "definitions": {
