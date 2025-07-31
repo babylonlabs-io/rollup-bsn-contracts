@@ -14,6 +14,7 @@ use crate::state::allowlist::{
     get_allowed_finality_providers, get_allowed_finality_providers_at_height,
 };
 use crate::state::config::{get_config, set_config, Config, RateLimitingConfig, ADMIN};
+use crate::state::finality::get_highest_voted_height;
 use crate::state::pruning::handle_prune_data;
 use crate::state::public_randomness::{
     get_first_pub_rand_commit, get_last_pub_rand_commit, list_pub_rand_commit,
@@ -99,6 +100,9 @@ pub fn query(
             limit,
             reverse,
         )?)?),
+        QueryMsg::HighestVotedHeight { btc_pk_hex } => Ok(to_json_binary(
+            &get_highest_voted_height(deps.storage, &hex::decode(&btc_pk_hex)?)?,
+        )?),
         QueryMsg::AllowedFinalityProviders {} => Ok(to_json_binary(
             &get_allowed_finality_providers(deps.storage)?,
         )?),

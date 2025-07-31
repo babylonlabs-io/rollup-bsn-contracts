@@ -325,6 +325,67 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "description": "Update contract configuration.\n\nThis message can be called by the admin only. All fields are optional - only provided fields will be updated. Updated values must pass the same validation as during instantiation.",
+        "type": "object",
+        "required": [
+          "update_config"
+        ],
+        "properties": {
+          "update_config": {
+            "type": "object",
+            "properties": {
+              "bsn_activation_height": {
+                "description": "New BSN activation height (if provided)",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint64",
+                "minimum": 0.0
+              },
+              "finality_signature_interval": {
+                "description": "New finality signature interval (if provided)",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint64",
+                "minimum": 0.0
+              },
+              "max_msgs_per_interval": {
+                "description": "New maximum messages per finality provider per interval (if provided)",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "min_pub_rand": {
+                "description": "New minimum number of public randomness values required (if provided)",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint64",
+                "minimum": 0.0
+              },
+              "rate_limiting_interval": {
+                "description": "New rate limiting interval in blocks (if provided)",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ],
     "definitions": {
@@ -478,6 +539,28 @@
                 ],
                 "format": "uint64",
                 "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "`HighestVotedHeight` returns the highest rollup block height that the given finality provider has voted on.\n\n`btc_pk_hex` is the BTC public key of the finality provider, in hex format. Returns None if the finality provider has never submitted a finality signature.",
+        "type": "object",
+        "required": [
+          "highest_voted_height"
+        ],
+        "properties": {
+          "highest_voted_height": {
+            "type": "object",
+            "required": [
+              "btc_pk_hex"
+            ],
+            "properties": {
+              "btc_pk_hex": {
+                "type": "string"
               }
             },
             "additionalProperties": false
@@ -779,6 +862,16 @@
           "additionalProperties": false
         }
       }
+    },
+    "highest_voted_height": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Nullable_uint64",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "minimum": 0.0
     },
     "last_pub_rand_commit": {
       "$schema": "http://json-schema.org/draft-07/schema#",

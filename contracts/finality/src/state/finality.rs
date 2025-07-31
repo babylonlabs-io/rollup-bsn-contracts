@@ -11,6 +11,10 @@ use std::collections::HashSet;
 const FINALITY_SIGNATURES: Map<(u64, &[u8]), HashSet<FinalitySigInfo>> =
     Map::new("finality_signatures");
 
+/// Maps finality provider BTC public key to their highest voted height.
+/// This enables O(1) lookup of the maximum rollup block height an FP has voted on.
+const HIGHEST_VOTED_HEIGHT: Map<&[u8], u64> = Map::new("highest_voted_height");
+
 pub fn list_finality_signatures(
     storage: &dyn Storage,
     height: u64,
@@ -121,6 +125,41 @@ pub fn insert_finality_sig_and_signatory(
 
     // Add the fp_btc_pk to the signatories for the (height, block_hash) pair
     insert_signatory(storage, height, block_hash, &hex::encode(fp_btc_pk))?;
+
+    // Update the highest voted height for this finality provider
+    update_highest_voted_height(storage, fp_btc_pk, height)?;
+
+    Ok(())
+}
+
+/// Gets the highest voted height for a specific finality provider.
+/// Returns None if the finality provider has never voted.
+pub fn get_highest_voted_height(
+    storage: &dyn Storage,
+    fp_btc_pk: &[u8],
+) -> Result<Option<u64>, ContractError> {
+    HIGHEST_VOTED_HEIGHT
+        .may_load(storage, fp_btc_pk)
+        .map_err(|_| ContractError::FailedToLoadHighestVotedHeight(hex::encode(fp_btc_pk)))
+}
+
+/// Updates the highest voted height for a finality provider if the new height is higher.
+/// This is called internally when a finality signature is inserted.
+fn update_highest_voted_height(
+    storage: &mut dyn Storage,
+    fp_btc_pk: &[u8],
+    height: u64,
+) -> Result<(), ContractError> {
+    let current_highest = HIGHEST_VOTED_HEIGHT
+        .may_load(storage, fp_btc_pk)
+        .map_err(|_| ContractError::FailedToLoadHighestVotedHeight(hex::encode(fp_btc_pk)))?
+        .unwrap_or(0);
+
+    if height >= current_highest {
+        HIGHEST_VOTED_HEIGHT
+            .save(storage, fp_btc_pk, &height)
+            .map_err(|_| ContractError::FailedToSaveHighestVotedHeight(hex::encode(fp_btc_pk)))?;
+    }
 
     Ok(())
 }
@@ -686,5 +725,162 @@ mod tests {
                     .unwrap();
             assert!(signatories.is_some());
         }
+    }
+
+    #[test]
+    fn test_highest_voted_height_basic() {
+        let mut deps = mock_dependencies();
+        let fp_btc_pk = get_random_fp_pk();
+
+        // Initially should return None
+        assert!(get_highest_voted_height(deps.as_ref().storage, &fp_btc_pk)
+            .unwrap()
+            .is_none());
+
+        // Test height 0 edge case
+        insert_finality_sig_and_signatory(
+            deps.as_mut().storage,
+            &fp_btc_pk,
+            0,
+            &get_random_block_hash(),
+            &get_random_block_hash(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            get_highest_voted_height(deps.as_ref().storage, &fp_btc_pk)
+                .unwrap()
+                .unwrap(),
+            0
+        );
+
+        // Vote at height 100
+        insert_finality_sig_and_signatory(
+            deps.as_mut().storage,
+            &fp_btc_pk,
+            100,
+            &get_random_block_hash(),
+            &get_random_block_hash(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            get_highest_voted_height(deps.as_ref().storage, &fp_btc_pk)
+                .unwrap()
+                .unwrap(),
+            100
+        );
+
+        // Vote at higher height 200 - should update
+        insert_finality_sig_and_signatory(
+            deps.as_mut().storage,
+            &fp_btc_pk,
+            200,
+            &get_random_block_hash(),
+            &get_random_block_hash(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            get_highest_voted_height(deps.as_ref().storage, &fp_btc_pk)
+                .unwrap()
+                .unwrap(),
+            200
+        );
+
+        // Vote at lower height 150 - should NOT change
+        insert_finality_sig_and_signatory(
+            deps.as_mut().storage,
+            &fp_btc_pk,
+            150,
+            &get_random_block_hash(),
+            &get_random_block_hash(),
+        )
+        .unwrap();
+
+        // Should still be 200
+        assert_eq!(
+            get_highest_voted_height(deps.as_ref().storage, &fp_btc_pk)
+                .unwrap()
+                .unwrap(),
+            200
+        );
+    }
+
+    #[test]
+    fn test_highest_height_preserved_after_pruning() {
+        let mut deps = mock_dependencies();
+        let fp_btc_pk = get_random_fp_pk();
+
+        // Vote at heights 100, 200, 300
+        for height in [100, 200, 300] {
+            insert_finality_sig_and_signatory(
+                deps.as_mut().storage,
+                &fp_btc_pk,
+                height,
+                &get_random_block_hash(),
+                &get_random_block_hash(),
+            )
+            .unwrap();
+        }
+
+        assert_eq!(
+            get_highest_voted_height(deps.as_ref().storage, &fp_btc_pk)
+                .unwrap()
+                .unwrap(),
+            300
+        );
+
+        // Prune ALL signatures (heights <= 300)
+        prune_finality_signatures(deps.as_mut().storage, 300, None).unwrap();
+
+        // Highest should still be 300 even though all signatures are gone
+        assert_eq!(
+            get_highest_voted_height(deps.as_ref().storage, &fp_btc_pk)
+                .unwrap()
+                .unwrap(),
+            300
+        );
+    }
+
+    #[test]
+    fn test_each_fp_tracks_own_highest() {
+        let mut deps = mock_dependencies();
+        let fp1 = get_random_fp_pk();
+        let fp2 = get_random_fp_pk();
+
+        // FP1 votes at height 100
+        insert_finality_sig_and_signatory(
+            deps.as_mut().storage,
+            &fp1,
+            100,
+            &get_random_block_hash(),
+            &get_random_block_hash(),
+        )
+        .unwrap();
+
+        // FP2 votes at height 500
+        insert_finality_sig_and_signatory(
+            deps.as_mut().storage,
+            &fp2,
+            500,
+            &get_random_block_hash(),
+            &get_random_block_hash(),
+        )
+        .unwrap();
+
+        // Each FP should have their own highest height
+        assert_eq!(
+            get_highest_voted_height(deps.as_ref().storage, &fp1)
+                .unwrap()
+                .unwrap(),
+            100
+        );
+        assert_eq!(
+            get_highest_voted_height(deps.as_ref().storage, &fp2)
+                .unwrap()
+                .unwrap(),
+            500
+        );
     }
 }

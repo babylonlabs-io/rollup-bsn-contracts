@@ -11,6 +11,10 @@ use babylon_merkle::error::MerkleError;
 pub enum ContractError {
     #[error("Failed to load finality signature: {0} at height {1}")]
     FailedToLoadFinalitySignature(String, u64),
+    #[error("Failed to load highest voted height for finality provider: {0}")]
+    FailedToLoadHighestVotedHeight(String),
+    #[error("Failed to save highest voted height for finality provider: {0}")]
+    FailedToSaveHighestVotedHeight(String),
     #[error("Failed to load signatories by block hash: {0} at height {1}")]
     FailedToLoadSignatories(String, u64),
     #[error("Empty signature from the delegator")]
