@@ -17,7 +17,8 @@ use crate::state::config::{get_config, set_config, Config, RateLimitingConfig, A
 use crate::state::finality::get_highest_voted_height;
 use crate::state::pruning::handle_prune_data;
 use crate::state::public_randomness::{
-    get_first_pub_rand_commit, get_last_pub_rand_commit, list_pub_rand_commit,
+    get_first_pub_rand_commit, get_last_pub_rand_commit, get_pub_rand_commit_for_height,
+    list_pub_rand_commit,
 };
 
 pub fn instantiate(
@@ -87,6 +88,9 @@ pub fn query(
         )?),
         QueryMsg::LastPubRandCommit { btc_pk_hex } => Ok(to_json_binary(
             &get_last_pub_rand_commit(deps.storage, &hex::decode(&btc_pk_hex)?)?,
+        )?),
+        QueryMsg::PubRandCommitForHeight { btc_pk_hex, height } => Ok(to_json_binary(
+            &get_pub_rand_commit_for_height(deps.storage, &hex::decode(&btc_pk_hex)?, height)?,
         )?),
         QueryMsg::ListPubRandCommit {
             btc_pk_hex,

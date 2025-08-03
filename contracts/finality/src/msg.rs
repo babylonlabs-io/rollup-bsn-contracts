@@ -72,6 +72,12 @@ pub enum QueryMsg {
     /// `btc_pk_hex` is the BTC public key of the finality provider, in hex format.
     #[returns(Option<PubRandCommit>)]
     LastPubRandCommit { btc_pk_hex: String },
+    /// `PubRandCommitForHeight` returns the public randomness commitment that covers a specific height for a given FP.
+    ///
+    /// `btc_pk_hex` is the BTC public key of the finality provider, in hex format.
+    /// `height` is the block height to find the covering public randomness commitment for.
+    #[returns(Option<PubRandCommit>)]
+    PubRandCommitForHeight { btc_pk_hex: String, height: u64 },
     /// `ListPubRandCommit` returns a list of public randomness commitments for a given FP.
     ///
     /// `btc_pk_hex` is the BTC public key of the finality provider, in hex format.

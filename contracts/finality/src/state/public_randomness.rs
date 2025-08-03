@@ -62,11 +62,11 @@ impl PubRandCommit {
     }
 }
 
-fn get_pub_rand_commit_for_height(
+pub fn get_pub_rand_commit_for_height(
     storage: &dyn Storage,
     fp_btc_pk: &[u8],
     height: u64,
-) -> Result<PubRandCommit, ContractError> {
+) -> Result<Option<PubRandCommit>, ContractError> {
     let end_at = Some(Bound::inclusive(height));
     let res = PUB_RAND_COMMITS
         .prefix(fp_btc_pk)
@@ -84,12 +84,9 @@ fn get_pub_rand_commit_for_height(
         })
         .collect::<StdResult<Vec<_>>>()?;
     if res.is_empty() {
-        Err(ContractError::MissingPubRandCommit(
-            hex::encode(fp_btc_pk),
-            height,
-        ))
+        Ok(None)
     } else {
-        Ok(res[0].clone())
+        Ok(Some(res[0].clone()))
     }
 }
 
@@ -102,7 +99,8 @@ pub fn get_timestamped_pub_rand_commit_for_height(
     fp_btc_pk: &[u8],
     height: u64,
 ) -> Result<PubRandCommit, ContractError> {
-    let pr_commit = get_pub_rand_commit_for_height(deps.storage, fp_btc_pk, height)?;
+    let pr_commit = get_pub_rand_commit_for_height(deps.storage, fp_btc_pk, height)?
+        .ok_or_else(|| ContractError::MissingPubRandCommit(hex::encode(fp_btc_pk), height))?;
 
     // Ensure the finality provider's corresponding randomness commitment is already finalised by
     // BTC timestamping
