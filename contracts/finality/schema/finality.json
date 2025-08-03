@@ -503,6 +503,34 @@
         "additionalProperties": false
       },
       {
+        "description": "`PubRandCommitForHeight` returns the public randomness commitment that covers a specific height for a given FP.\n\n`btc_pk_hex` is the BTC public key of the finality provider, in hex format. `height` is the block height to find the covering public randomness commitment for.",
+        "type": "object",
+        "required": [
+          "pub_rand_commit_for_height"
+        ],
+        "properties": {
+          "pub_rand_commit_for_height": {
+            "type": "object",
+            "required": [
+              "btc_pk_hex",
+              "height"
+            ],
+            "properties": {
+              "btc_pk_hex": {
+                "type": "string"
+              },
+              "height": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
         "description": "`ListPubRandCommit` returns a list of public randomness commitments for a given FP.\n\n`btc_pk_hex` is the BTC public key of the finality provider, in hex format. `start_after` is optional pagination parameter - only return commitments with start_height > start_after. `limit` is optional limit on number of results (default 10, max 30). `reverse` is optional flag to reverse the order (default false = ascending by start_height).",
         "type": "object",
         "required": [
@@ -934,6 +962,60 @@
       "items": {
         "$ref": "#/definitions/PubRandCommit"
       },
+      "definitions": {
+        "PubRandCommit": {
+          "description": "`PubRandCommit` is a commitment to a series of public randomness. Currently, the commitment is a root of a Merkle tree that includes a series of public randomness values",
+          "type": "object",
+          "required": [
+            "babylon_epoch",
+            "commitment",
+            "num_pub_rand",
+            "start_height"
+          ],
+          "properties": {
+            "babylon_epoch": {
+              "description": "The epoch number of Babylon when the commit was submitted",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "commitment": {
+              "description": "Value of the commitment. Currently, it's the root of the Merkle tree constructed by the public randomness",
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint8",
+                "minimum": 0.0
+              }
+            },
+            "num_pub_rand": {
+              "description": "The amount of committed public randomness",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "start_height": {
+              "description": "The height of the first commitment",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "pub_rand_commit_for_height": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Nullable_PubRandCommit",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/PubRandCommit"
+        },
+        {
+          "type": "null"
+        }
+      ],
       "definitions": {
         "PubRandCommit": {
           "description": "`PubRandCommit` is a commitment to a series of public randomness. Currently, the commitment is a root of a Merkle tree that includes a series of public randomness values",
