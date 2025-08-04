@@ -52,6 +52,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
   optimize public key handling by using bytes instead of hex
 * [#98](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/98) feat:
   admin handler to update config
+* [#101](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/101) chore:
+  expose get_pub_rand_commit_for_height query
 
 ## v0.1.0
 
