@@ -186,16 +186,12 @@ pub fn execute(
             min_pub_rand,
             max_msgs_per_interval,
             rate_limiting_interval,
-            bsn_activation_height,
-            finality_signature_interval,
         } => handle_update_config(
             deps,
             info,
             min_pub_rand,
             max_msgs_per_interval,
             rate_limiting_interval,
-            bsn_activation_height,
-            finality_signature_interval,
         ),
     }
 }
@@ -1095,8 +1091,6 @@ pub(crate) mod tests {
             min_pub_rand: Some(200),
             max_msgs_per_interval: None,
             rate_limiting_interval: None,
-            bsn_activation_height: None,
-            finality_signature_interval: None,
         };
         let admin_info = message_info(&admin, &[]);
         let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), update_msg).unwrap();
@@ -1110,19 +1104,12 @@ pub(crate) mod tests {
         let config: Config = from_json(config_query).unwrap();
         assert_eq!(config.bsn_id, bsn_id); // unchanged
         assert_eq!(config.min_pub_rand, 200); // updated
-        assert_eq!(config.bsn_activation_height, bsn_activation_height); // unchanged
-        assert_eq!(
-            config.finality_signature_interval,
-            finality_signature_interval
-        ); // unchanged
 
         // Test 2: Update multiple fields at once
         let update_msg = ExecuteMsg::UpdateConfig {
             min_pub_rand: Some(300),
             max_msgs_per_interval: Some(150),
             rate_limiting_interval: Some(15000),
-            bsn_activation_height: Some(2000),
-            finality_signature_interval: Some(200),
         };
         let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), update_msg).unwrap();
 
@@ -1137,8 +1124,6 @@ pub(crate) mod tests {
         assert_eq!(config.min_pub_rand, 300);
         assert_eq!(config.rate_limiting.max_msgs_per_interval, 150);
         assert_eq!(config.rate_limiting.block_interval, 15000);
-        assert_eq!(config.bsn_activation_height, 2000);
-        assert_eq!(config.finality_signature_interval, 200);
 
         // Test 3: Non-admin cannot update config
         let non_admin_info = message_info(&non_admin, &[]);
@@ -1146,8 +1131,6 @@ pub(crate) mod tests {
             min_pub_rand: Some(999),
             max_msgs_per_interval: None,
             rate_limiting_interval: None,
-            bsn_activation_height: None,
-            finality_signature_interval: None,
         };
         let err = execute(deps.as_mut(), mock_env(), non_admin_info, update_msg).unwrap_err();
         assert_eq!(err, ContractError::Admin(AdminError::NotAdmin {}));
@@ -1157,8 +1140,6 @@ pub(crate) mod tests {
             min_pub_rand: None,
             max_msgs_per_interval: None,
             rate_limiting_interval: None,
-            bsn_activation_height: None,
-            finality_signature_interval: None,
         };
         let err = execute(deps.as_mut(), mock_env(), admin_info, empty_update_msg).unwrap_err();
         assert_eq!(err, ContractError::NoConfigFieldsToUpdate);
@@ -1191,8 +1172,6 @@ pub(crate) mod tests {
             min_pub_rand: Some(0), // invalid: must be > 0
             max_msgs_per_interval: None,
             rate_limiting_interval: None,
-            bsn_activation_height: None,
-            finality_signature_interval: None,
         };
         let err = execute(
             deps.as_mut(),
@@ -1208,8 +1187,6 @@ pub(crate) mod tests {
             min_pub_rand: None,
             max_msgs_per_interval: Some(0), // invalid: must be > 0
             rate_limiting_interval: None,
-            bsn_activation_height: None,
-            finality_signature_interval: None,
         };
         let err = execute(
             deps.as_mut(),
@@ -1225,8 +1202,6 @@ pub(crate) mod tests {
             min_pub_rand: None,
             max_msgs_per_interval: None,
             rate_limiting_interval: Some(0), // invalid: must be > 0
-            bsn_activation_height: None,
-            finality_signature_interval: None,
         };
         let err = execute(
             deps.as_mut(),
@@ -1236,23 +1211,6 @@ pub(crate) mod tests {
         )
         .unwrap_err();
         assert_eq!(err, ContractError::InvalidRateLimitingInterval(0));
-
-        // Test invalid finality_signature_interval
-        let invalid_finality_interval_update = ExecuteMsg::UpdateConfig {
-            min_pub_rand: None,
-            max_msgs_per_interval: None,
-            rate_limiting_interval: None,
-            bsn_activation_height: None,
-            finality_signature_interval: Some(0), // invalid: must be > 0
-        };
-        let err = execute(
-            deps.as_mut(),
-            mock_env(),
-            admin_info,
-            invalid_finality_interval_update,
-        )
-        .unwrap_err();
-        assert_eq!(err, ContractError::InvalidFinalitySignatureInterval(0));
     }
 
     #[test]
