@@ -1552,7 +1552,7 @@ pub(crate) mod tests {
         // Test add to allowlist event
         let fp_keys = vec![
             "02a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7".to_string(),
-            "02a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7".to_string(),
+            "c51bff10d544a2daa9e57fa00b70eb4b61d01a646c040fd0c7c1f69fd8289c8ac3".to_string(),
         ];
         let add_msg = ExecuteMsg::AddToAllowlist {
             fp_pubkey_hex_list: fp_keys.clone(),
