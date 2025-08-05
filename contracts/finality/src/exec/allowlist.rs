@@ -37,8 +37,8 @@ pub fn handle_add_to_allowlist(
 
     add_finality_providers_to_allowlist(deps.storage, &fp_btc_pk_bytes_list, env.block.height)?;
 
-    let event = Event::new("add_to_allowlist")
-        .add_attribute("fp_pubkeys", fp_pubkey_hex_list.join(","));
+    let event =
+        Event::new("add_to_allowlist").add_attribute("fp_pubkeys", fp_pubkey_hex_list.join(","));
 
     Ok(Response::new()
         .add_event(event)

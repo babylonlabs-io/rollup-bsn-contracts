@@ -48,6 +48,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Improvements
 
+* [#103](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/103) core: 
+  add events for allow-list
 * [#91](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/91) feat:
   optimize public key handling by using bytes instead of hex
 * [#98](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/98) feat:
