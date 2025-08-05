@@ -852,8 +852,6 @@ UpdateConfig {
     min_pub_rand: Option<u64>,
     max_msgs_per_interval: Option<u32>,
     rate_limiting_interval: Option<u64>,
-    bsn_activation_height: Option<u64>,
-    finality_signature_interval: Option<u64>,
 }
 ```
 
@@ -869,7 +867,6 @@ handler with the following verification logic:
    - If `min_pub_rand` is provided, ensure it is ≥ 1
    - If `max_msgs_per_interval` is provided, ensure it is ≥ 1
    - If `rate_limiting_interval` is provided, ensure it is ≥ 1
-   - If `finality_signature_interval` is provided, ensure it is ≥ 1
    - Use the same validation functions as during contract instantiation
 
 3. **Storage Operations**: Update the contract configuration:
@@ -878,6 +875,9 @@ handler with the following verification logic:
    - Leave unchanged any fields that are None
    - Save the updated configuration to storage
    - Return success response
+
+> **Note**: The `bsn_activation_height` and `finality_signature_interval` parameters are 
+> immutable and cannot be updated after contract instantiation
 
 **Usage Context:** This message allows the admin to modify operational
 parameters without requiring contract migration, enabling fine-tuning of rate

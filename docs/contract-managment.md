@@ -171,7 +171,7 @@ underscores with a maximum length of 100 characters.
 **min_pub_rand**  
 > **Type**: Integer (positive)  
 > **Required**: Yes  
-> **Mutable**: No  
+> **Mutable**: Yes (via `update_config` message)  
 
 The `min_pub_rand` parameter sets the minimum number of public randomness values that
 finality providers must include in each public randomness commitment.
@@ -179,7 +179,7 @@ finality providers must include in each public randomness commitment.
 **rate_limiting_interval**  
 > **Type**: Integer (positive)  
 > **Required**: Yes  
-> **Mutable**: No  
+> **Mutable**: Yes (via `update_config` message)  
 
 The `rate_limiting_interval` specifies the length (in Babylon Genesis blocks) of the rate limiting window.
 Within each interval, a finality provider can submit a limited number of messages,
@@ -191,7 +191,7 @@ how often a provider can interact with the contract.
 **max_msgs_per_interval**  
 > **Type**: Integer (positive)  
 > **Required**: Yes  
-> **Mutable**: No  
+> **Mutable**: Yes (via `update_config` message)  
 
 The `max_msgs_per_interval` sets the maximum number of messages a finality provider
 can submit during each rate limiting interval.
@@ -340,6 +340,26 @@ JSON_MSG={
 ```
 > **Variable:**  
 > `$FP_BTC_PUBKEY`: Hex-encoded compressed BTC public key of the Finality Provider
+
+**Update Configuration Parameters**
+
+```shell
+JSON_MSG={
+  "update_config": {
+    "min_pub_rand": $MIN_PUB_RAND,
+    "max_msgs_per_interval": $MAX_MSGS_PER_INTERVAL,
+    "rate_limiting_interval": $RATE_LIMITING_INTERVAL
+  }
+}
+```
+> **Variables:**  
+> `$MIN_PUB_RAND`: (Optional) New minimum number of public randomness values required  
+> `$MAX_MSGS_PER_INTERVAL`: (Optional) New maximum messages per finality provider per interval  
+> `$RATE_LIMITING_INTERVAL`: (Optional) New rate limiting interval in blocks  
+
+> **Note**: All fields are optional - only provided fields will be updated. At least one field must be provided.
+> The `bsn_activation_height` and `finality_signature_interval` parameters are immutable 
+> and can only be set during instantiation.
 
 For details on when and why to use these messages, see [Contract Maintenance](#6-contract-maintenance).
 
