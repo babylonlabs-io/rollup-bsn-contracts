@@ -1528,4 +1528,57 @@ pub(crate) mod tests {
             assert!(current_fps.contains(fp));
         }
     }
+
+    #[test]
+    fn test_allowlist_events() {
+        let mut deps = mock_deps_babylon();
+        let admin = deps.api.addr_make(INIT_ADMIN);
+        let admin_info = message_info(&admin, &[]);
+
+        // Instantiate contract
+        let instantiate_msg = InstantiateMsg {
+            admin: admin.to_string(),
+            bsn_id: "test-bsn-id".to_string(),
+            min_pub_rand: 100,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
+            allowed_finality_providers: None,
+        };
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+
+        // Test add to allowlist event
+        let fp_keys = vec![
+            "02a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7".to_string(),
+            "02a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7".to_string(),
+        ];
+        let add_msg = ExecuteMsg::AddToAllowlist {
+            fp_pubkey_hex_list: fp_keys.clone(),
+        };
+        let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), add_msg).unwrap();
+
+        // Check event was emitted
+        assert_eq!(res.events.len(), 1);
+        let event = &res.events[0];
+        assert_eq!(event.ty, "add_to_allowlist");
+        assert_eq!(event.attributes.len(), 1);
+        assert_eq!(event.attributes[0].key, "fp_pubkeys");
+        assert_eq!(event.attributes[0].value, fp_keys.join(","));
+
+        // Test remove from allowlist event
+        let remove_msg = ExecuteMsg::RemoveFromAllowlist {
+            fp_pubkey_hex_list: vec![fp_keys[0].clone()],
+        };
+        let res = execute(deps.as_mut(), mock_env(), admin_info, remove_msg).unwrap();
+
+        // Check event was emitted
+        assert_eq!(res.events.len(), 1);
+        let event = &res.events[0];
+        assert_eq!(event.ty, "remove_from_allowlist");
+        assert_eq!(event.attributes.len(), 1);
+        assert_eq!(event.attributes[0].key, "fp_pubkeys");
+        assert_eq!(event.attributes[0].value, fp_keys[0].clone());
+    }
 }
