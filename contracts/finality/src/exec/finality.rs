@@ -69,7 +69,15 @@ pub fn handle_finality_signature(
     // Verify the finality signature message
     let context = get_fp_fin_vote_context_v0(env)?;
     verify_finality_signature(
-        deps.storage, &fp_btc_pk, height, pub_rand, proof, &pr_commit, block_hash, &context, signature,
+        deps.storage,
+        &fp_btc_pk,
+        height,
+        pub_rand,
+        proof,
+        &pr_commit,
+        block_hash,
+        &context,
+        signature,
     )?;
 
     // Save the finality signature and signatory in an atomic operation
@@ -140,11 +148,11 @@ fn verify_finality_signature(
 ) -> Result<(), ContractError> {
     // Get the finality signature interval for sparse generation support
     let config = get_config(storage)?;
-    
+
     // For sparse generation: proof_height = start_height + index * interval
     // For consecutive generation (interval=1): proof_height = start_height + index * 1 = start_height + index (same as before)
     let proof_height = pr_commit.start_height + proof.index * config.finality_signature_interval;
-    
+
     if block_height != proof_height {
         return Err(ContractError::InvalidFinalitySigHeight(
             proof_height,
@@ -307,7 +315,7 @@ pub(crate) mod tests {
         let context = "";
         // For test, we need to create a mock storage with proper config
         let mut deps = mock_deps_babylon();
-        
+
         // Set up a default config for testing (interval = 1 for consecutive generation)
         let config = crate::state::config::Config {
             bsn_id: "test-bsn".to_string(),
@@ -320,10 +328,11 @@ pub(crate) mod tests {
             finality_signature_interval: 1, // Consecutive generation for this test
         };
         crate::state::config::set_config(deps.as_mut().storage, &config).unwrap();
-        
+
         // Calculate block height using the same logic as verify_finality_signature
-        let block_height = pr_commit.start_height + proof.index.unsigned_abs() * config.finality_signature_interval;
-        
+        let block_height = pr_commit.start_height
+            + proof.index.unsigned_abs() * config.finality_signature_interval;
+
         let res = verify_finality_signature(
             deps.as_ref().storage,
             &hex::decode(&pk_hex).unwrap(),
