@@ -336,24 +336,6 @@
           "update_config": {
             "type": "object",
             "properties": {
-              "bsn_activation_height": {
-                "description": "New BSN activation height (if provided)",
-                "type": [
-                  "integer",
-                  "null"
-                ],
-                "format": "uint64",
-                "minimum": 0.0
-              },
-              "finality_signature_interval": {
-                "description": "New finality signature interval (if provided)",
-                "type": [
-                  "integer",
-                  "null"
-                ],
-                "format": "uint64",
-                "minimum": 0.0
-              },
               "max_msgs_per_interval": {
                 "description": "New maximum messages per finality provider per interval (if provided)",
                 "type": [
