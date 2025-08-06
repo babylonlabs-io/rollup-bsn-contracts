@@ -69,15 +69,7 @@ pub fn handle_finality_signature(
     // Verify the finality signature message
     let context = get_fp_fin_vote_context_v0(env)?;
     verify_finality_signature(
-        deps.storage,
-        &fp_btc_pk,
-        height,
-        pub_rand,
-        proof,
-        &pr_commit,
-        block_hash,
-        &context,
-        signature,
+        &fp_btc_pk, height, pub_rand, proof, &pr_commit, block_hash, &context, signature,
     )?;
 
     // Save the finality signature and signatory in an atomic operation
@@ -136,7 +128,6 @@ pub fn handle_finality_signature(
 /// - Finality signature
 #[allow(clippy::too_many_arguments)]
 fn verify_finality_signature(
-    storage: &dyn Storage,
     fp_btc_pk: &[u8],
     block_height: u64,
     pub_rand: &[u8],
@@ -146,12 +137,9 @@ fn verify_finality_signature(
     signing_context: &str,
     signature: &[u8],
 ) -> Result<(), ContractError> {
-    // Get the finality signature interval for sparse generation support
-    let config = get_config(storage)?;
-
     // For sparse generation: proof_height = start_height + index * interval
     // For consecutive generation (interval=1): proof_height = start_height + index * 1 = start_height + index
-    let proof_height = pr_commit.start_height + proof.index * config.finality_signature_interval;
+    let proof_height = pr_commit.start_height + proof.index * pr_commit.interval;
 
     if block_height != proof_height {
         return Err(ContractError::InvalidFinalitySigHeight(
@@ -337,7 +325,6 @@ pub(crate) mod tests {
             + proof.index.unsigned_abs() * config.finality_signature_interval;
 
         let res = verify_finality_signature(
-            deps.as_ref().storage,
             &hex::decode(&pk_hex).unwrap(),
             block_height,
             &pub_rand_value,
