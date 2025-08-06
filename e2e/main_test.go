@@ -302,7 +302,7 @@ func (s *FinalityContractTestSuite) Test5Slash() {
 	fp, err := s.babylonApp.BTCStakingKeeper.GetFinalityProvider(s.ctx, fpBTCPK.MustMarshal())
 	s.NoError(err)
 
-	// Mock another block with start height 1 (different from Test4)
+	// Mock another block with same height
 	startHeight := sharedTestData.StartHeight
 	blockToVote := datagen.GenRandomBlockWithHeight(r, startHeight)
 	appHash := blockToVote.AppHash
