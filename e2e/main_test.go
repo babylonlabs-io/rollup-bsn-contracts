@@ -151,9 +151,10 @@ func (s *FinalityContractTestSuite) Test3CommitAndTimestampPubRand() {
 
 	// generate secret/public randomness list
 	numPubRand := uint64(100)
-	commitStartHeight := uint64(1)
+	commitStartHeight := s.contractCfg.BsnActivationHeight
 	signingCtx := signingcontext.FpRandCommitContextV0(s.ctx.ChainID(), s.contractAddr.String())
-	randListInfo, sig, err := GenRandomMsgCommitPubRandList(r, fpSK, signingCtx, commitStartHeight, numPubRand)
+	var sig *bbn.BIP340Signature
+	randListInfo, sig, err = GenRandomMsgCommitPubRandList(r, fpSK, signingCtx, commitStartHeight, numPubRand)
 	s.NoError(err)
 
 	// construct pub rand commit message
@@ -199,14 +200,12 @@ func (s *FinalityContractTestSuite) Test4_SubmitFinalitySig() {
 	fp, err := s.babylonApp.BTCStakingKeeper.GetFinalityProvider(s.ctx, fpBTCPK.MustMarshal())
 	s.NoError(err)
 
-	// query last pub rand commit
-	prCommit := s.QueryFirstPubRandCommit(*fp.BtcPk)
-
-	// Mock a block with start height 1 - store in shared data for duplicate test
-	startHeight := prCommit.StartHeight + prCommit.Interval
+	// Use height 5 which is: commitStartHeight (0) + index (1) * interval (5) = 5
+	// This aligns with both the public randomness commitment and finality signature interval
+	startHeight := uint64(5)
 	blockToVote := datagen.GenRandomBlockWithHeight(r, startHeight)
 	appHash := blockToVote.AppHash
-	idx := 1
+	idx := 1 // Index in the public randomness list
 
 	// Store shared test data for Test4_SubmitFinalitySigDuplicate
 	sharedTestData = &TestSignatureData{
