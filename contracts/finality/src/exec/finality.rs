@@ -150,7 +150,7 @@ fn verify_finality_signature(
     let config = get_config(storage)?;
 
     // For sparse generation: proof_height = start_height + index * interval
-    // For consecutive generation (interval=1): proof_height = start_height + index * 1 = start_height + index (same as before)
+    // For consecutive generation (interval=1): proof_height = start_height + index * 1 = start_height + index
     let proof_height = pr_commit.start_height + proof.index * config.finality_signature_interval;
 
     if block_height != proof_height {
@@ -325,7 +325,9 @@ pub(crate) mod tests {
                 block_interval: 10,
             },
             bsn_activation_height: 0,
-            finality_signature_interval: 1, // Consecutive generation for this test
+            // Consecutive generation for this test
+            // TODO: test with interval > 1
+            finality_signature_interval: 1,
         };
         crate::state::config::set_config(deps.as_mut().storage, &config).unwrap();
 
