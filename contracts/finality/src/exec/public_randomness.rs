@@ -414,8 +414,8 @@ pub(crate) mod tests {
     fn test_overflow_protection_fails() {
         let mut deps = mock_deps_babylon();
 
-        // Configure the contract with random min_pub_rand
-        let instantiate_msg = new_init_msg(get_random_u64());
+        // Configure the contract with small min_pub_rand to avoid TooFewPubRand error
+        let instantiate_msg = new_init_msg(1);
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
@@ -430,8 +430,8 @@ pub(crate) mod tests {
             deps.as_mut(),
             &mock_env(),
             &get_random_fp_pk_hex(),
-            u64::MAX, // This will cause overflow when added to num_pub_rand
-            1,
+            u64::MAX - 10, // This will cause overflow when we add (num_pub_rand-1)*interval
+            100,           // Large enough to pass min_pub_rand but cause overflow
             &get_random_block_hash(),
             &random_signature,
         );
@@ -439,7 +439,7 @@ pub(crate) mod tests {
         assert_eq!(
             result.unwrap_err(),
             ContractError::OverflowInBlockHeight {
-                start_height: u64::MAX
+                start_height: u64::MAX - 10
             }
         );
     }
