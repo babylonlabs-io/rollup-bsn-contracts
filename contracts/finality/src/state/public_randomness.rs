@@ -44,8 +44,25 @@ pub struct PubRandCommit {
     pub commitment: Bytes,
 }
 
-pub fn compute_end_height(start_height: u64, num_pub_rand: u64, interval: u64) -> u64 {
-    start_height + num_pub_rand * interval - 1
+/// Computes the end height of a public randomness commitment with overflow detection.
+///
+/// Returns OverflowInBlockHeight error if any arithmetic operation would overflow.
+pub fn compute_end_height(
+    start_height: u64,
+    num_pub_rand: u64,
+    interval: u64,
+) -> Result<u64, ContractError> {
+    let range = num_pub_rand
+        .checked_mul(interval)
+        .ok_or_else(|| ContractError::OverflowInBlockHeight { start_height })?;
+
+    let end_before_sub = start_height
+        .checked_add(range)
+        .ok_or_else(|| ContractError::OverflowInBlockHeight { start_height })?;
+
+    end_before_sub
+        .checked_sub(1)
+        .ok_or_else(|| ContractError::OverflowInBlockHeight { start_height })
 }
 
 impl PubRandCommit {
@@ -74,7 +91,11 @@ impl PubRandCommit {
         }
 
         // Check if the height is after the end height
-        if height > self.end_height() {
+        let end_height = match self.end_height() {
+            Ok(height) => height,
+            Err(_) => return false, // Overflow means invalid commitment
+        };
+        if height > end_height {
             return false;
         }
 
@@ -88,7 +109,7 @@ impl PubRandCommit {
     }
 
     /// `end_height` returns the height of the last commitment
-    pub fn end_height(&self) -> u64 {
+    pub fn end_height(&self) -> Result<u64, ContractError> {
         compute_end_height(self.start_height, self.num_pub_rand, self.interval)
     }
 }
@@ -225,7 +246,7 @@ pub fn insert_pub_rand_commit(
 
     // Ensure height and start_height do not overlap, i.e., height < start_height
     if let Some(last_pr_commit) = last_pr_commit {
-        let last_pr_end_height = last_pr_commit.end_height();
+        let last_pr_end_height = last_pr_commit.end_height()?;
         if pr_commit.start_height <= last_pr_end_height {
             return Err(ContractError::InvalidPubRandHeight(
                 pr_commit.start_height,
@@ -436,12 +457,12 @@ mod tests {
             overlapping_result,
             Err(ContractError::InvalidPubRandHeight(
                 overlapping_start_height,
-                pr_commit.end_height(),
+                pr_commit.end_height().unwrap(),
             ))
         );
 
         // === TEST CASE 2: Exactly at boundary (should fail) ===
-        let boundary_start_height = pr_commit.end_height();
+        let boundary_start_height = pr_commit.end_height().unwrap();
         let boundary_num_pub_rand = get_random_u64();
         let boundary_commitment = get_random_block_hash();
 
@@ -460,13 +481,13 @@ mod tests {
         assert_eq!(
             boundary_result,
             Err(ContractError::InvalidPubRandHeight(
-                pr_commit.end_height(),
-                pr_commit.end_height()
+                pr_commit.end_height().unwrap(),
+                pr_commit.end_height().unwrap()
             ))
         );
 
         // === TEST CASE 3: Valid non-overlapping commitment (should pass height validation) ===
-        let valid_start_height = pr_commit.end_height() + 1;
+        let valid_start_height = pr_commit.end_height().unwrap() + 1;
         let valid_num_pub_rand = get_random_u64();
         let valid_commitment = get_random_block_hash();
 

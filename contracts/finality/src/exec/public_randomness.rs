@@ -116,13 +116,7 @@ pub fn validate_pub_rand_commit(
 
     // Check for overflow when computing the end height
     // To avoid public randomness reset
-    let end_height = compute_end_height(start_height, num_pub_rand, finality_signature_interval);
-    if start_height >= end_height {
-        return Err(ContractError::OverflowInBlockHeight {
-            start_height,
-            end_height,
-        });
-    }
+    compute_end_height(start_height, num_pub_rand, finality_signature_interval)?;
 
     // Validate minimum public randomness requirement
     if num_pub_rand < min_pub_rand {
@@ -445,8 +439,7 @@ pub(crate) mod tests {
         assert_eq!(
             result.unwrap_err(),
             ContractError::OverflowInBlockHeight {
-                start_height: u64::MAX,
-                end_height: u64::MAX // saturating_add results in MAX
+                start_height: u64::MAX
             }
         );
     }
