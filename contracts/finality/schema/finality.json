@@ -855,6 +855,7 @@
           "required": [
             "babylon_epoch",
             "commitment",
+            "interval",
             "num_pub_rand",
             "start_height"
           ],
@@ -873,6 +874,12 @@
                 "format": "uint8",
                 "minimum": 0.0
               }
+            },
+            "interval": {
+              "description": "The interval of the commitment between each two consecutive pub rand values The pub rand values will be in height `start_height`, `start_height + interval`, `start_height + 2 * interval`, ...",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
             },
             "num_pub_rand": {
               "description": "The amount of committed public randomness",
@@ -919,6 +926,7 @@
           "required": [
             "babylon_epoch",
             "commitment",
+            "interval",
             "num_pub_rand",
             "start_height"
           ],
@@ -937,6 +945,12 @@
                 "format": "uint8",
                 "minimum": 0.0
               }
+            },
+            "interval": {
+              "description": "The interval of the commitment between each two consecutive pub rand values The pub rand values will be in height `start_height`, `start_height + interval`, `start_height + 2 * interval`, ...",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
             },
             "num_pub_rand": {
               "description": "The amount of committed public randomness",
@@ -969,6 +983,7 @@
           "required": [
             "babylon_epoch",
             "commitment",
+            "interval",
             "num_pub_rand",
             "start_height"
           ],
@@ -987,6 +1002,12 @@
                 "format": "uint8",
                 "minimum": 0.0
               }
+            },
+            "interval": {
+              "description": "The interval of the commitment between each two consecutive pub rand values The pub rand values will be in height `start_height`, `start_height + interval`, `start_height + 2 * interval`, ...",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
             },
             "num_pub_rand": {
               "description": "The amount of committed public randomness",
@@ -1023,6 +1044,7 @@
           "required": [
             "babylon_epoch",
             "commitment",
+            "interval",
             "num_pub_rand",
             "start_height"
           ],
@@ -1041,6 +1063,12 @@
                 "format": "uint8",
                 "minimum": 0.0
               }
+            },
+            "interval": {
+              "description": "The interval of the commitment between each two consecutive pub rand values The pub rand values will be in height `start_height`, `start_height + interval`, `start_height + 2 * interval`, ...",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
             },
             "num_pub_rand": {
               "description": "The amount of committed public randomness",
