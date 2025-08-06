@@ -20,7 +20,7 @@
     - [4.7.1. CommitPublicRandomness (MUST)](#471-commitpublicrandomness-must)
     - [4.7.2. SubmitFinalitySignature (MUST)](#472-submitfinalitysignature-must)
     - [4.7.3. UpdateAdmin (SHOULD)](#473-updateadmin-should)
-    - [4.7.4. UpdateConfig (SHOULD)](#474-updateconfig-should)  
+    - [4.7.4. UpdateConfig (SHOULD)](#474-updateconfig-should)
     - [4.7.5. AddToAllowlist (SHOULD)](#475-addtoallowlist-should)
     - [4.7.6. RemoveFromAllowlist (SHOULD)](#476-removefromallowlist-should)
     - [4.7.7. PruneData (SHOULD)](#477-prunedata-should)
@@ -376,7 +376,7 @@ pub struct InstantiateMsg {
   "rate_limiting_interval": 500,
   "max_msgs_per_interval": 10,
   "bsn_activation_height": 0,
-  "finality_signature_interval": 1,
+  "finality_signature_interval": 5,
   "allowed_finality_providers": [
     "02a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7",
     "03a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7"
@@ -404,7 +404,10 @@ parameters must be provided:
   `SubmitFinalitySignature` messages; `CommitPublicRandomness` messages are
   unaffected by BSN activation height
 - `finality_signature_interval`: u64 - The interval between allowed finality
-  signature submissions to prevent spam (must be ≥ 1)
+  signature submissions to prevent spam (must be ≥ 1). This parameter also
+  determines the interval for sparse public randomness generation, where public
+  randomness values are generated at heights: `start_height`, `start_height +
+  interval`, `start_height + 2 * interval`, etc.
 
 **Validation Requirements:**
 1. **Admin Address Validation**: The `admin` parameter MUST be a valid Babylon
@@ -431,6 +434,14 @@ parameters must be provided:
 4. **Allowlist Setup**: If provided, add all valid keys to the allowlist
    configuration in the contract configuration
 5. **Response**: Return a success response with instantiation attributes
+
+**Important Design Consideration - Height Alignment**: For optimal integration,
+the `start_height` of public randomness commitments SHOULD align with the
+`bsn_activation_height` to ensure that public randomness is available exactly
+when finality signatures are allowed. This alignment prevents validation errors
+and ensures efficient sparse generation. For example, if `bsn_activation_height
+= 0` and `finality_signature_interval = 5`, then public randomness commitments
+should start at height 0 to provide randomness at heights 0, 5, 10, 15, etc.
 
 ### 4.5. Signing Context
 
@@ -692,16 +703,24 @@ following verification logic:
    - Query the last public randomness commitment for this finality provider from
      public randomness commitment state
    - Use key `(fp_pubkey_hex, _)` to find the highest height commitment
-   - Ensure `start_height > last_commit.start_height + last_commit.num_pub_rand
-     - 1` to prevent overlapping ranges
+   - For sparse generation, ensure `start_height > last_commit.start_height +
+     (last_commit.num_pub_rand - 1) * last_commit.interval` to prevent overlapping
+     height ranges in the sparse pattern
 
 5. **Storage Operations**: Save the public randomness commitment data:
-   - Create a new `PubRandCommit` struct with provided parameters and current
-     Babylon epoch
+   - Create a new `PubRandCommit` struct with provided parameters, current
+     Babylon epoch, and the contract's `finality_signature_interval` as the interval
+   - The `interval` field is automatically set to the contract's `finality_signature_interval`
+     to enable sparse public randomness generation aligned with finality signature scheduling
    - Save to the public randomness commitment state using key `(fp_pubkey_hex,
      start_height)`
    - Record the current Babylon epoch as the commitment epoch for BTC
      timestamping validation
+
+**Sparse Generation Pattern**: The public randomness values in the commitment are available
+at heights: `start_height`, `start_height + interval`, `start_height + 2 * interval`, etc.
+This pattern aligns with the finality signature interval to ensure that public randomness
+is available exactly when finality signatures are allowed to be submitted.
 
 #### 4.7.2. SubmitFinalitySignature (MUST)
 
@@ -778,15 +797,19 @@ following verification logic:
 
 6. **Public Randomness Commitment Retrieval**: Find the public randomness
    commitment that covers the target height:
-   - Query public randomness commitment state to find commitment where
-     `start_height <= height <= start_height + num_pub_rand - 1`
+   - Query public randomness commitment state to find commitment where the height
+     is within the sparse generation pattern
+   - Use the `contains_height` method to verify: `height` must be in the form
+     `start_height + i * interval` for some `i < num_pub_rand`
    - **BTC Timestamping Validation**: Ensure the commitment is timestamped by
      BTC by verifying that the commitment's epoch is less than or equal to the
      last finalized epoch
    - Use the commitment for subsequent verification steps
 
 7. **Finality Signature Verification**:
-   - Verify `height == pr_commit.start_height + proof.index`
+   - **Sparse Generation Height Check**: Verify that the block height corresponds to the correct public randomness index:
+     - Calculate expected height: `proof_height = pr_commit.start_height + proof.index * pr_commit.interval`
+     - Verify `height == proof_height` to ensure the height aligns with the sparse generation pattern
    - Verify `proof.total == pr_commit.num_pub_rand`
    - Verify the inclusion proof for the public randomness value against
      `pr_commit.commitment`
@@ -1115,10 +1138,12 @@ contract implementation.
   pub struct PubRandCommit {
       pub start_height: u64,
       pub num_pub_rand: u64,
+      pub interval: u64,
       pub babylon_epoch: u64,
       pub commitment: Vec<u8>,
   }
   ```
+- **Sparse Generation Support**: The `interval` field enables sparse public randomness generation where public randomness values are available at heights: `start_height`, `start_height + interval`, `start_height + 2 * interval`, etc. This aligns with the `finality_signature_interval` to optimize storage and computation.
 
 ### 4.9. Finality contract queries
 
@@ -1273,10 +1298,11 @@ the first public randomness commitment for a given finality provider:
    - IF commitments exist: RETURN `Some(first_commitment)`
 
 WHERE `PubRandCommit` contains:
-- `start_height`: `u64`
-- `num_pub_rand`: `u64`
-- `babylon_epoch`: `u64`
-- `commitment`: `Vec<u8>`
+- `start_height`: `u64` - The height of the first commitment
+- `num_pub_rand`: `u64` - The amount of committed public randomness
+- `interval`: `u64` - The interval between consecutive pub rand values (enables sparse generation)
+- `babylon_epoch`: `u64` - The epoch number when the commitment was submitted
+- `commitment`: `Vec<u8>` - The commitment value (Merkle root)
 
 #### 4.9.3. LastPubRandCommit (MUST)
 
@@ -1304,10 +1330,11 @@ the last public randomness commitment for a given finality provider:
    - IF commitments exist: RETURN `Some(last_commitment)`
 
 WHERE `PubRandCommit` contains:
-- `start_height`: `u64`
-- `num_pub_rand`: `u64`
-- `babylon_epoch`: `u64`
-- `commitment`: `Vec<u8>`
+- `start_height`: `u64` - The height of the first commitment
+- `num_pub_rand`: `u64` - The amount of committed public randomness
+- `interval`: `u64` - The interval between consecutive pub rand values (enables sparse generation)
+- `babylon_epoch`: `u64` - The epoch number when the commitment was submitted
+- `commitment`: `Vec<u8>` - The commitment value (Merkle root)
 
 #### 4.9.4. ListPubRandCommit (MUST)
 
@@ -1341,10 +1368,11 @@ paginated list of public randomness commitments for a given finality provider:
    - IF commitments exist: RETURN `Vec<PubRandCommit>` with matching commitments
 
 WHERE `PubRandCommit` contains:
-- `start_height`: `u64`
-- `num_pub_rand`: `u64`
-- `babylon_epoch`: `u64`
-- `commitment`: `Vec<u8>`
+- `start_height`: `u64` - The height of the first commitment
+- `num_pub_rand`: `u64` - The amount of committed public randomness
+- `interval`: `u64` - The interval between consecutive pub rand values (enables sparse generation)
+- `babylon_epoch`: `u64` - The epoch number when the commitment was submitted
+- `commitment`: `Vec<u8>` - The commitment value (Merkle root)
 
 #### 4.9.5. Admin (SHOULD)
 

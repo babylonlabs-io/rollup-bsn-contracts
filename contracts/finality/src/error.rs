@@ -91,8 +91,8 @@ pub enum ContractError {
     DuplicatedFinalitySig(String, u64),
     #[error("Too few public randomness values: given {given}, required minimum {required}")]
     TooFewPubRand { given: u64, required: u64 },
-    #[error("Block height overflow: start height {start_height} is equal or higher than (start height + num pub rand) {end_height}")]
-    OverflowInBlockHeight { start_height: u64, end_height: u64 },
+    #[error("Block height overflow detected for start height {start_height}")]
+    OverflowInBlockHeight { start_height: u64 },
     #[error("Invalid commitment length: expected {expected} bytes, got {actual}")]
     InvalidCommitmentLength { expected: usize, actual: usize },
     #[error("Invalid signature length: expected {expected} bytes, got {actual}")]

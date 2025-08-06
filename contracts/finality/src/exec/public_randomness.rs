@@ -3,7 +3,7 @@ use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::state::allowlist::ensure_fp_in_allowlist;
 use crate::state::config::get_config;
-use crate::state::public_randomness::{insert_pub_rand_commit, PubRandCommit};
+use crate::state::public_randomness::{compute_end_height, insert_pub_rand_commit, PubRandCommit};
 use crate::state::rate_limiting::check_rate_limit_and_accumulate;
 use crate::utils::{get_fp_rand_commit_context_v0, query_finality_provider};
 use babylon_bindings::BabylonQuery;
@@ -44,7 +44,13 @@ pub fn handle_public_randomness_commit(
     let config = get_config(deps.storage)?;
 
     // Validate the commitment parameters
-    validate_pub_rand_commit(start_height, num_pub_rand, commitment, config.min_pub_rand)?;
+    validate_pub_rand_commit(
+        start_height,
+        num_pub_rand,
+        commitment,
+        config.min_pub_rand,
+        config.finality_signature_interval,
+    )?;
 
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
 
@@ -79,6 +85,7 @@ pub fn handle_public_randomness_commit(
         PubRandCommit {
             start_height,
             num_pub_rand,
+            interval: config.finality_signature_interval,
             babylon_epoch: current_epoch,
             commitment: commitment.to_vec(),
         },
@@ -97,6 +104,7 @@ pub fn validate_pub_rand_commit(
     num_pub_rand: u64,
     commitment: &[u8],
     min_pub_rand: u64,
+    finality_signature_interval: u64,
 ) -> Result<(), ContractError> {
     // Check if commitment is exactly 32 bytes
     if commitment.len() != COMMITMENT_LENGTH_BYTES {
@@ -106,15 +114,9 @@ pub fn validate_pub_rand_commit(
         });
     }
 
-    // Check for overflow when doing (StartHeight + NumPubRand)
+    // Check for overflow when computing the end height
     // To avoid public randomness reset
-    let end_height = start_height.saturating_add(num_pub_rand);
-    if start_height >= end_height {
-        return Err(ContractError::OverflowInBlockHeight {
-            start_height,
-            end_height,
-        });
-    }
+    compute_end_height(start_height, num_pub_rand, finality_signature_interval)?;
 
     // Validate minimum public randomness requirement
     if num_pub_rand < min_pub_rand {
@@ -412,8 +414,8 @@ pub(crate) mod tests {
     fn test_overflow_protection_fails() {
         let mut deps = mock_deps_babylon();
 
-        // Configure the contract with random min_pub_rand
-        let instantiate_msg = new_init_msg(get_random_u64());
+        // Configure the contract with small min_pub_rand to avoid TooFewPubRand error
+        let instantiate_msg = new_init_msg(1);
 
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
@@ -428,8 +430,8 @@ pub(crate) mod tests {
             deps.as_mut(),
             &mock_env(),
             &get_random_fp_pk_hex(),
-            u64::MAX, // This will cause overflow when added to num_pub_rand
-            1,
+            u64::MAX - 10, // This will cause overflow when we add (num_pub_rand-1)*interval
+            100,           // Large enough to pass min_pub_rand but cause overflow
             &get_random_block_hash(),
             &random_signature,
         );
@@ -437,8 +439,7 @@ pub(crate) mod tests {
         assert_eq!(
             result.unwrap_err(),
             ContractError::OverflowInBlockHeight {
-                start_height: u64::MAX,
-                end_height: u64::MAX // saturating_add results in MAX
+                start_height: u64::MAX - 10
             }
         );
     }

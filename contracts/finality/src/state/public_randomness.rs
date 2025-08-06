@@ -34,6 +34,9 @@ pub struct PubRandCommit {
     pub start_height: u64,
     /// The amount of committed public randomness
     pub num_pub_rand: u64,
+    /// The interval of the commitment between each two consecutive pub rand values
+    /// The pub rand values will be in height `start_height`, `start_height + interval`, `start_height + 2 * interval`, ...
+    pub interval: u64,
     /// The epoch number of Babylon when the commit was submitted
     pub babylon_epoch: u64,
     /// Value of the commitment.
@@ -41,27 +44,82 @@ pub struct PubRandCommit {
     pub commitment: Bytes,
 }
 
+/// Computes the end height of a public randomness commitment with overflow detection.
+///
+/// For sparse generation, this returns the last height that actually has randomness.
+/// Example: start_height=65, num_pub_rand=5, interval=5 -> heights 65,70,75,80,85 -> end_height=85
+///
+/// Returns OverflowInBlockHeight error if any arithmetic operation would overflow.
+pub fn compute_end_height(
+    start_height: u64,
+    num_pub_rand: u64,
+    interval: u64,
+) -> Result<u64, ContractError> {
+    // For sparse generation: end_height = start_height + (num_pub_rand - 1) * interval
+    let num_intervals = num_pub_rand
+        .checked_sub(1)
+        .ok_or_else(|| ContractError::OverflowInBlockHeight { start_height })?;
+
+    let range = num_intervals
+        .checked_mul(interval)
+        .ok_or_else(|| ContractError::OverflowInBlockHeight { start_height })?;
+
+    start_height
+        .checked_add(range)
+        .ok_or_else(|| ContractError::OverflowInBlockHeight { start_height })
+}
+
 impl PubRandCommit {
-    pub fn new(start_height: u64, num_pub_rand: u64, epoch: u64, commitment: Bytes) -> Self {
+    pub fn new(
+        start_height: u64,
+        num_pub_rand: u64,
+        interval: u64,
+        epoch: u64,
+        commitment: Bytes,
+    ) -> Self {
         Self {
             start_height,
             num_pub_rand,
+            interval,
             babylon_epoch: epoch,
             commitment,
         }
     }
 
-    /// `in_range` checks if the given height is within the range of the commitment
-    pub fn in_range(&self, height: u64) -> bool {
-        self.start_height <= height && height <= self.end_height()
+    /// `contains_height` checks if the given height is within the range of the commitment
+    /// i.e., the given height should be in the form of `start_height + i * interval` for some `i < num_pub_rand`
+    pub fn contains_height(&self, height: u64) -> bool {
+        // Check if the height is before the start height
+        if height < self.start_height {
+            return false;
+        }
+
+        // Check if the height is after the end height
+        let end_height = match self.end_height() {
+            Ok(height) => height,
+            Err(_) => return false, // Overflow means invalid commitment
+        };
+        if height > end_height {
+            return false;
+        }
+
+        // Check if the height falls at the interval boundary
+        let offset = height - self.start_height;
+        if offset % self.interval != 0 {
+            return false;
+        }
+
+        true
     }
 
     /// `end_height` returns the height of the last commitment
-    pub fn end_height(&self) -> u64 {
-        self.start_height + self.num_pub_rand - 1
+    pub fn end_height(&self) -> Result<u64, ContractError> {
+        compute_end_height(self.start_height, self.num_pub_rand, self.interval)
     }
 }
 
+/// `get_pub_rand_commit_for_height` returns the public randomness commitment that includes the given height for the given finality provider.
+/// Note that if the given height is not at the interval boundary, then it return None.
 pub fn get_pub_rand_commit_for_height(
     storage: &dyn Storage,
     fp_btc_pk: &[u8],
@@ -73,7 +131,7 @@ pub fn get_pub_rand_commit_for_height(
         .range_raw(storage, None, end_at, Descending)
         .filter(|item| {
             match item {
-                Ok((_, value)) => value.in_range(height),
+                Ok((_, value)) => value.contains_height(height),
                 Err(_) => true, // if we can't parse, we keep it
             }
         })
@@ -190,13 +248,22 @@ pub fn insert_pub_rand_commit(
     // Get last public randomness commitment
     let last_pr_commit = get_last_pub_rand_commit(storage, fp_btc_pk)?;
 
-    // Ensure height and start_height do not overlap, i.e., height < start_height
+    // Ensure height and start_height do not overlap
+    // For sparse generation, next commitment must start at the next eligible height
     if let Some(last_pr_commit) = last_pr_commit {
-        let last_pr_end_height = last_pr_commit.end_height();
-        if pr_commit.start_height <= last_pr_end_height {
+        let last_pr_end_height = last_pr_commit.end_height()?;
+        // Calculate next eligible start height: last actual randomness height + interval
+        // This ensures no gaps and prevents overlapping coverage ranges
+        let next_eligible_start_height = last_pr_end_height
+            .checked_add(last_pr_commit.interval)
+            .ok_or_else(|| ContractError::OverflowInBlockHeight {
+                start_height: last_pr_end_height,
+            })?;
+
+        if pr_commit.start_height < next_eligible_start_height {
             return Err(ContractError::InvalidPubRandHeight(
                 pr_commit.start_height,
-                last_pr_end_height,
+                next_eligible_start_height, // Show the minimum required start height
             ));
         }
     }
@@ -299,12 +366,14 @@ mod tests {
         let env = mock_env();
         let fp_btc_pk = get_random_fp_pk();
         let start_height = get_random_u64();
+        let interval = get_random_u64();
         let commitment = get_random_block_hash();
 
         // Test with valid num_pub_rand (should pass)
         let valid_commit = PubRandCommit::new(
             start_height,
             1, // Valid value should pass
+            interval,
             env.block.height,
             commitment,
         );
@@ -365,27 +434,30 @@ mod tests {
 
         // === SETUP: First commitment ===
         let fp_btc_pk = get_random_fp_pk();
-        let initial_start_height = get_random_u64();
-        let initial_num_pub_rand = get_random_u64();
-        let initial_commitment = get_random_block_hash();
+        let start_height = get_random_u64();
+        let num_pub_rand = get_random_u64();
+        let interval = get_random_u64();
+        let commitment = get_random_block_hash();
 
         // Store initial commitment directly
-        let initial_commit = &PubRandCommit::new(
-            initial_start_height,
-            initial_num_pub_rand,
+        let pr_commit = &PubRandCommit::new(
+            start_height,
+            num_pub_rand,
+            interval,
             env.block.height,
-            initial_commitment,
+            commitment,
         );
-        insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk, initial_commit.clone()).unwrap();
+        insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk, pr_commit.clone()).unwrap();
 
         // === TEST CASE 1: Overlapping start height (should fail) ===
-        let overlapping_start_height = initial_start_height - 1;
+        let overlapping_start_height = start_height - 1;
         let overlapping_num_pub_rand = get_random_u64();
         let overlapping_commitment = get_random_block_hash();
 
         let overlapping_commit = PubRandCommit::new(
             overlapping_start_height,
             overlapping_num_pub_rand,
+            interval,
             env.block.height,
             overlapping_commitment,
         );
@@ -394,22 +466,24 @@ mod tests {
             insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk, overlapping_commit);
 
         // Should fail due to overlap
+        let expected_next_eligible = pr_commit.end_height().unwrap() + interval;
         assert_eq!(
             overlapping_result,
             Err(ContractError::InvalidPubRandHeight(
                 overlapping_start_height,
-                initial_commit.end_height(),
+                expected_next_eligible,
             ))
         );
 
         // === TEST CASE 2: Exactly at boundary (should fail) ===
-        let boundary_start_height = initial_commit.end_height();
+        let boundary_start_height = pr_commit.end_height().unwrap();
         let boundary_num_pub_rand = get_random_u64();
         let boundary_commitment = get_random_block_hash();
 
         let boundary_commit = PubRandCommit::new(
             boundary_start_height,
             boundary_num_pub_rand,
+            interval,
             env.block.height,
             boundary_commitment,
         );
@@ -417,23 +491,26 @@ mod tests {
         let boundary_result =
             insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk, boundary_commit);
 
-        // Should fail due to boundary overlap
+        // Should fail due to overlap (trying to start before next eligible height)
+        let expected_next_eligible = pr_commit.end_height().unwrap() + interval;
         assert_eq!(
             boundary_result,
             Err(ContractError::InvalidPubRandHeight(
-                initial_commit.end_height(),
-                initial_commit.end_height()
+                pr_commit.end_height().unwrap(),
+                expected_next_eligible
             ))
         );
 
         // === TEST CASE 3: Valid non-overlapping commitment (should pass height validation) ===
-        let valid_start_height = initial_start_height + initial_num_pub_rand;
+        // Valid start height must be at next eligible height: end_height + interval
+        let valid_start_height = pr_commit.end_height().unwrap() + interval;
         let valid_num_pub_rand = get_random_u64();
         let valid_commitment = get_random_block_hash();
 
         let valid_commit = PubRandCommit::new(
             valid_start_height,
             valid_num_pub_rand,
+            interval,
             env.block.height,
             valid_commitment,
         );
@@ -658,5 +735,37 @@ mod tests {
         // Verify height 300 is still there
         let val = get_pub_rand_value(deps.as_ref().storage, &fp_btc_pk, 300).unwrap();
         assert!(val.is_some());
+    }
+
+    #[test]
+    fn test_contains_height_sparse_generation() {
+        // Test case: start_height=65, num_pub_rand=5, interval=5
+        // Should have randomness at: 65, 70, 75, 80, 85
+        // end_height should be: 65 + (5-1)*5 = 85
+        let commit = PubRandCommit::new(
+            65,                   // start_height
+            5,                    // num_pub_rand
+            5,                    // interval
+            100,                  // epoch
+            vec![1, 2, 3].into(), // commitment
+        );
+
+        // Test end_height calculation
+        assert_eq!(commit.end_height().unwrap(), 85);
+
+        // Test contains_height for valid heights (on interval boundaries)
+        assert_eq!(commit.contains_height(65), true); // start
+        assert_eq!(commit.contains_height(70), true); // +5
+        assert_eq!(commit.contains_height(75), true); // +10
+        assert_eq!(commit.contains_height(80), true); // +15
+        assert_eq!(commit.contains_height(85), true); // +20 (end)
+
+        // Test contains_height for invalid heights (not on boundaries)
+        assert_eq!(commit.contains_height(64), false); // before start
+        assert_eq!(commit.contains_height(66), false); // between 65 and 70
+        assert_eq!(commit.contains_height(67), false); // between 65 and 70
+        assert_eq!(commit.contains_height(71), false); // between 70 and 75
+        assert_eq!(commit.contains_height(86), false); // after end
+        assert_eq!(commit.contains_height(90), false); // way after end
     }
 }

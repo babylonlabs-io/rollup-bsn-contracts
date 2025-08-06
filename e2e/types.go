@@ -12,9 +12,17 @@ func NewInitMsg(admin string, bsnID string, minPubRand uint64, rateLimitingInter
 	return initMsg
 }
 
+type RateLimitingConfig struct {
+	MaxMsgsPerInterval uint32 `json:"max_msgs_per_interval"`
+	BlockInterval      uint64 `json:"block_interval"`
+}
+
 type Config struct {
-	BsnID      string `json:"bsn_id"`
-	MinPubRand uint64 `json:"min_pub_rand"`
+	BsnID                     string              `json:"bsn_id"`
+	MinPubRand                uint64              `json:"min_pub_rand"`
+	RateLimiting              *RateLimitingConfig `json:"rate_limiting"`
+	BsnActivationHeight       uint64              `json:"bsn_activation_height"`
+	FinalitySignatureInterval uint64              `json:"finality_signature_interval"`
 }
 
 type CommitPublicRandomnessMsg struct {
@@ -137,6 +145,7 @@ type PubRandCommit struct {
 type PubRandCommitResponse struct {
 	StartHeight  uint64 `json:"start_height"`
 	NumPubRand   uint64 `json:"num_pub_rand"`
+	Interval     uint64 `json:"interval"`
 	BabylonEpoch uint64 `json:"babylon_epoch"`
 	Commitment   []byte `json:"commitment"`
 }
