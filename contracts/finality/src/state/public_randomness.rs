@@ -738,7 +738,7 @@ mod tests {
     }
 
     #[test]
-    fn test_contains_height_with_new_formula() {
+    fn test_contains_height_sparse_generation() {
         // Test case: start_height=65, num_pub_rand=5, interval=5
         // Should have randomness at: 65, 70, 75, 80, 85
         // end_height should be: 65 + (5-1)*5 = 85
