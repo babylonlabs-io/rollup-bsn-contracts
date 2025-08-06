@@ -79,6 +79,7 @@ pub fn handle_public_randomness_commit(
         PubRandCommit {
             start_height,
             num_pub_rand,
+            interval: config.finality_signature_interval,
             babylon_epoch: current_epoch,
             commitment: commitment.to_vec(),
         },

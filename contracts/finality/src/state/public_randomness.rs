@@ -34,6 +34,9 @@ pub struct PubRandCommit {
     pub start_height: u64,
     /// The amount of committed public randomness
     pub num_pub_rand: u64,
+    /// The interval of the commitment between each two consecutive pub rand values
+    /// The pub rand values will be in height `start_height`, `start_height + interval`, `start_height + 2 * interval`, ...
+    pub interval: u64,
     /// The epoch number of Babylon when the commit was submitted
     pub babylon_epoch: u64,
     /// Value of the commitment.
@@ -42,23 +45,47 @@ pub struct PubRandCommit {
 }
 
 impl PubRandCommit {
-    pub fn new(start_height: u64, num_pub_rand: u64, epoch: u64, commitment: Bytes) -> Self {
+    pub fn new(
+        start_height: u64,
+        num_pub_rand: u64,
+        interval: u64,
+        epoch: u64,
+        commitment: Bytes,
+    ) -> Self {
         Self {
             start_height,
             num_pub_rand,
+            interval,
             babylon_epoch: epoch,
             commitment,
         }
     }
 
-    /// `in_range` checks if the given height is within the range of the commitment
-    pub fn in_range(&self, height: u64) -> bool {
-        self.start_height <= height && height <= self.end_height()
+    /// `contains_height` checks if the given height is within the range of the commitment
+    /// i.e., the given height should be in the form of `start_height + i * interval` for some `i < num_pub_rand`
+    pub fn contains_height(&self, height: u64) -> bool {
+        // Check if the height is before the start height
+        if height < self.start_height {
+            return false;
+        }
+
+        // Check if the height is after the end height
+        if height > self.end_height() {
+            return false;
+        }
+
+        // Check if the height falls at the interval boundary
+        let offset = height - self.start_height;
+        if offset % self.interval != 0 {
+            return false;
+        }
+
+        true
     }
 
     /// `end_height` returns the height of the last commitment
     pub fn end_height(&self) -> u64 {
-        self.start_height + self.num_pub_rand - 1
+        self.start_height + self.num_pub_rand * self.interval - 1
     }
 }
 
@@ -73,7 +100,7 @@ pub fn get_pub_rand_commit_for_height(
         .range_raw(storage, None, end_at, Descending)
         .filter(|item| {
             match item {
-                Ok((_, value)) => value.in_range(height),
+                Ok((_, value)) => value.contains_height(height),
                 Err(_) => true, // if we can't parse, we keep it
             }
         })
@@ -299,12 +326,14 @@ mod tests {
         let env = mock_env();
         let fp_btc_pk = get_random_fp_pk();
         let start_height = get_random_u64();
+        let interval = get_random_u64();
         let commitment = get_random_block_hash();
 
         // Test with valid num_pub_rand (should pass)
         let valid_commit = PubRandCommit::new(
             start_height,
             1, // Valid value should pass
+            interval,
             env.block.height,
             commitment,
         );
@@ -365,27 +394,30 @@ mod tests {
 
         // === SETUP: First commitment ===
         let fp_btc_pk = get_random_fp_pk();
-        let initial_start_height = get_random_u64();
-        let initial_num_pub_rand = get_random_u64();
-        let initial_commitment = get_random_block_hash();
+        let start_height = get_random_u64();
+        let num_pub_rand = get_random_u64();
+        let interval = get_random_u64();
+        let commitment = get_random_block_hash();
 
         // Store initial commitment directly
-        let initial_commit = &PubRandCommit::new(
-            initial_start_height,
-            initial_num_pub_rand,
+        let pr_commit = &PubRandCommit::new(
+            start_height,
+            num_pub_rand,
+            interval,
             env.block.height,
-            initial_commitment,
+            commitment,
         );
-        insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk, initial_commit.clone()).unwrap();
+        insert_pub_rand_commit(deps.as_mut().storage, &fp_btc_pk, pr_commit.clone()).unwrap();
 
         // === TEST CASE 1: Overlapping start height (should fail) ===
-        let overlapping_start_height = initial_start_height - 1;
+        let overlapping_start_height = start_height - 1;
         let overlapping_num_pub_rand = get_random_u64();
         let overlapping_commitment = get_random_block_hash();
 
         let overlapping_commit = PubRandCommit::new(
             overlapping_start_height,
             overlapping_num_pub_rand,
+            interval,
             env.block.height,
             overlapping_commitment,
         );
@@ -398,18 +430,19 @@ mod tests {
             overlapping_result,
             Err(ContractError::InvalidPubRandHeight(
                 overlapping_start_height,
-                initial_commit.end_height(),
+                pr_commit.end_height(),
             ))
         );
 
         // === TEST CASE 2: Exactly at boundary (should fail) ===
-        let boundary_start_height = initial_commit.end_height();
+        let boundary_start_height = pr_commit.end_height();
         let boundary_num_pub_rand = get_random_u64();
         let boundary_commitment = get_random_block_hash();
 
         let boundary_commit = PubRandCommit::new(
             boundary_start_height,
             boundary_num_pub_rand,
+            interval,
             env.block.height,
             boundary_commitment,
         );
@@ -421,19 +454,20 @@ mod tests {
         assert_eq!(
             boundary_result,
             Err(ContractError::InvalidPubRandHeight(
-                initial_commit.end_height(),
-                initial_commit.end_height()
+                pr_commit.end_height(),
+                pr_commit.end_height()
             ))
         );
 
         // === TEST CASE 3: Valid non-overlapping commitment (should pass height validation) ===
-        let valid_start_height = initial_start_height + initial_num_pub_rand;
+        let valid_start_height = pr_commit.end_height() + 1;
         let valid_num_pub_rand = get_random_u64();
         let valid_commitment = get_random_block_hash();
 
         let valid_commit = PubRandCommit::new(
             valid_start_height,
             valid_num_pub_rand,
+            interval,
             env.block.height,
             valid_commitment,
         );
