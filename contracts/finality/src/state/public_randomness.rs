@@ -44,6 +44,10 @@ pub struct PubRandCommit {
     pub commitment: Bytes,
 }
 
+pub fn compute_end_height(start_height: u64, num_pub_rand: u64, interval: u64) -> u64 {
+    start_height + num_pub_rand * interval - 1
+}
+
 impl PubRandCommit {
     pub fn new(
         start_height: u64,
@@ -85,7 +89,7 @@ impl PubRandCommit {
 
     /// `end_height` returns the height of the last commitment
     pub fn end_height(&self) -> u64 {
-        self.start_height + self.num_pub_rand * self.interval - 1
+        compute_end_height(self.start_height, self.num_pub_rand, self.interval)
     }
 }
 

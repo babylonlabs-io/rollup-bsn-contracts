@@ -3,7 +3,7 @@ use crate::error::ContractError;
 use crate::msg::BabylonMsg;
 use crate::state::allowlist::ensure_fp_in_allowlist;
 use crate::state::config::get_config;
-use crate::state::public_randomness::{insert_pub_rand_commit, PubRandCommit};
+use crate::state::public_randomness::{compute_end_height, insert_pub_rand_commit, PubRandCommit};
 use crate::state::rate_limiting::check_rate_limit_and_accumulate;
 use crate::utils::{get_fp_rand_commit_context_v0, query_finality_provider};
 use babylon_bindings::BabylonQuery;
@@ -44,7 +44,13 @@ pub fn handle_public_randomness_commit(
     let config = get_config(deps.storage)?;
 
     // Validate the commitment parameters
-    validate_pub_rand_commit(start_height, num_pub_rand, commitment, config.min_pub_rand)?;
+    validate_pub_rand_commit(
+        start_height,
+        num_pub_rand,
+        commitment,
+        config.min_pub_rand,
+        config.finality_signature_interval,
+    )?;
 
     let fp_btc_pk = hex::decode(fp_btc_pk_hex)?;
 
@@ -98,6 +104,7 @@ pub fn validate_pub_rand_commit(
     num_pub_rand: u64,
     commitment: &[u8],
     min_pub_rand: u64,
+    finality_signature_interval: u64,
 ) -> Result<(), ContractError> {
     // Check if commitment is exactly 32 bytes
     if commitment.len() != COMMITMENT_LENGTH_BYTES {
@@ -107,9 +114,9 @@ pub fn validate_pub_rand_commit(
         });
     }
 
-    // Check for overflow when doing (StartHeight + NumPubRand)
+    // Check for overflow when computing the end height
     // To avoid public randomness reset
-    let end_height = start_height.saturating_add(num_pub_rand);
+    let end_height = compute_end_height(start_height, num_pub_rand, finality_signature_interval);
     if start_height >= end_height {
         return Err(ContractError::OverflowInBlockHeight {
             start_height,
