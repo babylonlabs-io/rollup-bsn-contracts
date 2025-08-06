@@ -40,15 +40,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 ### State and API breaking
 
 * [#110](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/110) feat: sparse pub rand generation
-* [82](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/82) feat: add
-  bsn_activation_height and finality_signature_interval for spam protection
+* [82](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/82) feat: add bsn_activation_height and finality_signature_interval for spam protection
 * [97](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/97) feat:
-  versioning of FP allowlist
-* [100](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/100) chore:
+* [#82](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/108) core: add allow-list to instantiate arg
+* [#100](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/100) chore:
   add query to fetch highest voted height
 
 ### Improvements
 
+* [#108](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/91) feat:
+  optimize public key handling by using bytes instead of hex
+* [#103](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/103) core: 
+  add events for allow-list
 * [#91](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/91) feat:
   optimize public key handling by using bytes instead of hex
 * [#98](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/98) feat:

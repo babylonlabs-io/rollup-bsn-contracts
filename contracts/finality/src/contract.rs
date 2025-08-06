@@ -46,6 +46,8 @@ pub fn instantiate(
     };
     set_config(deps.storage, &config)?;
 
+    let mut response = Response::new().add_attribute("action", "instantiate");
+
     // Add initial allowed finality providers if provided
     if let Some(fp_list) = msg.allowed_finality_providers {
         // Validate all public keys are not empty
@@ -67,9 +69,11 @@ pub fn instantiate(
             &fp_btc_pk_bytes_list,
             env.block.height,
         )?;
+
+        response = response.add_attribute("allow-list", fp_list.join(","));
     }
 
-    Ok(Response::new().add_attribute("action", "instantiate"))
+    Ok(response)
 }
 
 pub fn query(
@@ -1527,5 +1531,115 @@ pub(crate) mod tests {
         for fp in &fps_at_107 {
             assert!(current_fps.contains(fp));
         }
+    }
+
+    #[test]
+    fn test_allowlist_events() {
+        let mut deps = mock_deps_babylon();
+        let admin = deps.api.addr_make(INIT_ADMIN);
+        let admin_info = message_info(&admin, &[]);
+
+        // Instantiate contract
+        let instantiate_msg = InstantiateMsg {
+            admin: admin.to_string(),
+            bsn_id: "test-bsn-id".to_string(),
+            min_pub_rand: 100,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 0,
+            finality_signature_interval: 1,
+            allowed_finality_providers: None,
+        };
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+
+        // Test add to allowlist event
+        let fp_keys = vec![
+            "02a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7".to_string(),
+            "c51bff10d544a2daa9e57fa00b70eb4b61d01a646c040fd0c7c1f69fd8289c8ac3".to_string(),
+        ];
+        let add_msg = ExecuteMsg::AddToAllowlist {
+            fp_pubkey_hex_list: fp_keys.clone(),
+        };
+        let res = execute(deps.as_mut(), mock_env(), admin_info.clone(), add_msg).unwrap();
+
+        // Check event was emitted
+        assert_eq!(res.events.len(), 1);
+        let event = &res.events[0];
+        assert_eq!(event.ty, "add_to_allowlist");
+        assert_eq!(event.attributes.len(), 1);
+        assert_eq!(event.attributes[0].key, "fp_pubkeys");
+        assert_eq!(event.attributes[0].value, fp_keys.join(","));
+
+        // Test remove from allowlist event
+        let remove_msg = ExecuteMsg::RemoveFromAllowlist {
+            fp_pubkey_hex_list: vec![fp_keys[0].clone()],
+        };
+        let res = execute(deps.as_mut(), mock_env(), admin_info, remove_msg).unwrap();
+
+        // Check event was emitted
+        assert_eq!(res.events.len(), 1);
+        let event = &res.events[0];
+        assert_eq!(event.ty, "remove_from_allowlist");
+        assert_eq!(event.attributes.len(), 1);
+        assert_eq!(event.attributes[0].key, "fp_pubkeys");
+        assert_eq!(event.attributes[0].value, fp_keys[0].clone());
+    }
+
+    #[test]
+    fn test_instantiate_allowlist_event() {
+        let mut deps = mock_deps_babylon();
+        let admin = deps.api.addr_make(INIT_ADMIN);
+        let bsn_id = "op-stack-l2-11155420".to_string();
+        let min_pub_rand = 100;
+
+        // Test 1: Instantiate with allowed finality providers - should have allow-list attribute
+        let fp_list = vec![
+            "02a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7".to_string(),
+            "03b0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c8".to_string(),
+        ];
+        let expected_allowlist = fp_list.join(",");
+
+        let instantiate_msg = InstantiateMsg {
+            admin: admin.to_string(),
+            bsn_id: bsn_id.clone(),
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 1000,
+            finality_signature_interval: 100,
+            allowed_finality_providers: Some(fp_list),
+        };
+
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+
+        // Verify response has both action and allow-list attributes
+        assert_eq!(res.attributes.len(), 2);
+        assert_eq!(res.attributes[0].key, "action");
+        assert_eq!(res.attributes[0].value, "instantiate");
+        assert_eq!(res.attributes[1].key, "allow-list");
+        assert_eq!(res.attributes[1].value, expected_allowlist);
+
+        // Test 2: Instantiate without allowed finality providers - should not have allow-list attribute
+        let mut deps2 = mock_deps_babylon();
+        let instantiate_msg2 = InstantiateMsg {
+            admin: admin.to_string(),
+            bsn_id,
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 1000,
+            finality_signature_interval: 100,
+            allowed_finality_providers: None,
+        };
+
+        let info2 = message_info(&deps2.api.addr_make(CREATOR), &[]);
+        let res2 = instantiate(deps2.as_mut(), mock_env(), info2, instantiate_msg2).unwrap();
+
+        // Verify response has only action attribute
+        assert_eq!(res2.attributes.len(), 1);
+        assert_eq!(res2.attributes[0].key, "action");
+        assert_eq!(res2.attributes[0].value, "instantiate");
     }
 }
