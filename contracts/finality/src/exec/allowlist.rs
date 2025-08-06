@@ -1,4 +1,4 @@
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{DepsMut, Env, Event, MessageInfo, Response};
 
 use crate::error::ContractError;
 use crate::msg::BabylonMsg;
@@ -37,7 +37,11 @@ pub fn handle_add_to_allowlist(
 
     add_finality_providers_to_allowlist(deps.storage, &fp_btc_pk_bytes_list, env.block.height)?;
 
+    let event =
+        Event::new("add_to_allowlist").add_attribute("fp_pubkeys", fp_pubkey_hex_list.join(","));
+
     Ok(Response::new()
+        .add_event(event)
         .add_attribute("action", "add_to_allowlist")
         .add_attribute("num_added", fp_pubkey_hex_list.len().to_string()))
 }
@@ -75,7 +79,11 @@ pub fn handle_remove_from_allowlist(
         env.block.height,
     )?;
 
+    let event = Event::new("remove_from_allowlist")
+        .add_attribute("fp_pubkeys", fp_pubkey_hex_list.join(","));
+
     Ok(Response::new()
+        .add_event(event)
         .add_attribute("action", "remove_from_allowlist")
         .add_attribute("num_removed", fp_pubkey_hex_list.len().to_string()))
 }
