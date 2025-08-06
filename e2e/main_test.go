@@ -152,18 +152,17 @@ func (s *FinalityContractTestSuite) Test3CommitAndTimestampPubRand() {
 	// generate secret/public randomness list
 	numPubRand := uint64(100)
 	commitStartHeight := uint64(1)
-	var msg *ftypes.MsgCommitPubRandList
 	signingCtx := signingcontext.FpRandCommitContextV0(s.ctx.ChainID(), s.contractAddr.String())
-	randListInfo, msg, err = datagen.GenRandomMsgCommitPubRandList(r, fpSK, signingCtx, commitStartHeight, numPubRand)
+	randListInfo, sig, err := GenRandomMsgCommitPubRandList(r, fpSK, signingCtx, commitStartHeight, numPubRand)
 	s.NoError(err)
 
 	// construct pub rand commit message
 	contractMsg := NewMsgCommitPublicRandomness(
-		msg.FpBtcPk.MarshalHex(),
-		msg.StartHeight,
-		msg.NumPubRand,
-		msg.Commitment,
-		*msg.Sig,
+		fpBTCPK.MarshalHex(),
+		commitStartHeight,
+		numPubRand,
+		randListInfo.Commitment,
+		*sig,
 	)
 	contractMsgJson, err := json.Marshal(contractMsg)
 	s.NoError(err)
@@ -173,30 +172,25 @@ func (s *FinalityContractTestSuite) Test3CommitAndTimestampPubRand() {
 	s.NoError(err)
 
 	// ensure pub rand commit is in the contract
-	query := NewQueryFirstPubRandCommit(fp.BtcPk.MarshalHex())
-	queryJson, err := json.Marshal(query)
-	s.NoError(err)
-	queryResBz := s.QueryContract(s.contractAddr, string(queryJson))
-	var queryRes PubRandCommitResponse
-	err = json.Unmarshal(queryResBz, &queryRes)
-	s.NoError(err)
-	s.Equal(msg.StartHeight, queryRes.StartHeight)
-	s.Equal(msg.NumPubRand, queryRes.NumPubRand)
-	s.Equal(msg.Commitment, queryRes.Commitment)
-	s.Equal(uint64(1), queryRes.BabylonEpoch)
+	prCommit := s.QueryFirstPubRandCommit(*fp.BtcPk)
+	s.Equal(commitStartHeight, prCommit.StartHeight)
+	s.Equal(numPubRand, prCommit.NumPubRand)
+	s.Equal(s.contractCfg.FinalitySignatureInterval, prCommit.Interval)
+	s.Equal(randListInfo.Commitment, prCommit.Commitment)
+	s.Equal(uint64(1), prCommit.BabylonEpoch)
 
 	// finalise epoch
 	err = s.babylonApp.CheckpointingKeeper.CheckpointsState(s.ctx).CreateRawCkptWithMeta(&ckpttypes.RawCheckpointWithMeta{
 		Ckpt: &ckpttypes.RawCheckpoint{
-			EpochNum: queryRes.BabylonEpoch,
+			EpochNum: prCommit.BabylonEpoch,
 		},
 		Status: ckpttypes.Finalized,
 	})
 	s.NoError(err)
-	s.babylonApp.CheckpointingKeeper.SetLastFinalizedEpoch(s.ctx, queryRes.BabylonEpoch)
+	s.babylonApp.CheckpointingKeeper.SetLastFinalizedEpoch(s.ctx, prCommit.BabylonEpoch)
 
 	lastFinalizedEpoch := s.babylonApp.CheckpointingKeeper.GetLastFinalizedEpoch(s.ctx)
-	s.Equal(queryRes.BabylonEpoch, lastFinalizedEpoch)
+	s.Equal(prCommit.BabylonEpoch, lastFinalizedEpoch)
 }
 
 func (s *FinalityContractTestSuite) Test4_SubmitFinalitySig() {
@@ -205,11 +199,14 @@ func (s *FinalityContractTestSuite) Test4_SubmitFinalitySig() {
 	fp, err := s.babylonApp.BTCStakingKeeper.GetFinalityProvider(s.ctx, fpBTCPK.MustMarshal())
 	s.NoError(err)
 
+	// query last pub rand commit
+	prCommit := s.QueryFirstPubRandCommit(*fp.BtcPk)
+
 	// Mock a block with start height 1 - store in shared data for duplicate test
-	startHeight := uint64(1)
+	startHeight := prCommit.StartHeight + prCommit.Interval
 	blockToVote := datagen.GenRandomBlockWithHeight(r, startHeight)
 	appHash := blockToVote.AppHash
-	idx := 0
+	idx := 1
 
 	// Store shared test data for Test4_SubmitFinalitySigDuplicate
 	sharedTestData = &TestSignatureData{
@@ -307,11 +304,10 @@ func (s *FinalityContractTestSuite) Test5Slash() {
 	s.NoError(err)
 
 	// Mock another block with start height 1 (different from Test4)
-	startHeight := uint64(1)
+	startHeight := sharedTestData.StartHeight
 	blockToVote := datagen.GenRandomBlockWithHeight(r, startHeight)
 	appHash := blockToVote.AppHash
-
-	idx := 0
+	idx := sharedTestData.Idx
 
 	signingCtx := signingcontext.FpFinVoteContextV0(s.ctx.ChainID(), s.contractAddr.String())
 	msgToSign := append([]byte(signingCtx), sdk.Uint64ToBigEndian(startHeight)...)
@@ -383,7 +379,7 @@ func (s *FinalityContractTestSuite) deployContracts(
 	rateLimitingInterval := uint64(10000)
 	maxMsgsPerInterval := uint32(100)
 	bsnActivationHeight := uint64(0)       // System activates at rollup height 0
-	finalitySignatureInterval := uint64(1) // Allow finality signatures at every height
+	finalitySignatureInterval := uint64(5) // Allow finality signatures at every 5th height
 	initMsg := NewInitMsg(s.owner.String(), bsnID, minPubRand, rateLimitingInterval, maxMsgsPerInterval, bsnActivationHeight, finalitySignatureInterval)
 	initMsgBz := []byte(initMsg)
 	// instantiate contract
@@ -430,4 +426,16 @@ func (s *FinalityContractTestSuite) ExecuteContract(
 	)
 	_, err := permKeeper.Execute(s.ctx, contract, caller, msg, sdk.Coins{})
 	return err
+}
+
+func (s *FinalityContractTestSuite) QueryFirstPubRandCommit(fpBTCPK bbn.BIP340PubKey) *PubRandCommitResponse {
+	query := NewQueryFirstPubRandCommit(fpBTCPK.MarshalHex())
+	queryJson, err := json.Marshal(query)
+	s.NoError(err)
+	queryResBz := s.QueryContract(s.contractAddr, string(queryJson))
+	var queryRes PubRandCommitResponse
+	err = json.Unmarshal(queryResBz, &queryRes)
+	s.NoError(err)
+
+	return &queryRes
 }

@@ -89,6 +89,8 @@ impl PubRandCommit {
     }
 }
 
+/// `get_pub_rand_commit_for_height` returns the public randomness commitment that includes the given height for the given finality provider.
+/// Note that if the given height is not at the interval boundary, then it return None.
 pub fn get_pub_rand_commit_for_height(
     storage: &dyn Storage,
     fp_btc_pk: &[u8],
