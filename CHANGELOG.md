@@ -37,6 +37,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## Unreleased
 
+## v0.2.0
+
 ### State and API breaking
 
 * [#110](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/110) feat: sparse pub rand generation
