@@ -1,20 +1,28 @@
 # Contract Migration Guide
 
-This document explains how to migrate the Rollup BSN Contract to new versions while preserving state and contract address.
+This document explains how to migrate the Rollup BSN Contract to new versions
+while preserving state and contract address.
 
 ## Overview
 
-The Rollup BSN Contract supports migration through CosmWasm's built-in migration mechanism. This allows you to upgrade the contract's logic while preserving its state and address, which is essential for production deployments where you need to add new features or fix bugs without disrupting existing functionality.
+The Rollup BSN Contract supports migration through CosmWasm's built-in migration
+mechanism. This allows you to upgrade the contract's logic while preserving its
+state and address, which is essential for production deployments where you need
+to add new features or fix bugs without disrupting existing functionality.
 
 ## How CosmWasm Migration Works
 
 Understanding the migration process is crucial for successful upgrades:
 
-1. **The `migrate` entry point runs on the OLD contract** - When you call `babylond tx wasm migrate`, the migration function from the currently deployed contract (old code) is executed, not the new contract.
+1. **The `migrate` entry point runs on the OLD contract** - When you call
+   `babylond tx wasm migrate`, the migration function from the currently
+   deployed contract (old code) is executed, not the new contract.
 
 2. **Migration requirements**:
-   - The old contract must have exported a `migrate` entry point at deployment time
-   - If the old contract has no `migrate` export, migration fails with: `"Missing export migrate"`
+   - The old contract must have exported a `migrate` entry point at deployment
+     time
+   - If the old contract has no `migrate` export, migration fails with:
+     `"Missing export migrate"`
    - Only the contract admin can execute migrations
 
 3. **Migration flow**:
@@ -68,13 +76,16 @@ pub struct MigrateMsg {
 
 ### Non-State-Breaking Migrations
 
-These migrations don't change the storage structure and are handled by the current implementation:
+These migrations don't change the storage structure and are handled by the
+current implementation:
 
 - **Logic improvements**: Bug fixes, performance optimizations
-- **New functionality**: Adding new execute/query handlers that don't modify existing state
+- **New functionality**: Adding new execute/query handlers that don't modify
+  existing state
 - **Internal changes**: Refactoring that doesn't affect storage layout
 
-**Example**: Adding enhanced validation or new event emissions without changing stored data structures.
+**Example**: Adding enhanced validation or new event emissions without changing
+stored data structures.
 
 ### State-Breaking Migrations
 
@@ -199,7 +210,8 @@ cargo test -p finality
 
 ### Integration Testing
 
-For comprehensive testing, use the e2e test environment in the `babylon-bsn-integration-deployment` repository:
+For comprehensive testing, use the e2e test environment in the
+`babylon-bsn-integration-deployment` repository:
 
 ```bash
 # In babylon-bsn-integration-deployment/deployments/rollup-bsn-demo
@@ -248,11 +260,13 @@ fn test_state_breaking_migration() {
 
 2. **Migration transaction succeeds but code ID doesn't change**
    - **Cause**: Transaction may not have been included in a block yet
-   - **Solution**: Wait longer and re-query, or check transaction events for errors
+   - **Solution**: Wait longer and re-query, or check transaction events for
+     errors
 
 3. **"Permission denied" or admin errors**
    - **Cause**: Wrong account trying to execute migration
-   - **Solution**: Ensure the contract admin is signing the migration transaction
+   - **Solution**: Ensure the contract admin is signing the migration
+     transaction
 
 4. **State corruption after migration**
    - **Cause**: Incomplete or incorrect state transformation in migrate function
@@ -285,21 +299,27 @@ fn test_state_breaking_migration() {
 
 ### Development
 
-1. **Always include migration support**: Deploy every contract version with a `migrate` entry point, even if it's initially a no-op
+1. **Always include migration support**: Deploy every contract version with a
+   `migrate` entry point, even if it's initially a no-op
 
-2. **Version tracking**: Include version information in migration messages and contract state
+2. **Version tracking**: Include version information in migration messages and
+   contract state
 
-3. **Backward compatibility**: Design storage structures to be extensible when possible
+3. **Backward compatibility**: Design storage structures to be extensible when
+   possible
 
-4. **Migration planning**: Plan state transformations carefully and document breaking changes
+4. **Migration planning**: Plan state transformations carefully and document
+   breaking changes
 
 ### Testing
 
-1. **Comprehensive testing**: Test both successful migrations and failure scenarios
+1. **Comprehensive testing**: Test both successful migrations and failure
+   scenarios
 
 2. **Integration tests**: Use realistic test environments that mirror production
 
-3. **State verification**: Always verify that migrated state is correct and complete
+3. **State verification**: Always verify that migrated state is correct and
+   complete
 
 4. **Rollback planning**: Have a strategy for handling failed migrations
 
@@ -322,14 +342,18 @@ The contract's migration message is included in the generated schema:
 cargo run --bin schema
 ```
 
-This updates the JSON schema files in `contracts/finality/schema/` including the migration message schema.
+This updates the JSON schema files in `contracts/finality/schema/` including the
+migration message schema.
 
 ## Support and Resources
 
 - **Contract tests**: See `src/contract.rs` for migration test examples
-- **CosmWasm docs**: [Official CosmWasm migration guide](https://docs.cosmwasm.com/docs/1.0/smart-contracts/migration)
-- **Integration tests**: Check `babylon-bsn-integration-deployment` for e2e migration testing
-- **PR reference**: [Migration setup implementation](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/114)
+- **CosmWasm docs**: [Official CosmWasm migration
+  guide](https://docs.cosmwasm.com/docs/1.0/smart-contracts/migration)
+- **Integration tests**: Check `babylon-bsn-integration-deployment` for e2e
+  migration testing
+- **PR reference**: [Migration setup
+  implementation](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/114)
 
 ## Changelog
 
