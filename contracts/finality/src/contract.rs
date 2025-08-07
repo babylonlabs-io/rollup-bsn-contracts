@@ -8,7 +8,7 @@ use crate::exec::config::handle_update_config;
 use crate::exec::finality::handle_finality_signature;
 use crate::exec::public_randomness::handle_public_randomness_commit;
 use crate::msg::BabylonMsg;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::queries::query_block_voters;
 use crate::state::allowlist::{
     get_allowed_finality_providers, get_allowed_finality_providers_at_height,
@@ -198,6 +198,24 @@ pub fn execute(
             rate_limiting_interval,
         ),
     }
+}
+
+/// Handle contract migration.
+/// This function is called when the contract is migrated to a new version.
+/// For non-state-breaking migrations, this is a simple no-op.
+pub fn migrate(
+    _deps: DepsMut<BabylonQuery>,
+    _env: Env,
+    msg: MigrateMsg,
+) -> Result<Response<BabylonMsg>, ContractError> {
+    // For non-state-breaking migration, just log the migration
+    let mut response = Response::new().add_attribute("action", "migrate");
+
+    if let Some(version) = msg.version {
+        response = response.add_attribute("version", version);
+    }
+
+    Ok(response)
 }
 
 #[cfg(test)]
@@ -1599,5 +1617,38 @@ pub(crate) mod tests {
         assert_eq!(res2.attributes.len(), 1);
         assert_eq!(res2.attributes[0].key, "action");
         assert_eq!(res2.attributes[0].value, "instantiate");
+    }
+
+    #[test]
+    fn test_migrate_basic() {
+        let mut deps = mock_deps_babylon();
+
+        // Test migration without version
+        let migrate_msg = MigrateMsg { version: None };
+        let res = migrate(deps.as_mut(), mock_env(), migrate_msg).unwrap();
+
+        // Check that migration response has correct attributes
+        assert_eq!(res.attributes.len(), 1);
+        assert_eq!(res.attributes[0].key, "action");
+        assert_eq!(res.attributes[0].value, "migrate");
+    }
+
+    #[test]
+    fn test_migrate_with_version() {
+        let mut deps = mock_deps_babylon();
+
+        // Test migration with version
+        let version = "v2.0.0".to_string();
+        let migrate_msg = MigrateMsg {
+            version: Some(version.clone()),
+        };
+        let res = migrate(deps.as_mut(), mock_env(), migrate_msg).unwrap();
+
+        // Check that migration response has correct attributes
+        assert_eq!(res.attributes.len(), 2);
+        assert_eq!(res.attributes[0].key, "action");
+        assert_eq!(res.attributes[0].value, "migrate");
+        assert_eq!(res.attributes[1].key, "version");
+        assert_eq!(res.attributes[1].value, version);
     }
 }
