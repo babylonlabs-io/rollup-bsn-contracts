@@ -23,7 +23,10 @@ Understanding the migration process is crucial for successful upgrades:
      time
    - If the old contract has no `migrate` export, migration fails with:
      `"Missing export migrate"`
-   - Only the contract admin can execute migrations
+   - **Only the contract admin can execute migrations** - this is enforced by
+     the CosmWasm runtime
+   - The contract must have been instantiated with an admin (using `--admin`
+     flag)
 
 3. **Migration flow**:
    - Store new contract code → get new `code_id`
@@ -174,9 +177,11 @@ For comprehensive testing in production environments:
      errors
 
 3. **"Permission denied" or admin errors**
-   - **Cause**: Wrong account trying to execute migration
+   - **Cause**: Wrong account trying to execute migration, or contract has no
+     admin set
    - **Solution**: Ensure the contract admin is signing the migration
-     transaction
+     transaction. Check the contract admin with: `babylond query wasm contract
+     <contract_address>` transaction
 
 4. **State corruption after migration**
    - **Cause**: Incomplete or incorrect state transformation in migrate function
