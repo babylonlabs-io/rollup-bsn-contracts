@@ -1,111 +1,39 @@
 # Contract Migration Guide
 
-This document explains how to migrate the Rollup BSN Contract to new versions.
+This document explains how to migrate the Rollup BSN Contract to new versions while preserving state and contract address.
 
 ## Overview
 
-The Rollup BSN Contract supports migration, allowing you to upgrade the
-contract's logic while preserving its state and address. This is essential for
-production deployments where you need to add new features or fix bugs without
-disrupting existing functionality.
+The Rollup BSN Contract supports migration through CosmWasm's built-in migration mechanism. This allows you to upgrade the contract's logic while preserving its state and address, which is essential for production deployments where you need to add new features or fix bugs without disrupting existing functionality.
 
-## Migration Types
+## How CosmWasm Migration Works
 
-### Non-State-Breaking Migrations
+Understanding the migration process is crucial for successful upgrades:
 
-These are migrations that don't change the storage structure:
+1. **The `migrate` entry point runs on the OLD contract** - When you call `babylond tx wasm migrate`, the migration function from the currently deployed contract (old code) is executed, not the new contract.
 
-- Adding new functions
-- Changing internal logic
-- Bug fixes
-- Performance improvements
-- Adding new storage keys (unrelated to existing ones)
+2. **Migration requirements**:
+   - The old contract must have exported a `migrate` entry point at deployment time
+   - If the old contract has no `migrate` export, migration fails with: `"Missing export migrate"`
+   - Only the contract admin can execute migrations
 
-**Example:**
-```rust
-// Version 1: Basic functionality
-pub fn submit_finality_signature(/* params */) -> Result<Response, ContractError> {
-    validate_signature(&signature)?;
-    save_signature(&signature)?;
-    Ok(Response::new())
-}
+3. **Migration flow**:
+   - Store new contract code → get new `code_id`
+   - Call migrate with contract address + new `code_id`
+   - Old contract's `migrate` function executes and can transform state
+   - On success, the contract address now points to the new `code_id`
+   - Contract address and storage persist, only the code changes
 
-// Version 2: Enhanced validation
-pub fn submit_finality_signature(/* params */) -> Result<Response, ContractError> {
-    validate_signature_enhanced(&signature)?; // IMPROVED VALIDATION
-    save_signature(&signature)?;
-    emit_event(&signature)?; // NEW FEATURE
-    Ok(Response::new())
-}
-```
+## Migration Implementation
 
-### State-Breaking Migrations
+### Current Implementation
 
-These are migrations that change the storage structure:
-
-- Adding/removing fields in structs
-- Changing field types
-- Restructuring data
-- Changing storage keys
-
-**Example:**
-```rust
-// Version 1: Basic config
-pub struct Config {
-    pub admin: String,
-    pub bsn_id: String,
-    pub min_pub_rand: u64,
-}
-
-// Version 2: Enhanced config
-pub struct Config {
-    pub admin: String,
-    pub bsn_id: String,
-    pub min_pub_rand: u64,
-    pub max_finality_providers: u32, // NEW FIELD
-    pub emergency_pause: bool,        // NEW FIELD
-}
-```
-
-## Migration Process
-
-### Step 1: Deploy New Contract
-
-```bash
-# Build the new contract
-cd op-finality-gadget/contracts/finality
-cargo build --release
-
-# Deploy to blockchain
-wasmd tx wasm store target/release/finality.wasm --from admin
-# Returns: Code ID 456
-```
-
-### Step 2: Execute Migration
-
-```bash
-# Migrate existing contract to new code
-wasmd tx wasm migrate <contract_address> 456 '{"version": "v2.0.0"}' --from admin
-```
-
-### Step 3: Verify Migration
-
-```bash
-# Check contract info
-wasmd query wasm contract <contract_address>
-
-# Query contract to verify functionality
-wasmd query wasm contract-state smart <contract_address> '{"config": {}}'
-```
-
-## Migration Function Implementation
-
-### Current Implementation (Non-State-Breaking)
-
-The current migration function is simple and handles non-state-breaking
-migrations:
+The contract includes a basic migration handler in `src/contract.rs`:
 
 ```rust
+/// Handle contract migration.
+/// This function is called when the contract is migrated to a new version.
+/// For non-state-breaking migrations, this is a simple no-op.
 pub fn migrate(
     _deps: DepsMut<BabylonQuery>,
     _env: Env,
@@ -113,19 +41,51 @@ pub fn migrate(
 ) -> Result<Response<BabylonMsg>, ContractError> {
     // For non-state-breaking migration, just log the migration
     let mut response = Response::new().add_attribute("action", "migrate");
-    
+
     if let Some(version) = msg.version {
         response = response.add_attribute("version", version);
     }
-    
+
     Ok(response)
 }
 ```
 
-### Future State-Breaking Migrations
+### MigrateMsg Structure
 
-When you need to handle state-breaking changes, you'll modify the migration
-function:
+The migration message is defined in `src/msg.rs`:
+
+```rust
+/// Migration message for contract upgrades.
+/// This can be extended in the future to include migration-specific parameters.
+#[cw_serde]
+pub struct MigrateMsg {
+    /// Optional version string for tracking migration
+    pub version: Option<String>,
+}
+```
+
+## Migration Types
+
+### Non-State-Breaking Migrations
+
+These migrations don't change the storage structure and are handled by the current implementation:
+
+- **Logic improvements**: Bug fixes, performance optimizations
+- **New functionality**: Adding new execute/query handlers that don't modify existing state
+- **Internal changes**: Refactoring that doesn't affect storage layout
+
+**Example**: Adding enhanced validation or new event emissions without changing stored data structures.
+
+### State-Breaking Migrations
+
+These migrations require custom logic to transform existing state:
+
+- **Adding fields**: New fields in existing structs
+- **Removing fields**: Deprecated fields that need cleanup
+- **Type changes**: Converting field types (e.g., `u32` to `u64`)
+- **Storage restructuring**: Changing storage keys or data organization
+
+**Example implementation for adding fields**:
 
 ```rust
 pub fn migrate(
@@ -133,23 +93,27 @@ pub fn migrate(
     _env: Env,
     msg: MigrateMsg,
 ) -> Result<Response<BabylonMsg>, ContractError> {
-    let mut response = Response::new().add_attribute("action", "migrate");
+    // Load existing config
+    let old_config: ConfigV1 = CONFIG.load(deps.storage)?;
     
-    // Load old config
-    let old_config = OLD_CONFIG.load(deps.storage)?;
-    
-    // Convert to new format
+    // Transform to new structure with default values for new fields
     let new_config = Config {
         admin: old_config.admin,
         bsn_id: old_config.bsn_id,
         min_pub_rand: old_config.min_pub_rand,
-        max_finality_providers: 100, // DEFAULT VALUE
-        emergency_pause: false,       // DEFAULT VALUE
+        rate_limiting_interval: old_config.rate_limiting_interval,
+        max_msgs_per_interval: old_config.max_msgs_per_interval,
+        bsn_activation_height: old_config.bsn_activation_height,
+        finality_signature_interval: old_config.finality_signature_interval,
+        // New fields with sensible defaults
+        max_finality_providers: 100,
+        emergency_pause: false,
     };
     
-    // Save new config
-    NEW_CONFIG.save(deps.storage, &new_config)?;
+    // Save the transformed config
+    CONFIG.save(deps.storage, &new_config)?;
     
+    let mut response = Response::new().add_attribute("action", "migrate");
     if let Some(version) = msg.version {
         response = response.add_attribute("version", version);
     }
@@ -158,145 +122,226 @@ pub fn migrate(
 }
 ```
 
-## Testing Migrations
+## Step-by-Step Migration Process
+
+### 1. Build and Store New Contract
+
+```bash
+# Build the optimized contract
+cd rollup-bsn-contracts
+cargo run-script optimize
+
+# Store the new contract code
+STORE_JSON=$(babylond tx wasm store artifacts/finality.wasm \
+  --from <admin_key> \
+  --chain-id <chain_id> \
+  --keyring-backend test \
+  --gas auto --gas-adjustment 1.3 \
+  --fees 1000000ubbn \
+  --broadcast-mode sync \
+  --output json -y)
+
+# Extract transaction hash and wait for inclusion
+STORE_TX=$(echo "$STORE_JSON" | jq -r '.txhash')
+sleep 10
+
+# Get the new code ID from transaction events
+NEW_CODE_ID=$(babylond query tx "$STORE_TX" --output json | \
+  jq -r '.events[] | select(.type=="store_code") | .attributes[] | select(.key=="code_id") | .value')
+
+echo "New code ID: $NEW_CODE_ID"
+```
+
+### 2. Execute Migration
+
+```bash
+# Migrate the existing contract to the new code
+babylond tx wasm migrate <contract_address> $NEW_CODE_ID '{"version":"v2.0.0"}' \
+  --from <admin_key> \
+  --chain-id <chain_id> \
+  --keyring-backend test \
+  --gas auto --gas-adjustment 1.3 \
+  --fees 1000000ubbn \
+  --broadcast-mode sync \
+  --output json -y
+```
+
+### 3. Verify Migration Success
+
+```bash
+# Check that the contract now points to the new code ID
+babylond query wasm contract <contract_address> --output json | \
+  jq -r '.contract_info.code_id'
+
+# Verify the contract is still functional
+babylond query wasm contract-state smart <contract_address> '{"config":{}}' \
+  --output json
+```
+
+**Expected results**:
+- Code ID should match the `NEW_CODE_ID` from step 1
+- Contract address remains unchanged
+- Contract should respond to queries normally
+
+## Testing
 
 ### Unit Tests
 
-The contract includes migration tests:
+The contract includes migration tests in `src/contract.rs`:
 
 ```bash
-# Run migration tests
-cargo test test_migrate
+# Run migration-specific tests
+cargo test test_migrate -p finality
 
 # Run all tests
-cargo test
+cargo test -p finality
 ```
 
-### Integration Tests
+### Integration Testing
 
-For comprehensive testing, you can create integration tests:
+For comprehensive testing, use the e2e test environment in the `babylon-bsn-integration-deployment` repository:
+
+```bash
+# In babylon-bsn-integration-deployment/deployments/rollup-bsn-demo
+make test-migration-complete
+```
+
+This will:
+1. Deploy an initial contract
+2. Store a new version of the contract
+3. Execute migration
+4. Verify the migration was successful
+
+### Testing State-Breaking Migrations
+
+When implementing state-breaking migrations, create comprehensive tests:
 
 ```rust
 #[test]
-fn test_contract_migration() {
-    // Setup test environment
-    let mut app = mock_app();
+fn test_state_breaking_migration() {
+    let mut deps = mock_deps_babylon();
     
-    // Deploy v1 contract
-    let v1_code_id = app.store_code(contract_v1_wasm);
-    let contract_addr = app.instantiate_contract(v1_code_id, /* params */);
+    // Store old config format
+    let old_config = ConfigV1 { /* old fields */ };
+    CONFIG_V1.save(deps.as_mut().storage, &old_config).unwrap();
     
-    // Deploy v2 contract
-    let v2_code_id = app.store_code(contract_v2_wasm);
+    // Execute migration
+    let migrate_msg = MigrateMsg { version: Some("v2.0.0".to_string()) };
+    let res = migrate(deps.as_mut(), mock_env(), migrate_msg).unwrap();
     
-    // Test migration
-    app.migrate_contract(&contract_addr, v2_code_id, /* migration msg */);
-    
-    // Verify migration worked
-    let config = app.query_contract(&contract_addr, /* query */);
-    assert_eq!(config.version, "v2.0.0");
+    // Verify new config format
+    let new_config: Config = CONFIG.load(deps.as_ref().storage).unwrap();
+    assert_eq!(new_config.admin, old_config.admin);
+    // Verify new fields have correct defaults
+    assert_eq!(new_config.max_finality_providers, 100);
+    assert_eq!(new_config.emergency_pause, false);
 }
-```
-
-## Migration Best Practices
-
-### 1. Always Test First
-
-- Test migrations on testnet before mainnet
-- Use integration tests to verify migration logic
-- Test both success and failure scenarios
-
-### 2. Plan Your Storage Structure
-
-- Design storage structures to be extensible
-- Use optional fields when possible
-- Plan for future additions
-
-### 3. Version Tracking
-
-- Always include version information in migrations
-- Use semantic versioning (v1.0.0, v2.0.0, etc.)
-- Log migration events for audit trails
-
-### 4. Rollback Planning
-
-- Have a rollback strategy ready
-- Test rollback procedures
-- Keep old contract versions available
-
-### 5. Security Considerations
-
-- Only admin should be able to migrate
-- Validate migration parameters
-- Monitor contract after migration
-
-## Migration Commands Reference
-
-### Deploy Contract
-```bash
-wasmd tx wasm store contract.wasm --from admin
-```
-
-### Migrate Contract
-```bash
-wasmd tx wasm migrate <contract_address> <new_code_id> '{"version": "v2.0.0"}' --from admin
-```
-
-### Query Contract
-```bash
-wasmd query wasm contract <contract_address>
-```
-
-### Query Contract State
-```bash
-wasmd query wasm contract-state smart <contract_address> '{"config": {}}'
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Migration Fails**: Ensure the contract has migration support
-2. **State Incompatibility**: Check storage structure changes
-3. **Gas Limits**: Complex migrations may require more gas
-4. **Permission Errors**: Ensure admin is calling migration
+1. **"Missing export migrate"**
+   - **Cause**: The old contract was deployed without migration support
+   - **Solution**: Cannot migrate; must deploy a new contract instance
 
-### Debugging
+2. **Migration transaction succeeds but code ID doesn't change**
+   - **Cause**: Transaction may not have been included in a block yet
+   - **Solution**: Wait longer and re-query, or check transaction events for errors
 
-1. Check contract logs for migration events
-2. Verify contract state before and after migration
-3. Test migration on testnet first
-4. Use contract queries to verify functionality
+3. **"Permission denied" or admin errors**
+   - **Cause**: Wrong account trying to execute migration
+   - **Solution**: Ensure the contract admin is signing the migration transaction
 
-## Future Enhancements
+4. **State corruption after migration**
+   - **Cause**: Incomplete or incorrect state transformation in migrate function
+   - **Solution**: Review migration logic, add comprehensive tests
 
-### Planned Features
+5. **Gas limit exceeded**
+   - **Cause**: Complex state migrations require more gas
+   - **Solution**: Increase gas limit or break migration into smaller steps
 
-- [ ] State migration helpers
-- [ ] Migration validation tools
-- [ ] Automated migration testing
-- [ ] Migration rollback functionality
+### Debugging Steps
 
-### Migration Patterns
+1. **Check transaction status**:
+   ```bash
+   babylond query tx <transaction_hash> --output json
+   ```
 
-- [ ] Config structure migrations
-- [ ] Data format conversions
-- [ ] Storage key changes
-- [ ] Permission model updates
+2. **Verify contract admin**:
+   ```bash
+   babylond query wasm contract <contract_address> --output json | jq -r '.contract_info.admin'
+   ```
 
-## Support
+3. **Check migration events**:
+   ```bash
+   babylond query tx <migration_tx_hash> --output json | jq '.events'
+   ```
 
-For questions about contract migration:
+4. **Test on testnet first**: Always test migrations on a testnet before mainnet
 
-1. Check the test files for examples
-2. Review the migration function implementation
-3. Test thoroughly before production deployment
-4. Consult the CosmWasm migration documentation
+## Best Practices
+
+### Development
+
+1. **Always include migration support**: Deploy every contract version with a `migrate` entry point, even if it's initially a no-op
+
+2. **Version tracking**: Include version information in migration messages and contract state
+
+3. **Backward compatibility**: Design storage structures to be extensible when possible
+
+4. **Migration planning**: Plan state transformations carefully and document breaking changes
+
+### Testing
+
+1. **Comprehensive testing**: Test both successful migrations and failure scenarios
+
+2. **Integration tests**: Use realistic test environments that mirror production
+
+3. **State verification**: Always verify that migrated state is correct and complete
+
+4. **Rollback planning**: Have a strategy for handling failed migrations
+
+### Production
+
+1. **Testnet first**: Always test migrations on testnet before mainnet
+
+2. **Monitoring**: Monitor contract health after migration
+
+3. **Documentation**: Document all migration steps and changes
+
+4. **Admin security**: Ensure migration admin keys are properly secured
+
+## Schema Generation
+
+The contract's migration message is included in the generated schema:
+
+```bash
+# Generate updated schema after migration changes
+cargo run --bin schema
+```
+
+This updates the JSON schema files in `contracts/finality/schema/` including the migration message schema.
+
+## Support and Resources
+
+- **Contract tests**: See `src/contract.rs` for migration test examples
+- **CosmWasm docs**: [Official CosmWasm migration guide](https://docs.cosmwasm.com/docs/1.0/smart-contracts/migration)
+- **Integration tests**: Check `babylon-bsn-integration-deployment` for e2e migration testing
+- **PR reference**: [Migration setup implementation](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/114)
 
 ## Changelog
 
-### v1.0.0-rc.0
-- Added basic migration support
-- Implemented non-state-breaking migration function
-- Added migration tests
-- Updated schema generation for migration messages
+### Current Implementation (PR #114)
+- ✅ Added `MigrateMsg` type with optional version field
+- ✅ Implemented basic `migrate` entry point for non-state-breaking migrations
+- ✅ Added migration tests (`test_migrate_basic`, `test_migrate_with_version`)
+- ✅ Updated schema generation to include migration message
+- ✅ Added this migration guide
+
+### Future Enhancements
+- [ ] State migration helpers for common patterns
+- [ ] Migration validation utilities
+- [ ] Automated migration testing framework
+- [ ] Migration rollback mechanisms
