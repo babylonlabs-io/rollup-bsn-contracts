@@ -1,7 +1,7 @@
 # Contract Migration Guide
 
-This document explains how to migrate the Rollup BSN Contract to new versions
-while preserving state and contract address.
+This guide explains how to safely migrate the Rollup BSN Contract to new
+versions in production environments.
 
 ## Overview
 
@@ -32,52 +32,27 @@ Understanding the migration process is crucial for successful upgrades:
    - On success, the contract address now points to the new `code_id`
    - Contract address and storage persist, only the code changes
 
-## Migration Implementation
+## Migration Message Format
 
-### Current Implementation
+When executing a migration, you provide a `MigrateMsg` with the following
+structure:
 
-The contract includes a basic migration handler in `src/contract.rs`:
-
-```rust
-/// Handle contract migration.
-/// This function is called when the contract is migrated to a new version.
-/// For non-state-breaking migrations, this is a simple no-op.
-pub fn migrate(
-    _deps: DepsMut<BabylonQuery>,
-    _env: Env,
-    msg: MigrateMsg,
-) -> Result<Response<BabylonMsg>, ContractError> {
-    // For non-state-breaking migration, just log the migration
-    let mut response = Response::new().add_attribute("action", "migrate");
-
-    if let Some(version) = msg.version {
-        response = response.add_attribute("version", version);
-    }
-
-    Ok(response)
+```json
+{
+  "version": "v2.0.0"  // Optional: version string for tracking
 }
 ```
 
-### MigrateMsg Structure
-
-The migration message is defined in `src/msg.rs`:
-
-```rust
-/// Migration message for contract upgrades.
-/// This can be extended in the future to include migration-specific parameters.
-#[cw_serde]
-pub struct MigrateMsg {
-    /// Optional version string for tracking migration
-    pub version: Option<String>,
-}
-```
+**Parameters:**
+- `version` (optional): A version string to track the migration in contract
+  events
 
 ## Migration Types
 
 ### Non-State-Breaking Migrations
 
-These migrations don't change the storage structure and are handled by the
-current implementation:
+These migrations don't change the storage structure and are handled
+automatically:
 
 - **Logic improvements**: Bug fixes, performance optimizations
 - **New functionality**: Adding new execute/query handlers that don't modify
@@ -89,49 +64,16 @@ stored data structures.
 
 ### State-Breaking Migrations
 
-These migrations require custom logic to transform existing state:
+**Currently not supported.** The current migration implementation only handles
+non-state-breaking changes. State-breaking migrations that require data
+transformation would need additional implementation in the contract's `migrate`
+function.
 
+Examples of state-breaking changes that would require future development:
 - **Adding fields**: New fields in existing structs
-- **Removing fields**: Deprecated fields that need cleanup
+- **Removing fields**: Deprecated fields that need cleanup  
 - **Type changes**: Converting field types (e.g., `u32` to `u64`)
 - **Storage restructuring**: Changing storage keys or data organization
-
-**Example implementation for adding fields**:
-
-```rust
-pub fn migrate(
-    deps: DepsMut<BabylonQuery>,
-    _env: Env,
-    msg: MigrateMsg,
-) -> Result<Response<BabylonMsg>, ContractError> {
-    // Load existing config
-    let old_config: ConfigV1 = CONFIG.load(deps.storage)?;
-    
-    // Transform to new structure with default values for new fields
-    let new_config = Config {
-        admin: old_config.admin,
-        bsn_id: old_config.bsn_id,
-        min_pub_rand: old_config.min_pub_rand,
-        rate_limiting_interval: old_config.rate_limiting_interval,
-        max_msgs_per_interval: old_config.max_msgs_per_interval,
-        bsn_activation_height: old_config.bsn_activation_height,
-        finality_signature_interval: old_config.finality_signature_interval,
-        // New fields with sensible defaults
-        max_finality_providers: 100,
-        emergency_pause: false,
-    };
-    
-    // Save the transformed config
-    CONFIG.save(deps.storage, &new_config)?;
-    
-    let mut response = Response::new().add_attribute("action", "migrate");
-    if let Some(version) = msg.version {
-        response = response.add_attribute("version", version);
-    }
-    
-    Ok(response)
-}
-```
 
 ## Step-by-Step Migration Process
 
@@ -139,7 +81,6 @@ pub fn migrate(
 
 ```bash
 # Build the optimized contract
-cd rollup-bsn-contracts
 cargo run-script optimize
 
 # Store the new contract code
@@ -198,7 +139,7 @@ babylond query wasm contract-state smart <contract_address> '{"config":{}}' \
 
 ### Unit Tests
 
-The contract includes migration tests in `src/contract.rs`:
+The contract includes migration tests:
 
 ```bash
 # Run migration-specific tests
@@ -210,45 +151,14 @@ cargo test -p finality
 
 ### Integration Testing
 
-For comprehensive testing, use the e2e test environment in the
-`babylon-bsn-integration-deployment` repository:
+For comprehensive testing in production environments:
 
-```bash
-# In babylon-bsn-integration-deployment/deployments/rollup-bsn-demo
-make test-migration-complete
-```
-
-This will:
-1. Deploy an initial contract
-2. Store a new version of the contract
-3. Execute migration
-4. Verify the migration was successful
-
-### Testing State-Breaking Migrations
-
-When implementing state-breaking migrations, create comprehensive tests:
-
-```rust
-#[test]
-fn test_state_breaking_migration() {
-    let mut deps = mock_deps_babylon();
-    
-    // Store old config format
-    let old_config = ConfigV1 { /* old fields */ };
-    CONFIG_V1.save(deps.as_mut().storage, &old_config).unwrap();
-    
-    // Execute migration
-    let migrate_msg = MigrateMsg { version: Some("v2.0.0".to_string()) };
-    let res = migrate(deps.as_mut(), mock_env(), migrate_msg).unwrap();
-    
-    // Verify new config format
-    let new_config: Config = CONFIG.load(deps.as_ref().storage).unwrap();
-    assert_eq!(new_config.admin, old_config.admin);
-    // Verify new fields have correct defaults
-    assert_eq!(new_config.max_finality_providers, 100);
-    assert_eq!(new_config.emergency_pause, false);
-}
-```
+1. **Test on testnet first**: Always test the complete migration process on
+   testnet first
+2. **Verify functionality**: Ensure all contract functions work correctly after
+   migration  
+3. **Check state integrity**: Confirm that all data has been preserved or
+   properly transformed
 
 ## Troubleshooting
 
@@ -297,75 +207,32 @@ fn test_state_breaking_migration() {
 
 ## Best Practices
 
-### Development
+1. **Always test first**: Test migrations thoroughly on testnet before mainnet
+2. **Backup important data**: Ensure you have backups of critical contract state
+3. **Monitor after migration**: Check contract health and functionality
+   post-migration
+4. **Use version tracking**: Include version strings for clear audit trails
+5. **Plan for rollbacks**: Have a strategy if migration issues arise
+6. **Secure admin keys**: Ensure migration admin keys are properly secured
+7. **Document changes**: Keep clear records of all migration steps and changes
 
-1. **Always include migration support**: Deploy every contract version with a
-   `migrate` entry point, even if it's initially a no-op
+## Migration Capabilities
 
-2. **Version tracking**: Include version information in migration messages and
-   contract state
+The Rollup BSN Contract currently supports:
 
-3. **Backward compatibility**: Design storage structures to be extensible when
-   possible
+- **Non-state-breaking migrations**: Upgrade logic while preserving existing
+  data structure
+- **Version tracking**: Optional version strings for audit trails  
+- **Admin-only execution**: Secure migration process restricted to contract
+  admin
 
-4. **Migration planning**: Plan state transformations carefully and document
-   breaking changes
-
-### Testing
-
-1. **Comprehensive testing**: Test both successful migrations and failure
-   scenarios
-
-2. **Integration tests**: Use realistic test environments that mirror production
-
-3. **State verification**: Always verify that migrated state is correct and
-   complete
-
-4. **Rollback planning**: Have a strategy for handling failed migrations
-
-### Production
-
-1. **Testnet first**: Always test migrations on testnet before mainnet
-
-2. **Monitoring**: Monitor contract health after migration
-
-3. **Documentation**: Document all migration steps and changes
-
-4. **Admin security**: Ensure migration admin keys are properly secured
-
-## Schema Generation
-
-The contract's migration message is included in the generated schema:
-
-```bash
-# Generate updated schema after migration changes
-cargo run --bin schema
-```
-
-This updates the JSON schema files in `contracts/finality/schema/` including the
-migration message schema.
+**Note**: State-breaking migrations that require data transformation are not
+currently implemented and would require additional development.
 
 ## Support and Resources
 
-- **Contract tests**: See `src/contract.rs` for migration test examples
-- **CosmWasm docs**: [Official CosmWasm migration
+- **CosmWasm documentation**: [Official CosmWasm migration
   guide](https://docs.cosmwasm.com/docs/1.0/smart-contracts/migration)
-- **Integration tests**: Check `babylon-bsn-integration-deployment` for e2e
-  migration testing
-- **PR reference**: [Migration setup
-  implementation](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/114)
-
-## Changelog
-
-### Current Implementation (PR #114)
-- ✅ Added `MigrateMsg` type with optional version field
-- ✅ Implemented basic `migrate` entry point for non-state-breaking migrations
-- ✅ Added migration tests (`test_migrate_basic`, `test_migrate_with_version`)
-- ✅ Updated schema generation to include migration message
-- ✅ Added this migration guide
-
-### Future Enhancements
-- [ ] State migration helpers for common patterns
-- [ ] Migration validation utilities
-- [ ] Automated migration testing framework
-- [ ] Migration rollback mechanisms
+- **Community support**: Join the Babylon community for migration assistance and
+  best practices
+- **Testing**: Always test thoroughly on testnet before production migrations
