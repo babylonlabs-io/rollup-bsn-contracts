@@ -87,9 +87,9 @@ cargo run-script optimize
 STORE_JSON=$(babylond tx wasm store artifacts/finality.wasm \
   --from <admin_key> \
   --chain-id <chain_id> \
-  --keyring-backend test \
+  --keyring-backend <keyring_backend> \
   --gas auto --gas-adjustment 1.3 \
-  --fees 1000000ubbn \
+  --fees <fee_amount><fee_denom> \
   --broadcast-mode sync \
   --output json -y)
 
@@ -111,9 +111,9 @@ echo "New code ID: $NEW_CODE_ID"
 babylond tx wasm migrate <contract_address> $NEW_CODE_ID '{"version":"v2.0.0"}' \
   --from <admin_key> \
   --chain-id <chain_id> \
-  --keyring-backend test \
+  --keyring-backend <keyring_backend> \
   --gas auto --gas-adjustment 1.3 \
-  --fees 1000000ubbn \
+  --fees <fee_amount><fee_denom> \
   --broadcast-mode sync \
   --output json -y
 ```
