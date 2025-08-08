@@ -40,6 +40,12 @@ pub struct InstantiateMsg {
     pub allowed_finality_providers: Option<Vec<String>>,
 }
 
+/// Migration message for contract upgrades.
+/// Empty for non-state-breaking migrations. Can be extended in the future
+/// to include migration-specific parameters for state transformations.
+#[cw_serde]
+pub struct MigrateMsg {}
+
 impl InstantiateMsg {
     pub fn validate(&self) -> Result<(), ContractError> {
         // Validate min_pub_rand

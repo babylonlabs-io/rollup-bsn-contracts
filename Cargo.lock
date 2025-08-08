@@ -829,6 +829,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw2"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b04852cd38f044c0751259d5f78255d07590d136b8a86d4e09efdd7666bd6d27"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "schemars",
+ "semver",
+ "serde",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "darling"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1143,6 +1158,7 @@ dependencies = [
  "cw-controllers",
  "cw-multi-test",
  "cw-storage-plus",
+ "cw2",
  "derivative",
  "eots",
  "hex",

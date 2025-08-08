@@ -37,6 +37,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## Unreleased
 
+### Improvements
+
+* [#114](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/114) feat: migration setup
+
+
 ## v1.0.0-rc.0
 
 _Release candidate. No changes since v0.2.0. This entry is a placeholder and will be updated if changes are made before final release._

@@ -2,7 +2,7 @@ use crate::msg::BabylonMsg;
 use babylon_bindings::BabylonQuery;
 use cosmwasm_std::{entry_point, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response};
 use error::ContractError;
-use msg::{ExecuteMsg, InstantiateMsg};
+use msg::{ExecuteMsg, InstantiateMsg, MigrateMsg};
 
 pub mod contract;
 pub mod custom_queries;
@@ -41,6 +41,15 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response<BabylonMsg>, ContractError> {
     contract::execute(deps, env, info, msg)
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(
+    deps: DepsMut<BabylonQuery>,
+    env: Env,
+    msg: MigrateMsg,
+) -> Result<Response<BabylonMsg>, ContractError> {
+    contract::migrate(deps, env, msg)
 }
 
 #[cfg(test)]
