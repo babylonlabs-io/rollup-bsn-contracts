@@ -14,15 +14,14 @@ to add new features or fix bugs without disrupting existing functionality.
 
 Understanding the migration process is crucial for successful upgrades:
 
-1. **The `migrate` entry point runs on the OLD contract** - When you call
-   `babylond tx wasm migrate`, the migration function from the currently
-   deployed contract (old code) is executed, not the new contract.
+1. **The `migrate` entry point runs on the NEW code** - When you call `babylond
+   tx wasm migrate`, the blockchain loads the new contract code and executes its
+   `migrate` function against the existing state of the contract address.
 
 2. **Migration requirements**:
-   - The old contract must have exported a `migrate` entry point at deployment
-     time
-   - If the old contract has no `migrate` export, migration fails with:
-     `"Missing export migrate"`
+   - The new code you are migrating to must export a `migrate` entry point
+   - If the new code has no `migrate` export, migration fails with: `"Missing
+     export: migrate"`
    - **Only the contract admin can execute migrations** - this is enforced by
      the CosmWasm runtime
    - The contract must have been instantiated with an admin (using `--admin`
@@ -31,7 +30,7 @@ Understanding the migration process is crucial for successful upgrades:
 3. **Migration flow**:
    - Store new contract code → get new `code_id`
    - Call migrate with contract address + new `code_id`
-   - Old contract's `migrate` function executes and can transform state
+   - New code's `migrate` entry point executes and can transform state
    - On success, the contract address now points to the new `code_id`
    - Contract address and storage persist, only the code changes
 
@@ -167,9 +166,11 @@ For comprehensive testing in production environments:
 
 ### Common Issues
 
-1. **"Missing export migrate"**
-   - **Cause**: The old contract was deployed without migration support
-   - **Solution**: Cannot migrate; must deploy a new contract instance
+1. **"Missing export: migrate"**
+   - **Cause**: The NEW code you are migrating to does not export a `migrate`
+     entry point
+   - **Solution**: Rebuild and store code that includes a `migrate` entry point,
+     then retry the migration
 
 2. **Migration transaction succeeds but code ID doesn't change**
    - **Cause**: Transaction may not have been included in a block yet
