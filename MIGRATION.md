@@ -226,7 +226,7 @@ The Rollup BSN Contract currently supports:
 
 - **Non-state-breaking migrations**: Upgrade logic while preserving existing
   data structure
-- **Version tracking**: Optional version strings for audit trails  
+- **Version tracking**: Automatic version tracking using `cw2` library for audit trails  
 - **Admin-only execution**: Secure migration process restricted to contract
   admin
 

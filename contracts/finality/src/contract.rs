@@ -1640,7 +1640,34 @@ pub(crate) mod tests {
     fn test_migrate_basic() {
         let mut deps = mock_deps_babylon();
 
-        // First, we need to instantiate the contract to set initial version
+        // Simulate an older version being deployed initially (realistic migration scenario)
+        let old_version = "0.9.0";
+        cw2::set_contract_version(deps.as_mut().storage, CONTRACT_NAME, old_version).unwrap();
+
+        // Test migration from old version to current version
+        let migrate_msg = MigrateMsg {};
+        let res = migrate(deps.as_mut(), mock_env(), migrate_msg).unwrap();
+
+        // Check that migration response has correct attributes
+        assert_eq!(res.attributes.len(), 3);
+        assert_eq!(res.attributes[0].key, "action");
+        assert_eq!(res.attributes[0].value, "migrate");
+        assert_eq!(res.attributes[1].key, "from_version");
+        assert_eq!(res.attributes[1].value, old_version); // Should be "0.9.0"
+        assert_eq!(res.attributes[2].key, "to_version");
+        assert_eq!(res.attributes[2].value, CONTRACT_VERSION); // Should be "1.0.0-rc.0"
+
+        // Verify the version was actually updated in storage
+        let stored_version = cw2::get_contract_version(deps.as_ref().storage).unwrap();
+        assert_eq!(stored_version.contract, CONTRACT_NAME);
+        assert_eq!(stored_version.version, CONTRACT_VERSION);
+    }
+
+    #[test]
+    fn test_migrate_after_instantiate() {
+        let mut deps = mock_deps_babylon();
+
+        // First, instantiate the contract (sets initial version)
         let admin = deps.api.addr_make(INIT_ADMIN);
         let bsn_id = "op-stack-l2-11155420".to_string();
         let min_pub_rand = 100;
@@ -1658,11 +1685,16 @@ pub(crate) mod tests {
         let info = message_info(&deps.api.addr_make(CREATOR), &[]);
         instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
 
-        // Test migration
+        // Verify initial version was set
+        let initial_version = cw2::get_contract_version(deps.as_ref().storage).unwrap();
+        assert_eq!(initial_version.contract, CONTRACT_NAME);
+        assert_eq!(initial_version.version, CONTRACT_VERSION);
+
+        // Test migration (same version, but tests the full flow)
         let migrate_msg = MigrateMsg {};
         let res = migrate(deps.as_mut(), mock_env(), migrate_msg).unwrap();
 
-        // Check that migration response has correct attributes
+        // Check migration attributes (from_version == to_version in this case)
         assert_eq!(res.attributes.len(), 3);
         assert_eq!(res.attributes[0].key, "action");
         assert_eq!(res.attributes[0].value, "migrate");
