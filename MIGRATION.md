@@ -40,14 +40,11 @@ When executing a migration, you provide a `MigrateMsg` with the following
 structure:
 
 ```json
-{
-  "version": "v2.0.0"  // Optional: version string for tracking
-}
+{}
 ```
 
-**Parameters:**
-- `version` (optional): A version string to track the migration in contract
-  events
+The migration message is empty for non-state-breaking migrations. Version
+tracking is handled automatically using the `cw2` library.
 
 ## Migration Types
 
@@ -101,7 +98,8 @@ sleep 10
 
 # Get the new code ID from transaction events
 NEW_CODE_ID=$(babylond query tx "$STORE_TX" --output json | \
-  jq -r '.events[] | select(.type=="store_code") | .attributes[] | select(.key=="code_id") | .value')
+  jq -r '.events[] | select(.type=="store_code") | .attributes[] | 
+  select(.key=="code_id") | .value')
 
 echo "New code ID: $NEW_CODE_ID"
 ```
@@ -110,7 +108,7 @@ echo "New code ID: $NEW_CODE_ID"
 
 ```bash
 # Migrate the existing contract to the new code
-babylond tx wasm migrate <contract_address> $NEW_CODE_ID '{"version":"v2.0.0"}' \
+babylond tx wasm migrate <contract_address> $NEW_CODE_ID '{}' \
   --from <admin_key> \
   --chain-id <chain_id> \
   --keyring-backend <keyring_backend> \

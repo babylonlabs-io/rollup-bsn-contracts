@@ -41,12 +41,10 @@ pub struct InstantiateMsg {
 }
 
 /// Migration message for contract upgrades.
-/// This can be extended in the future to include migration-specific parameters.
+/// Empty for non-state-breaking migrations. Can be extended in the future
+/// to include migration-specific parameters for state transformations.
 #[cw_serde]
-pub struct MigrateMsg {
-    /// Optional version string for tracking migration
-    pub version: Option<String>,
-}
+pub struct MigrateMsg {}
 
 impl InstantiateMsg {
     pub fn validate(&self) -> Result<(), ContractError> {

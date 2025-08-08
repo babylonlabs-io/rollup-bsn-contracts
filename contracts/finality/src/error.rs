@@ -111,4 +111,6 @@ pub enum ContractError {
     FinalityProviderNotAllowed(String),
     #[error("No configuration fields were provided to update")]
     NoConfigFieldsToUpdate,
+    #[error("Invalid contract name during migration: expected {expected}, got {actual}")]
+    InvalidContractName { expected: String, actual: String },
 }
