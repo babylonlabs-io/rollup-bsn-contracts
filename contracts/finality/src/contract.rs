@@ -8,7 +8,7 @@ use crate::exec::config::handle_update_config;
 use crate::exec::finality::handle_finality_signature;
 use crate::exec::public_randomness::handle_public_randomness_commit;
 use crate::msg::BabylonMsg;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::queries::query_block_voters;
 use crate::state::allowlist::{
     get_allowed_finality_providers, get_allowed_finality_providers_at_height,
@@ -20,6 +20,10 @@ use crate::state::public_randomness::{
     get_first_pub_rand_commit, get_last_pub_rand_commit, get_pub_rand_commit_for_height,
     list_pub_rand_commit,
 };
+
+// Contract metadata for version tracking
+const CONTRACT_NAME: &str = "rollup-bsn/finality";
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn instantiate(
     mut deps: DepsMut<BabylonQuery>,
@@ -73,7 +77,38 @@ pub fn instantiate(
         response = response.add_attribute("allow-list", fp_list.join(","));
     }
 
+    // Set contract version for migration tracking
+    cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     Ok(response)
+}
+
+/// Handle contract migration.
+/// This function is called when the contract is migrated to a new version.
+/// For non-state-breaking migrations, this updates the contract version and logs the migration.
+pub fn migrate(
+    deps: DepsMut<BabylonQuery>,
+    _env: Env,
+    _msg: MigrateMsg,
+) -> Result<Response<BabylonMsg>, ContractError> {
+    // Get the current version stored in the contract
+    let prev_version = cw2::get_contract_version(deps.storage)?;
+
+    // Validate that this is the expected contract
+    if prev_version.contract != CONTRACT_NAME {
+        return Err(ContractError::InvalidContractName {
+            expected: CONTRACT_NAME.to_string(),
+            actual: prev_version.contract,
+        });
+    }
+
+    // Update to the new version
+    cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "migrate")
+        .add_attribute("from_version", prev_version.version)
+        .add_attribute("to_version", CONTRACT_VERSION))
 }
 
 pub fn query(
@@ -1599,5 +1634,93 @@ pub(crate) mod tests {
         assert_eq!(res2.attributes.len(), 1);
         assert_eq!(res2.attributes[0].key, "action");
         assert_eq!(res2.attributes[0].value, "instantiate");
+    }
+
+    #[test]
+    fn test_migrate_basic() {
+        let mut deps = mock_deps_babylon();
+
+        // Simulate an older version being deployed initially (realistic migration scenario)
+        let old_version = "0.9.0";
+        cw2::set_contract_version(deps.as_mut().storage, CONTRACT_NAME, old_version).unwrap();
+
+        // Test migration from old version to current version
+        let migrate_msg = MigrateMsg {};
+        let res = migrate(deps.as_mut(), mock_env(), migrate_msg).unwrap();
+
+        // Check that migration response has correct attributes
+        assert_eq!(res.attributes.len(), 3);
+        assert_eq!(res.attributes[0].key, "action");
+        assert_eq!(res.attributes[0].value, "migrate");
+        assert_eq!(res.attributes[1].key, "from_version");
+        assert_eq!(res.attributes[1].value, old_version); // Should be "0.9.0"
+        assert_eq!(res.attributes[2].key, "to_version");
+        assert_eq!(res.attributes[2].value, CONTRACT_VERSION); // Should be "1.0.0-rc.0"
+
+        // Verify the version was actually updated in storage
+        let stored_version = cw2::get_contract_version(deps.as_ref().storage).unwrap();
+        assert_eq!(stored_version.contract, CONTRACT_NAME);
+        assert_eq!(stored_version.version, CONTRACT_VERSION);
+    }
+
+    #[test]
+    fn test_migrate_after_instantiate() {
+        let mut deps = mock_deps_babylon();
+
+        // First, instantiate the contract (sets initial version)
+        let admin = deps.api.addr_make(INIT_ADMIN);
+        let bsn_id = "op-stack-l2-11155420".to_string();
+        let min_pub_rand = 100;
+
+        let instantiate_msg = InstantiateMsg {
+            admin: admin.to_string(),
+            bsn_id,
+            min_pub_rand,
+            max_msgs_per_interval: MAX_MSGS_PER_INTERVAL,
+            rate_limiting_interval: RATE_LIMITING_INTERVAL,
+            bsn_activation_height: 1000,
+            finality_signature_interval: 100,
+            allowed_finality_providers: None,
+        };
+        let info = message_info(&deps.api.addr_make(CREATOR), &[]);
+        instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
+
+        // Verify initial version was set
+        let initial_version = cw2::get_contract_version(deps.as_ref().storage).unwrap();
+        assert_eq!(initial_version.contract, CONTRACT_NAME);
+        assert_eq!(initial_version.version, CONTRACT_VERSION);
+
+        // Test migration (same version, but tests the full flow)
+        let migrate_msg = MigrateMsg {};
+        let res = migrate(deps.as_mut(), mock_env(), migrate_msg).unwrap();
+
+        // Check migration attributes (from_version == to_version in this case)
+        assert_eq!(res.attributes.len(), 3);
+        assert_eq!(res.attributes[0].key, "action");
+        assert_eq!(res.attributes[0].value, "migrate");
+        assert_eq!(res.attributes[1].key, "from_version");
+        assert_eq!(res.attributes[1].value, CONTRACT_VERSION);
+        assert_eq!(res.attributes[2].key, "to_version");
+        assert_eq!(res.attributes[2].value, CONTRACT_VERSION);
+    }
+
+    #[test]
+    fn test_migrate_invalid_contract_name() {
+        let mut deps = mock_deps_babylon();
+
+        // Manually set an incorrect contract name to test validation
+        cw2::set_contract_version(deps.as_mut().storage, "wrong-contract", "1.0.0").unwrap();
+
+        // Test migration should fail with invalid contract name
+        let migrate_msg = MigrateMsg {};
+        let err = migrate(deps.as_mut(), mock_env(), migrate_msg).unwrap_err();
+
+        assert_eq!(
+            err,
+            ContractError::InvalidContractName {
+                expected: CONTRACT_NAME.to_string(),
+                actual: "wrong-contract".to_string(),
+            }
+        );
     }
 }

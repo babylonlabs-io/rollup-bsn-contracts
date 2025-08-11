@@ -14,31 +14,32 @@
     - [4.3.1. CurrentEpoch (MUST)](#431-currentepoch-must)
     - [4.3.2. LastFinalizedEpoch (MUST)](#432-lastfinalizedepoch-must)
   - [4.4. Contract Instantiation](#44-contract-instantiation)
-  - [4.5. Signing Context](#45-signing-context)
-  - [4.6. Rate Limiting (MUST)](#46-rate-limiting-must)
-  - [4.7. Finality Contract message handlers](#47-finality-contract-message-handlers)
-    - [4.7.1. CommitPublicRandomness (MUST)](#471-commitpublicrandomness-must)
-    - [4.7.2. SubmitFinalitySignature (MUST)](#472-submitfinalitysignature-must)
-    - [4.7.3. UpdateAdmin (SHOULD)](#473-updateadmin-should)
-    - [4.7.4. UpdateConfig (SHOULD)](#474-updateconfig-should)
-    - [4.7.5. AddToAllowlist (SHOULD)](#475-addtoallowlist-should)
-    - [4.7.6. RemoveFromAllowlist (SHOULD)](#476-removefromallowlist-should)
-    - [4.7.7. PruneData (SHOULD)](#477-prunedata-should)
-  - [4.8. Contract State Storage](#48-contract-state-storage)
-    - [4.8.1. Core Configuration](#481-core-configuration)
-    - [4.8.2. Rate Limiting Storage](#482-rate-limiting-storage)
-    - [4.8.3. Finality State Storage](#483-finality-state-storage)
-    - [4.8.4. Public Randomness Storage](#484-public-randomness-storage)
-  - [4.9. Finality contract queries](#49-finality-contract-queries)
-    - [4.9.1. BlockVoters (MUST)](#491-blockvoters-must)
-    - [4.9.2. FirstPubRandCommit (MUST)](#492-firstpubrandcommit-must)
-    - [4.9.3. LastPubRandCommit (MUST)](#493-lastpubrandcommit-must)
-    - [4.9.4. ListPubRandCommit (MUST)](#494-listpubrandcommit-must)
-    - [4.9.5. Admin (SHOULD)](#495-admin-should)
-    - [4.9.6. Config (SHOULD)](#496-config-should)
-    - [4.9.7. AllowedFinalityProviders (SHOULD)](#497-allowedfinalityproviders-should)
-    - [4.9.8. AllowedFinalityProvidersAtHeight (SHOULD)](#498-allowedfinalityprovidersatheight-should)
-    - [4.9.9. HighestVotedHeight (SHOULD)](#499-highestvotedheight-should)
+  - [4.5. Contract Migration (MUST)](#45-contract-migration-must)
+  - [4.6. Signing Context](#46-signing-context)
+  - [4.7. Rate Limiting (MUST)](#47-rate-limiting-must)
+  - [4.8. Finality Contract message handlers](#48-finality-contract-message-handlers)
+    - [4.8.1. CommitPublicRandomness (MUST)](#481-commitpublicrandomness-must)
+    - [4.8.2. SubmitFinalitySignature (MUST)](#482-submitfinalitysignature-must)
+    - [4.8.3. UpdateAdmin (SHOULD)](#483-updateadmin-should)
+    - [4.8.4. UpdateConfig (MUST)](#484-updateconfig-must)
+    - [4.8.5. AddToAllowlist (SHOULD)](#485-addtoallowlist-should)
+    - [4.8.6. RemoveFromAllowlist (SHOULD)](#486-removefromallowlist-should)
+    - [4.8.7. PruneData (SHOULD)](#487-prunedata-should)
+  - [4.9. Contract State Storage](#49-contract-state-storage)
+    - [4.9.1. Core Configuration](#491-core-configuration)
+    - [4.9.2. Rate Limiting Storage](#492-rate-limiting-storage)
+    - [4.9.3. Finality State Storage](#493-finality-state-storage)
+    - [4.9.4. Public Randomness Storage](#494-public-randomness-storage)
+  - [4.10. Finality contract queries](#410-finality-contract-queries)
+    - [4.10.1. BlockVoters (MUST)](#4101-blockvoters-must)
+    - [4.10.2. FirstPubRandCommit (MUST)](#4102-firstpubrandcommit-must)
+    - [4.10.3. LastPubRandCommit (MUST)](#4103-lastpubrandcommit-must)
+    - [4.10.4. ListPubRandCommit (MUST)](#4104-listpubrandcommit-must)
+    - [4.10.5. Admin (SHOULD)](#4105-admin-should)
+    - [4.10.6. Config (SHOULD)](#4106-config-should)
+    - [4.10.7. AllowedFinalityProviders (SHOULD)](#4107-allowedfinalityproviders-should)
+    - [4.10.8. AllowedFinalityProvidersAtHeight (SHOULD)](#4108-allowedfinalityprovidersatheight-should)
+    - [4.10.9. HighestVotedHeight (SHOULD)](#4109-highestvotedheight-should)
 - [5. Implementation status](#5-implementation-status)
   - [5.1. Babylon implementation status](#51-babylon-implementation-status)
   - [5.2. Finality contract implementation status](#52-finality-contract-implementation-status)
@@ -385,7 +386,7 @@ pub struct InstantiateMsg {
 ```
 
 **Expected Behaviour:** When deploying the finality contract, the following
-parameters must be provided:
+parameters must be provided.
 
 **Required Parameters:**
 - `admin`: String - The initial admin address for the contract who can update
@@ -443,7 +444,101 @@ and ensures efficient sparse generation. For example, if `bsn_activation_height
 = 0` and `finality_signature_interval = 5`, then public randomness commitments
 should start at height 0 to provide randomness at heights 0, 5, 10, 15, etc.
 
-### 4.5. Signing Context
+### 4.5. Contract Migration (MUST)
+
+Finality contracts MUST support contract migration to enable upgrades while
+preserving contract state and address. This is essential for production
+deployments where contract logic needs to be updated without disrupting existing
+functionality.
+
+**Migration Requirements:**
+- **Entry Point**: Contracts MUST export a `migrate` entry point using the
+  CosmWasm `#[cfg_attr(not(feature = "library"), entry_point)]` attribute
+- **Admin Control**: Only the contract admin can execute migrations (enforced by
+  CosmWasm runtime)
+- **State Preservation**: Migration MUST preserve all existing contract state
+  and storage
+- **Backward Compatibility**: New contract versions MUST be compatible with
+  existing state structures for non-state-breaking migrations
+- **Contract Validation**: Migration MUST validate the contract name matches
+  expectations
+
+**Migration Message Format:**
+```rust
+#[cw_serde]
+pub struct MigrateMsg {}  // Empty for non-state-breaking migrations
+```
+
+**Note**: Version tracking is handled automatically by the `cw2` library during
+migration. The `MigrateMsg` is empty because all version information is stored
+in the contract's state and managed by the migration function.
+
+**Migration Function:**
+```rust
+/// Handle contract migration.
+/// This function is called when the contract is migrated to a new version.
+/// For non-state-breaking migrations, this updates the contract version and logs the migration.
+pub fn migrate(
+    deps: DepsMut<BabylonQuery>,
+    _env: Env,
+    _msg: MigrateMsg,
+) -> Result<Response<BabylonMsg>, ContractError> {
+    // Get the current version stored in the contract
+    let prev_version = cw2::get_contract_version(deps.storage)?;
+
+    // Validate that this is the expected contract
+    if prev_version.contract != CONTRACT_NAME {
+        return Err(ContractError::InvalidContractName {
+            expected: CONTRACT_NAME.to_string(),
+            actual: prev_version.contract,
+        });
+    }
+
+    // Update to the new version
+    cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+    Ok(Response::new()
+        .add_attribute("action", "migrate")
+        .add_attribute("from_version", prev_version.version)
+        .add_attribute("to_version", CONTRACT_VERSION))
+}
+```
+
+**Migration Features:**
+- **Automatic Version Tracking**: Uses the `cw2` library for contract version
+  management
+- **Contract Validation**: Ensures the contract name matches before migration
+- **Version Updates**: Automatically updates stored version information
+- **Detailed Logging**: Returns attributes showing the version transition
+
+**Migration Types:**
+1. **Non-State-Breaking Migrations**: Updates to contract logic that don't
+   change storage structures (currently supported)
+2. **State-Breaking Migrations**: Updates that require data transformation
+   (future enhancement - would require extending MigrateMsg)
+
+**Migration Process:**
+1. Store new contract code on the blockchain
+2. Execute migration transaction with contract address and new code ID
+3. New contract's `migrate` function executes against existing state
+4. Contract address remains the same, only the code changes
+
+**Error Handling:** The migration function includes validation that returns
+`ContractError::InvalidContractName` if the stored contract name doesn't match
+the expected name (`"rollup-bsn/finality"`).
+
+**Version Management:**
+- **Contract Name**: `"rollup-bsn/finality"` (constant)
+- **Contract Version**: Uses `CARGO_PKG_VERSION` from the package manifest
+- **Storage**: Version information is stored using the `cw2` library
+
+**Security Considerations:**
+- Migration is admin-only and enforced by the CosmWasm runtime
+- Contract must have been instantiated with an admin address
+- Contract name validation prevents migration to incompatible contracts
+- Migration cannot be used to bypass access controls or modify critical state
+
+### 4.6. Signing Context
 
 Finality contracts MUST implement signing context to ensure message signatures
 are bound to the specific contract and chain. The signing context prevents
@@ -477,7 +572,7 @@ message being signed as raw bytes from the hex string. This ensures that
 signatures are cryptographically bound to the specific contract instance and
 cannot be replayed across different contracts or chains.
 
-### 4.6. Rate Limiting (MUST)
+### 4.7. Rate Limiting (MUST)
 
 Finality contracts MUST implement rate limiting to prevent spam and ensure fair
 usage of the contract by finality providers. The rate limiting system operates
@@ -535,7 +630,7 @@ ContractError::RateLimitExceeded {
 }
 ```
 
-### 4.7. Finality Contract message handlers
+### 4.8. Finality Contract message handlers
 
 The finality contract message requirements are divided into core finality
 functionality (MUST) and administrative functionality (SHOULD):
@@ -649,7 +744,7 @@ pub enum ExecuteMsg {
 }
 ```
 
-#### 4.7.1. CommitPublicRandomness (MUST)
+#### 4.8.1. CommitPublicRandomness (MUST)
 
 **Message Structure:**
 ```rust
@@ -722,7 +817,7 @@ at heights: `start_height`, `start_height + interval`, `start_height + 2 * inter
 This pattern aligns with the finality signature interval to ensure that public randomness
 is available exactly when finality signatures are allowed to be submitted.
 
-#### 4.7.2. SubmitFinalitySignature (MUST)
+#### 4.8.2. SubmitFinalitySignature (MUST)
 
 **Message Structure:**
 ```rust
@@ -841,7 +936,7 @@ following verification logic:
      - Save public randomness value using key `(height, fp_pubkey_hex)` if this
        is the first vote for this height
 
-#### 4.7.3. UpdateAdmin (SHOULD)
+#### 4.8.3. UpdateAdmin (SHOULD)
 
 **Message Structure:**
 ```rust
@@ -867,7 +962,7 @@ handler with the following verification logic:
      - The new admin address from `admin` parameter replaces the current admin
   - Return success response
 
-#### 4.7.4. UpdateConfig (SHOULD)
+#### 4.8.4. UpdateConfig (MUST)
 
 **Message Structure:**
 ```rust
@@ -906,7 +1001,7 @@ handler with the following verification logic:
 parameters without requiring contract migration, enabling fine-tuning of rate
 limits, finality intervals, and other settings based on network conditions.
 
-#### 4.7.5. AddToAllowlist (SHOULD)
+#### 4.8.5. AddToAllowlist (SHOULD)
 
 **Message Structure:**
 ```rust
@@ -935,7 +1030,7 @@ handler with the following verification logic:
    - Return success response with action attributes indicating the number of
      providers added
 
-#### 4.7.6. RemoveFromAllowlist (SHOULD)
+#### 4.8.6. RemoveFromAllowlist (SHOULD)
 
 **Message Structure:**
 ```rust
@@ -965,7 +1060,7 @@ handler with the following verification logic:
    - Return success response with action attributes indicating the number of
      providers removed
 
-#### 4.7.7. PruneData (SHOULD)
+#### 4.8.7. PruneData (SHOULD)
 
 **Message Structure:**
 ```rust
@@ -1032,12 +1127,12 @@ for the affected height range.
 }
 ```
 
-### 4.8. Contract State Storage
+### 4.9. Contract State Storage
 
 This section documents the actual state storage structure used by the finality
 contract implementation.
 
-#### 4.8.1. Core Configuration
+#### 4.9.1. Core Configuration
 
 **ADMIN**: Admin controller for contract administration
 - Type: `Admin` (from cw-controllers)
@@ -1075,7 +1170,7 @@ contract implementation.
 - Note: While the API accepts hex strings, the storage layer uses the decoded
   byte representation for efficiency.
 
-#### 4.8.2. Rate Limiting Storage
+#### 4.9.2. Rate Limiting Storage
 
 **NUM_MSGS_LAST_INTERVAL**: Rate limiting counters per finality provider
 - Type: `Map<&[u8], (u64, u32)>`
@@ -1085,7 +1180,7 @@ contract implementation.
 - Purpose: Tracks message count per finality provider within block intervals
 - Automatic reset when interval changes
 
-#### 4.8.3. Finality State Storage
+#### 4.9.3. Finality State Storage
 
 **FINALITY_SIGNATURES**: Finality signatures by height and provider
 - Type: `Map<(u64, &[u8]), FinalitySigInfo>`
@@ -1117,7 +1212,7 @@ contract implementation.
 - **Automatic Maintenance**: This map is automatically updated whenever a
   finality signature is submitted
 
-#### 4.8.4. Public Randomness Storage
+#### 4.9.4. Public Randomness Storage
 
 **PUB_RAND_VALUES**: Individual public randomness values
 - Type: `Map<(u64, &[u8]), Vec<u8>>`
@@ -1145,7 +1240,7 @@ contract implementation.
   ```
 - **Sparse Generation Support**: The `interval` field enables sparse public randomness generation where public randomness values are available at heights: `start_height`, `start_height + interval`, `start_height + 2 * interval`, etc. This aligns with the `finality_signature_interval` to optimize storage and computation.
 
-### 4.9. Finality contract queries
+### 4.10. Finality contract queries
 
 The finality contract query requirements are divided into core finality
 functionality (MUST) and administrative functionality (SHOULD):
@@ -1227,7 +1322,7 @@ pub enum QueryMsg {
 }
 ```
 
-#### 4.9.1. BlockVoters (MUST)
+#### 4.10.1. BlockVoters (MUST)
 
 **Query Structure:**
 ```rust
@@ -1272,7 +1367,7 @@ WHERE `BlockVoterInfo` contains:
 - `finality_signature`: `FinalitySigInfo` - Complete signature information
   including signature and block hash
 
-#### 4.9.2. FirstPubRandCommit (MUST)
+#### 4.10.2. FirstPubRandCommit (MUST)
 
 **Query Structure:**
 ```rust
@@ -1304,7 +1399,7 @@ WHERE `PubRandCommit` contains:
 - `babylon_epoch`: `u64` - The epoch number when the commitment was submitted
 - `commitment`: `Vec<u8>` - The commitment value (Merkle root)
 
-#### 4.9.3. LastPubRandCommit (MUST)
+#### 4.10.3. LastPubRandCommit (MUST)
 
 **Query Structure:**
 ```rust
@@ -1336,7 +1431,7 @@ WHERE `PubRandCommit` contains:
 - `babylon_epoch`: `u64` - The epoch number when the commitment was submitted
 - `commitment`: `Vec<u8>` - The commitment value (Merkle root)
 
-#### 4.9.4. ListPubRandCommit (MUST)
+#### 4.10.4. ListPubRandCommit (MUST)
 
 **Query Structure:**
 ```rust
@@ -1374,7 +1469,7 @@ WHERE `PubRandCommit` contains:
 - `babylon_epoch`: `u64` - The epoch number when the commitment was submitted
 - `commitment`: `Vec<u8>` - The commitment value (Merkle root)
 
-#### 4.9.5. Admin (SHOULD)
+#### 4.10.5. Admin (SHOULD)
 
 **Query Structure:**
 ```rust
@@ -1396,7 +1491,7 @@ query to return the current admin address:
 WHERE AdminResponse contains:
 - `admin`: `Option<String>`
 
-#### 4.9.6. Config (SHOULD)
+#### 4.10.6. Config (SHOULD)
 
 **Query Structure:**
 ```rust
@@ -1421,7 +1516,7 @@ WHERE Config contains:
 - `rate_limiting`: `RateLimitingConfig` - Rate limiting configuration including
   `max_msgs_per_interval` and `block_interval`
 
-#### 4.9.7. AllowedFinalityProviders (SHOULD)
+#### 4.10.7. AllowedFinalityProviders (SHOULD)
 
 **Query Structure:**
 ```rust
@@ -1446,7 +1541,7 @@ WHERE the return value contains:
 - `Vec<String>` - List of BTC public keys in hex format for all allowed finality
   providers
 
-#### 4.9.8. AllowedFinalityProvidersAtHeight (SHOULD)
+#### 4.10.8. AllowedFinalityProvidersAtHeight (SHOULD)
 
 **Query Structure:**
 ```rust
@@ -1475,7 +1570,7 @@ WHERE the return value contains:
 - `Vec<String>` - List of BTC public keys in hex format for all allowed finality
   providers at the specified Babylon height
 
-#### 4.9.9. HighestVotedHeight (SHOULD)
+#### 4.10.9. HighestVotedHeight (SHOULD)
 
 **Query Structure:**
 ```rust
@@ -1516,12 +1611,13 @@ finality contract integration.
 As of this writing, there are two known implementations of finality contracts
 that integrate with Babylon's Bitcoin staking protocol:
 
-1. **OP Finality Gadget** - Available at
+1. **Rollup BSN Contracts** - Available at
    [babylonlabs-io/rollup-bsn-contracts](https://github.com/babylonlabs-io/rollup-bsn-contracts).
    This implementation is a CosmWasm smart contract designed to integrate OP
    Stack rollups with Babylon's Bitcoin staking protocol. The contract is
    actively developed and maintained by Babylon Labs. This implementation
-   follows the specification outlined in this document.
+   follows the specification outlined in this document and includes support for
+   contract migration to enable production upgrades.
 
 2. **BLITZ** - Available at
    [alt-research/blitz](https://github.com/alt-research/blitz). This

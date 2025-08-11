@@ -29,6 +29,7 @@ cosmwasm-schema  = { workspace = true }
 cosmwasm-std     = { workspace = true }
 cw-controllers   = { workspace = true }
 cw-storage-plus  = { workspace = true }
+cw2              = { workspace = true }
 eots             = { workspace = true }
 hex              = { workspace = true }
 k256             = { workspace = true }
