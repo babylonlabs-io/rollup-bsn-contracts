@@ -126,7 +126,7 @@ pub fn migrate(
 
     Ok(Response::new()
         .add_attribute("action", "migrate")
-        .add_attribute("from_version", &prev_version.version)
+        .add_attribute("from_version", prev_version.version)
         .add_attribute("to_version", CONTRACT_VERSION))
 }
 
