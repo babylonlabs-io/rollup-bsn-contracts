@@ -4,7 +4,7 @@ resolver = "2"
 
 [workspace.package]
 edition    = "2021"
-version    = "1.0.0-rc.0"
+version    = "1.0.0-rc.1"
 license    = "BSL-1.1"
 repository = "https://github.com/babylonlabs-io/rollup-bsn-contracts"
 authors    = ["Babylon Labs Ltd. <admin@babylonlabs.io>"]

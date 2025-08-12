@@ -1145,7 +1145,7 @@ checksum = "28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d"
 
 [[package]]
 name = "finality"
-version = "1.0.0-rc.0"
+version = "1.0.0-rc.1"
 dependencies = [
  "anybuf",
  "anyhow",

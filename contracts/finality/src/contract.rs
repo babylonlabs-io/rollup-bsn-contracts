@@ -1655,7 +1655,7 @@ pub(crate) mod tests {
         assert_eq!(res.attributes[1].key, "from_version");
         assert_eq!(res.attributes[1].value, old_version); // Should be "0.9.0"
         assert_eq!(res.attributes[2].key, "to_version");
-        assert_eq!(res.attributes[2].value, CONTRACT_VERSION); // Should be "1.0.0-rc.0"
+        assert_eq!(res.attributes[2].value, CONTRACT_VERSION); // Should be "1.0.0-rc.1"
 
         // Verify the version was actually updated in storage
         let stored_version = cw2::get_contract_version(deps.as_ref().storage).unwrap();
