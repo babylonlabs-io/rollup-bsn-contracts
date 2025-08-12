@@ -24,6 +24,8 @@ use crate::state::public_randomness::{
 // Contract metadata for version tracking
 const CONTRACT_NAME: &str = "rollup-bsn/finality";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+/// Placeholder version for contracts deployed before cw2 version tracking was implemented
+const LEGACY_VERSION: &str = "pre-cw2";
 
 pub fn instantiate(
     mut deps: DepsMut<BabylonQuery>,
@@ -84,30 +86,47 @@ pub fn instantiate(
 }
 
 /// Handle contract migration.
+///
 /// This function is called when the contract is migrated to a new version.
+/// It supports both:
+/// - Migrating from contracts with existing cw2 version info
+/// - Migrating from legacy contracts deployed without cw2 version tracking
+///
 /// For non-state-breaking migrations, this updates the contract version and logs the migration.
+/// State-breaking migrations would require additional logic in this function.
 pub fn migrate(
     deps: DepsMut<BabylonQuery>,
     _env: Env,
     _msg: MigrateMsg,
 ) -> Result<Response<BabylonMsg>, ContractError> {
-    // Get the current version stored in the contract
-    let prev_version = cw2::get_contract_version(deps.storage)?;
+    // Attempt to get the current version stored in the contract
+    let prev_version = match cw2::get_contract_version(deps.storage) {
+        Ok(version) => {
+            // Contract has version info - validate it's the expected contract
+            if version.contract != CONTRACT_NAME {
+                return Err(ContractError::InvalidContractName {
+                    expected: CONTRACT_NAME.to_string(),
+                    actual: version.contract,
+                });
+            }
+            version
+        }
+        Err(_) => {
+            // No version info exists - this is a legacy contract
+            // Create a placeholder version for logging purposes
+            cw2::ContractVersion {
+                contract: CONTRACT_NAME.to_string(),
+                version: LEGACY_VERSION.to_string(),
+            }
+        }
+    };
 
-    // Validate that this is the expected contract
-    if prev_version.contract != CONTRACT_NAME {
-        return Err(ContractError::InvalidContractName {
-            expected: CONTRACT_NAME.to_string(),
-            actual: prev_version.contract,
-        });
-    }
-
-    // Update to the new version
+    // Update to the new version (this creates version info if it didn't exist)
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     Ok(Response::new()
         .add_attribute("action", "migrate")
-        .add_attribute("from_version", prev_version.version)
+        .add_attribute("from_version", &prev_version.version)
         .add_attribute("to_version", CONTRACT_VERSION))
 }
 
@@ -1638,6 +1657,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_migrate_basic() {
+        // Test 1: Migration from versioned contract
         let mut deps = mock_deps_babylon();
 
         // Simulate an older version being deployed initially (realistic migration scenario)
@@ -1655,10 +1675,34 @@ pub(crate) mod tests {
         assert_eq!(res.attributes[1].key, "from_version");
         assert_eq!(res.attributes[1].value, old_version); // Should be "0.9.0"
         assert_eq!(res.attributes[2].key, "to_version");
-        assert_eq!(res.attributes[2].value, CONTRACT_VERSION); // Should be "1.0.0-rc.0"
+        assert_eq!(res.attributes[2].value, CONTRACT_VERSION);
 
         // Verify the version was actually updated in storage
         let stored_version = cw2::get_contract_version(deps.as_ref().storage).unwrap();
+        assert_eq!(stored_version.contract, CONTRACT_NAME);
+        assert_eq!(stored_version.version, CONTRACT_VERSION);
+
+        // Test 2: Migration from legacy contract (no version info)
+        let mut legacy_deps = mock_deps_babylon();
+
+        // Don't set any version info - simulates a legacy contract deployed without cw2
+        // This is the real-world scenario for testnet contracts
+
+        // Test migration from legacy contract
+        let migrate_msg = MigrateMsg {};
+        let res = migrate(legacy_deps.as_mut(), mock_env(), migrate_msg).unwrap();
+
+        // Check that migration response has correct attributes for legacy migration
+        assert_eq!(res.attributes.len(), 3);
+        assert_eq!(res.attributes[0].key, "action");
+        assert_eq!(res.attributes[0].value, "migrate");
+        assert_eq!(res.attributes[1].key, "from_version");
+        assert_eq!(res.attributes[1].value, LEGACY_VERSION); // Should be "pre-cw2"
+        assert_eq!(res.attributes[2].key, "to_version");
+        assert_eq!(res.attributes[2].value, CONTRACT_VERSION);
+
+        // Verify the version was set in storage (first time)
+        let stored_version = cw2::get_contract_version(legacy_deps.as_ref().storage).unwrap();
         assert_eq!(stored_version.contract, CONTRACT_NAME);
         assert_eq!(stored_version.version, CONTRACT_VERSION);
     }
