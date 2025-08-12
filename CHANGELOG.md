@@ -39,7 +39,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ### Improvements
 
-* [#114](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/114) feat: migration setup
+* [#114](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/114) feat:
+  migration setup
+* [#117](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/117) fix:
+  pre-cw2 migrate validations
 
 
 ## v1.0.0-rc.0
