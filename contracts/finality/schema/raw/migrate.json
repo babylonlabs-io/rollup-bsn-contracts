@@ -1,16 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "MigrateMsg",
-  "description": "Migration message for contract upgrades. This can be extended in the future to include migration-specific parameters.",
+  "description": "Migration message for contract upgrades. Empty for non-state-breaking migrations. Can be extended in the future to include migration-specific parameters for state transformations.",
   "type": "object",
-  "properties": {
-    "version": {
-      "description": "Optional version string for tracking migration",
-      "type": [
-        "string",
-        "null"
-      ]
-    }
-  },
   "additionalProperties": false
 }
