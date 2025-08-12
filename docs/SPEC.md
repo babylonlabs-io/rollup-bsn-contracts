@@ -477,24 +477,38 @@ in the contract's state and managed by the migration function.
 ```rust
 /// Handle contract migration.
 /// This function is called when the contract is migrated to a new version.
+/// It supports both:
+/// - Migrating from contracts with existing cw2 version info
+/// - Migrating from legacy contracts deployed without cw2 version tracking
 /// For non-state-breaking migrations, this updates the contract version and logs the migration.
 pub fn migrate(
     deps: DepsMut<BabylonQuery>,
     _env: Env,
     _msg: MigrateMsg,
 ) -> Result<Response<BabylonMsg>, ContractError> {
-    // Get the current version stored in the contract
-    let prev_version = cw2::get_contract_version(deps.storage)?;
+    // Attempt to get the current version stored in the contract
+    let prev_version = match cw2::get_contract_version(deps.storage) {
+        Ok(version) => {
+            // Contract has version info - validate it's the expected contract
+            if version.contract != CONTRACT_NAME {
+                return Err(ContractError::InvalidContractName {
+                    expected: CONTRACT_NAME.to_string(),
+                    actual: version.contract,
+                });
+            }
+            version
+        }
+        Err(_) => {
+            // No version info exists - this is a legacy contract
+            // Create a placeholder version for logging purposes
+            cw2::ContractVersion {
+                contract: CONTRACT_NAME.to_string(),
+                version: LEGACY_VERSION.to_string(),
+            }
+        }
+    };
 
-    // Validate that this is the expected contract
-    if prev_version.contract != CONTRACT_NAME {
-        return Err(ContractError::InvalidContractName {
-            expected: CONTRACT_NAME.to_string(),
-            actual: prev_version.contract,
-        });
-    }
-
-    // Update to the new version
+    // Update to the new version (this creates version info if it didn't exist)
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     Ok(Response::new()
@@ -507,6 +521,8 @@ pub fn migrate(
 **Migration Features:**
 - **Automatic Version Tracking**: Uses the `cw2` library for contract version
   management
+- **Legacy Contract Support**: Gracefully handles contracts deployed before
+  `cw2` version tracking was implemented
 - **Contract Validation**: Ensures the contract name matches before migration
 - **Version Updates**: Automatically updates stored version information
 - **Detailed Logging**: Returns attributes showing the version transition
@@ -530,6 +546,8 @@ the expected name (`"rollup-bsn/finality"`).
 **Version Management:**
 - **Contract Name**: `"rollup-bsn/finality"` (constant)
 - **Contract Version**: Uses `CARGO_PKG_VERSION` from the package manifest
+- **Legacy Version**: `"pre-cw2"` (constant used for contracts deployed before
+  version tracking)
 - **Storage**: Version information is stored using the `cw2` library
 
 **Security Considerations:**
