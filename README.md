@@ -86,7 +86,7 @@ cargo run-script optimize
 3. **Register BSN**: Register with Babylon's consumer registry
 4. **Go Live**: Start accepting finality signatures from Finality Providers
 
-See our [Contract Management Guide](docs/contract-managment.md) for detailed
+See our [Contract Management Guide](docs/contract-management.md) for detailed
 deployment instructions.
 
 ## Development Commands
