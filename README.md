@@ -33,6 +33,9 @@ and ensuring finality providers remain honest through economic incentives.
 > use an already built off-chain service or build your own. We have a
 > proof-of-concept available at
 > [rollup-finality-gadget](https://github.com/babylonlabs-io/rollup-finality-gadget).
+>
+> **Learn More:** To understand how finality providers work and how to become one,
+> visit the [finality-provider repository](https://github.com/babylonlabs-io/finality-provider).
 
 ### Security Through Cryptography
 
