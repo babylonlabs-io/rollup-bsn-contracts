@@ -2,13 +2,11 @@
 
 ## Table of Contents
 
-1. [Introduction](#introduction)
-2. [Reward Bridging Strategy](#1-reward-bridging-strategy)
-3. [Reward Distribution Process](#2-reward-distribution-process)
-4. [Message Structure](#3-message-structure)
-5. [Distribution Calculation](#4-distribution-calculation)
+1. [Introduction](#1-introduction)
+2. [Reward Distribution Process](#2-reward-distribution-process)
+3. [Message Structure](#3-message-structure)
 
-## Introduction
+## 1. Introduction
 
 Rollup BSNs must bridge rewards to the Babylon Genesis chain, where they are
 distributed to finality providers, their delegators, and protocol revenue.
@@ -34,7 +32,7 @@ protocol revenue.
 
 > **Important**: The only requirement is that tokens must be present in a specific account within the `x/bank` module on Babylon Genesis before distribution can occur.
 
-## 1. Reward Distribution Process
+## 2. Reward Distribution Process
 
 > **Note**: The reward interval is the time period between reward distributions.
 > This interval is not predefined by the protocol, each BSN is responsible for
