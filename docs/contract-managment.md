@@ -377,6 +377,7 @@ babylond tx btcstkconsumer register-consumer \
   "$CONSUMER_ID" \
   "$CONSUMER_NAME" \
   "$CONSUMER_DESCRIPTION" \
+  "$BABYLON_REWARDS_COMMISSION" \
   "$ROLLUP_FINALITY_CONTRACT_ADDRESS"
 ```
 
@@ -386,6 +387,8 @@ Required metadata for BSN registration:
 * `consumer_name`: Human-readable name of your rollup BSN (e.g., `"DeFi Rollup 
 Chain"`)
 * `consumer_description`: Brief description of the rollup BSN's purpose
+* `babylon_rewards_commission`: Commission rate for Babylon Genesis protocol
+  revenue (between 0 and 1, e.g., `"0.05"` for 5%)
 * `rollup_finality_contract_address`: Babylon Genesis address of the deployed 
 Rollup BSN contract (`bbn1...` format)
 
