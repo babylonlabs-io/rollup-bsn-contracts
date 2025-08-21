@@ -37,6 +37,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## Unreleased
 
+### Improvements
+
+* [#120](https://github.com/babylonlabs-io/rollup-bsn-contracts/pull/120) docs:
+  add reward mechanism
+
 ## v1.0.0-rc.1
 
 ### Improvements
